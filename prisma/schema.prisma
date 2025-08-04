@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  COORDINATOR
+  GURUJI
+  ADMIN
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueueStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RemedyType {
+  HOMEOPATHIC
+  AYURVEDIC
+  SPIRITUAL
+  LIFESTYLE
+  DIETARY
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             Role      @default(USER)
+  phone            String?   @unique
+  dateOfBirth      DateTime?
+  address          String?
+  emergencyContact String?
+  preferences      Json?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  patientAppointments  Appointment[]         @relation("PatientAppointments")
+  gurujiAppointments   Appointment[]         @relation("GurujiAppointments")
+  patientQueueEntries  QueueEntry[]          @relation("PatientQueueEntries")
+  gurujiQueueEntries   QueueEntry[]          @relation("GurujiQueueEntries")
+  consultationSessions ConsultationSession[] @relation("PatientSessions")
+  gurujiSessions       ConsultationSession[] @relation("GurujiSessions")
+  remedyDocuments      RemedyDocument[]
+  notifications        Notification[]
+  elderlyFamilyContacts FamilyContact[]       @relation("ElderlyUser")
+  familyContactFor     FamilyContact[]       @relation("FamilyContact")
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  userId           String
+  gurujiId         String?
+  date             DateTime
+  startTime        DateTime
+  endTime          DateTime
+  status           AppointmentStatus @default(BOOKED)
+  priority         Priority          @default(NORMAL)
+  reason           String?
+  notes            String?
+  isRecurring      Boolean           @default(false)
+  recurringPattern Json?
+  qrCode           String?           @unique
+  checkedInAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user                User                 @relation("PatientAppointments", fields: [userId], references: [id])
+  guruji              User?                @relation("GurujiAppointments", fields: [gurujiId], references: [id])
+  queueEntry          QueueEntry?
+  consultationSession ConsultationSession?
+
+  @@map("appointments")
+}
+
+model QueueEntry {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  userId        String
+  gurujiId      String?
+  position      Int
+  status        QueueStatus @default(WAITING)
+  priority      Priority    @default(NORMAL)
+  estimatedWait Int? // in minutes
+  checkedInAt   DateTime
+  startedAt     DateTime?
+  completedAt   DateTime?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  user        User        @relation("PatientQueueEntries", fields: [userId], references: [id])
+  guruji      User?       @relation("GurujiQueueEntries", fields: [gurujiId], references: [id])
+
+  @@map("queue_entries")
+}
+
+model ConsultationSession {
+  id            String    @id @default(cuid())
+  appointmentId String    @unique
+  patientId     String
+  gurujiId      String
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  duration      Int? // in minutes
+  symptoms      String?
+  diagnosis     String?
+  notes         String?
+  recordings    Json? // URLs to audio/video recordings
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  appointment Appointment      @relation(fields: [appointmentId], references: [id])
+  patient     User             @relation("PatientSessions", fields: [patientId], references: [id])
+  guruji      User             @relation("GurujiSessions", fields: [gurujiId], references: [id])
+  remedies    RemedyDocument[]
+
+  @@map("consultation_sessions")
+}
+
+model RemedyTemplate {
+  id           String     @id @default(cuid())
+  name         String
+  type         RemedyType
+  category     String
+  description  String?
+  instructions String
+  dosage       String?
+  duration     String?
+  language     String     @default("en")
+  isActive     Boolean    @default(true)
+  tags         String[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  remedyDocuments RemedyDocument[]
+
+  @@map("remedy_templates")
+}
+
+model RemedyDocument {
+  id                    String    @id @default(cuid())
+  consultationSessionId String
+  templateId            String
+  userId                String
+  customInstructions    String?
+  customDosage          String?
+  customDuration        String?
+  pdfUrl                String?
+  emailSent             Boolean   @default(false)
+  smsSent               Boolean   @default(false)
+  deliveredAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  consultationSession ConsultationSession @relation(fields: [consultationSessionId], references: [id])
+  template            RemedyTemplate      @relation(fields: [templateId], references: [id])
+  user                User                @relation(fields: [userId], references: [id])
+
+  @@map("remedy_documents")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String // 'appointment', 'queue', 'remedy', 'system'
+  data      Json?
+  read      Boolean  @default(false)
+  emailSent Boolean  @default(false)
+  smsSent   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  type        String // 'string', 'number', 'boolean', 'json'
+  category    String?
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model FamilyContact {
+  id                   String   @id @default(cuid())
+  elderlyUserId        String
+  familyContactId      String
+  relationship         String   // "son", "daughter", "caregiver", etc.
+  canBookAppointments  Boolean  @default(true)
+  canViewRemedies      Boolean  @default(true)
+  canReceiveUpdates    Boolean  @default(true)
+  isActive             Boolean  @default(true)
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  elderlyUser   User @relation("ElderlyUser", fields: [elderlyUserId], references: [id])
+  familyContact User @relation("FamilyContact", fields: [familyContactId], references: [id])
+
+  @@unique([elderlyUserId, familyContactId])
+  @@map("family_contacts")
+}

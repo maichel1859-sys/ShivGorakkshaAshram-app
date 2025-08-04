@@ -1,102 +1,265 @@
-import Image from "next/image";
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Calendar,
+  Clock,
+  Heart,
+  Users,
+  Shield,
+  Smartphone,
+} from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import Link from "next/link";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    if (status === "loading") return; // Still loading
+
+    if (session?.user) {
+      // Redirect authenticated users to their respective dashboards
+      switch (session.user.role) {
+        case "ADMIN":
+          router.push("/admin");
+          break;
+        case "COORDINATOR":
+          router.push("/coordinator");
+          break;
+        case "GURUJI":
+          router.push("/guruji");
+          break;
+        default:
+          router.push("/user");
+      }
+    }
+  }, [session, status, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
+      {/* Header */}
+      <header className="container mx-auto px-4 py-6">
+        <nav className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Heart className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Ashram Management System
+            </h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <Link href="/signin">
+              <Button variant="outline">Sign In</Button>
+            </Link>
+            <Link href="/signup">
+              <Button>Get Started</Button>
+            </Link>
+          </div>
+        </nav>
+      </header>
+
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-16 text-center">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
+            Spiritual Wellness Made Simple
+          </h2>
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+            Complete management system for ashram appointments, consultations,
+            and remedy delivery. Connect with spiritual guidance seamlessly
+            through our modern platform.
+          </p>
+          <div className="space-x-4">
+            <Link href="/signup">
+              <Button size="lg" className="px-8 py-3">
+                Book Your First Appointment
+              </Button>
+            </Link>
+            <Link href="/signin">
+              <Button variant="outline" size="lg" className="px-8 py-3">
+                Sign In to Your Account
+              </Button>
+            </Link>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </section>
+
+      {/* Features Section */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            Everything You Need for Spiritual Care
+          </h3>
+          <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Our comprehensive platform brings together appointment booking,
+            queue management, consultations, and remedy delivery in one seamless
+            experience.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <Calendar className="h-12 w-12 text-primary mb-4" />
+              <CardTitle>Easy Appointment Booking</CardTitle>
+              <CardDescription>
+                Schedule your consultations with preferred Gurujis at your
+                convenience.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <li>• Real-time availability</li>
+                <li>• Recurring appointments</li>
+                <li>• Instant confirmations</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <Smartphone className="h-12 w-12 text-primary mb-4" />
+              <CardTitle>QR Code Check-in</CardTitle>
+              <CardDescription>
+                Quick and contactless check-in process with QR code scanning.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <li>• Contactless check-in</li>
+                <li>• Instant queue updates</li>
+                <li>• Mobile-friendly</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <Clock className="h-12 w-12 text-primary mb-4" />
+              <CardTitle>Real-time Queue Management</CardTitle>
+              <CardDescription>
+                Stay informed about your position and estimated wait times.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <li>• Live queue updates</li>
+                <li>• Wait time estimates</li>
+                <li>• SMS & email alerts</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <Users className="h-12 w-12 text-primary mb-4" />
+              <CardTitle>Consultation Interface</CardTitle>
+              <CardDescription>
+                Dedicated tools for Gurujis to manage consultations efficiently.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <li>• Patient history access</li>
+                <li>• Digital note taking</li>
+                <li>• Remedy prescription</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <Heart className="h-12 w-12 text-primary mb-4" />
+              <CardTitle>Digital Remedy Delivery</CardTitle>
+              <CardDescription>
+                Receive personalized remedies and instructions digitally.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <li>• PDF remedy documents</li>
+                <li>• Multi-language support</li>
+                <li>• Email & SMS delivery</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <Shield className="h-12 w-12 text-primary mb-4" />
+              <CardTitle>Role-based Access</CardTitle>
+              <CardDescription>
+                Secure system with appropriate access levels for all users.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                <li>• User, Coordinator, Guruji, Admin roles</li>
+                <li>• Secure authentication</li>
+                <li>• Data privacy protection</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="bg-primary text-primary-foreground rounded-2xl p-12 text-center">
+          <h3 className="text-3xl font-bold mb-4">
+            Ready to Begin Your Spiritual Journey?
+          </h3>
+          <p className="text-xl mb-8 opacity-90">
+            Join thousands who have found peace and guidance through our
+            platform.
+          </p>
+          <div className="space-x-4">
+            <Link href="/signup">
+              <Button size="lg" variant="secondary" className="px-8 py-3">
+                Create Account
+              </Button>
+            </Link>
+            <Link href="/signin">
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-8 py-3 border-white text-white hover:bg-white hover:text-primary"
+              >
+                Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="container mx-auto px-4 py-8 border-t">
+        <div className="text-center text-gray-600 dark:text-gray-300">
+          <p>
+            &copy; 2024 Ashram Management System. Built with ❤️ for spiritual
+            wellness.
+          </p>
+        </div>
       </footer>
     </div>
   );
