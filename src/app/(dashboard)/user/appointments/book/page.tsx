@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,33 +50,13 @@ const appointmentSchema = z.object({
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
-// Mock data - in real app, fetch from API
-const gurujis = [
-  {
-    id: "1",
-    name: "Guruji Ravi Kumar",
-    specialization: "Meditation & Spiritual Guidance",
-    available: true,
-  },
-  {
-    id: "2",
-    name: "Guruji Priya Sharma",
-    specialization: "Ayurvedic Healing",
-    available: true,
-  },
-  {
-    id: "3",
-    name: "Guruji Anand Singh",
-    specialization: "Yoga Therapy",
-    available: false,
-  },
-  {
-    id: "4",
-    name: "Guruji Meera Devi",
-    specialization: "Chakra Balancing",
-    available: true,
-  },
-];
+// Guruji data will be fetched from API
+interface GurujiData {
+  id: string;
+  name: string;
+  specialization?: string;
+  isActive: boolean;
+}
 
 const timeSlots = [
   "09:00",
@@ -99,6 +79,8 @@ const timeSlots = [
 export default function BookAppointmentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [gurujis, setGurujis] = useState<GurujiData[]>([]);
+  const [loadingGurujis, setLoadingGurujis] = useState(true);
   const router = useRouter();
 
   const {
@@ -117,13 +99,32 @@ export default function BookAppointmentPage() {
 
   const isRecurring = watch("isRecurring");
 
+  // Fetch Gurujis on component mount
+  useEffect(() => {
+    const fetchGurujis = async () => {
+      try {
+        setLoadingGurujis(true);
+        const response = await fetch('/api/users?role=GURUJI&active=true');
+        if (!response.ok) {
+          throw new Error('Failed to fetch Gurujis');
+        }
+        const data = await response.json();
+        setGurujis(data.users || []);
+      } catch (error) {
+        console.error('Error fetching Gurujis:', error);
+        toast.error('Failed to load Gurujis. Please refresh the page.');
+      } finally {
+        setLoadingGurujis(false);
+      }
+    };
+
+    fetchGurujis();
+  }, []);
+
   const onSubmit = async (data: AppointmentFormData) => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
       const response = await fetch("/api/appointments", {
         method: "POST",
         headers: {
@@ -176,28 +177,28 @@ export default function BookAppointmentPage() {
               {/* Guruji Selection */}
               <div className="space-y-2">
                 <Label htmlFor="guruji">Select Guruji</Label>
-                <Select onValueChange={(value) => setValue("gurujiId", value)}>
+                <Select onValueChange={(value) => setValue("gurujiId", value)} disabled={loadingGurujis}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose your preferred Guruji" />
+                    <SelectValue placeholder={loadingGurujis ? "Loading Gurujis..." : "Choose your preferred Guruji"} />
                   </SelectTrigger>
                   <SelectContent>
                     {gurujis.map((guruji) => (
                       <SelectItem
                         key={guruji.id}
                         value={guruji.id}
-                        disabled={!guruji.available}
+                        disabled={!guruji.isActive}
                       >
                         <div className="flex flex-col">
                           <span
                             className={
-                              !guruji.available ? "text-muted-foreground" : ""
+                              !guruji.isActive ? "text-muted-foreground" : ""
                             }
                           >
                             {guruji.name}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {guruji.specialization}
-                            {!guruji.available && " - Currently unavailable"}
+                            {guruji.specialization || 'Spiritual Guidance'}
+                            {!guruji.isActive && " - Currently unavailable"}
                           </span>
                         </div>
                       </SelectItem>

@@ -41,33 +41,53 @@ export function QRScanner({
 
     if (!context) return;
 
+    let scanningActive = true;
+    let mockScanTimer: NodeJS.Timeout | null = null;
+
     const scan = () => {
+      if (!scanningActive || !isScanning) return;
+
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Simple QR detection simulation (in real app, use a QR library like jsQR)
-        // For demo purposes, we'll simulate successful scan after 3 seconds
-        setTimeout(() => {
-          if (isScanning) {
-            const mockQRData = JSON.stringify({
-              appointmentId: "mock-appointment-id",
-              userId: "mock-user-id",
-              timestamp: Date.now(),
-            });
-            onScan(mockQRData);
-            setIsScanning(false);
-          }
-        }, 3000);
+        // For demo purposes only - simulate QR detection after 3 seconds
+        if (!mockScanTimer) {
+          mockScanTimer = setTimeout(() => {
+            if (scanningActive && isScanning) {
+              const mockQRData = JSON.stringify({
+                appointmentId: "mock-appointment-id",
+                userId: "mock-user-id",
+                timestamp: Date.now(),
+                type: 'checkin'
+              });
+              onScan(mockQRData);
+              setIsScanning(false);
+              scanningActive = false;
+            }
+          }, 3000);
+        }
       }
 
-      if (isScanning) {
+      if (scanningActive && isScanning) {
         requestAnimationFrame(scan);
       }
     };
 
+    // Cleanup function
+    const cleanup = () => {
+      scanningActive = false;
+      if (mockScanTimer) {
+        clearTimeout(mockScanTimer);
+        mockScanTimer = null;
+      }
+    };
+
     scan();
+
+    // Return cleanup function
+    return cleanup;
   }, [isScanning, onScan]);
 
   const startCamera = useCallback(async () => {
@@ -91,8 +111,14 @@ export function QRScanner({
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play();
 
-        // Start scanning
-        videoRef.current.addEventListener("loadedmetadata", startScanning);
+        // Start scanning when video is ready
+        videoRef.current.addEventListener("loadedmetadata", () => {
+          const cleanup = startScanning();
+          // Store cleanup function for later use
+          if (videoRef.current) {
+            (videoRef.current as HTMLVideoElement & { _scanCleanup?: () => void })._scanCleanup = cleanup;
+          }
+        });
       }
     } catch (error) {
       console.error("Camera access error:", error);
@@ -107,6 +133,13 @@ export function QRScanner({
   }, [facingMode, onError, startScanning]);
 
   const stopCamera = useCallback(() => {
+    // Cleanup scanning function
+    const videoElement = videoRef.current as HTMLVideoElement & { _scanCleanup?: () => void };
+    if (videoElement && videoElement._scanCleanup) {
+      videoElement._scanCleanup();
+      videoElement._scanCleanup = undefined;
+    }
+    
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
@@ -115,7 +148,7 @@ export function QRScanner({
   }, [stream]);
 
   useEffect(() => {
-    if (isActive) {
+    if (isActive && hasPermission !== false) {
       startCamera();
     } else {
       stopCamera();
@@ -124,7 +157,7 @@ export function QRScanner({
     return () => {
       stopCamera();
     };
-  }, [isActive, startCamera, stopCamera]);
+  }, [isActive, hasPermission, startCamera, stopCamera]);
 
   const toggleCamera = () => {
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
@@ -215,11 +248,31 @@ export function QRScanner({
 
         {/* Controls */}
         <div className="flex space-x-2">
+          {!isScanning ? (
+            <Button
+              size="sm"
+              onClick={startCamera}
+              disabled={hasPermission === false}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Start Camera
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={stopCamera}
+            >
+              <CameraOff className="mr-2 h-4 w-4" />
+              Stop Camera
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
             onClick={toggleCamera}
-            disabled={!hasPermission}
+            disabled={!hasPermission || !isScanning}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Flip Camera
@@ -229,7 +282,7 @@ export function QRScanner({
             variant="outline"
             size="sm"
             onClick={restartScanning}
-            disabled={!hasPermission}
+            disabled={!hasPermission || !isScanning}
           >
             <Zap className="mr-2 h-4 w-4" />
             Restart

@@ -183,8 +183,6 @@ export default function APIDocsPage() {
                 defaultModelsExpandDepth={2}
                 defaultModelExpandDepth={2}
                 filter={true}
-                showRequestHeaders={true}
-                showCommonExtensions={true}
                 tryItOutEnabled={true}
               />
             </div>

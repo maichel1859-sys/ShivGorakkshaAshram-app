@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,48 +30,33 @@ import toast from "react-hot-toast";
 
 // Validation schema
 const appointmentSchema = z.object({
-  gurujiId: z.string().min(1, "Please select a Guruji"),
   date: z.string().min(1, "Please select a date"),
-  timeSlot: z.string().min(1, "Please select a time slot"),
+  time: z.string().min(1, "Please select a time"),
   reason: z.string().min(10, "Reason must be at least 10 characters"),
   priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]),
   notes: z.string().optional(),
-  isRecurring: z.boolean().default(false),
-  recurringPattern: z.string().optional(),
 });
 
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
-interface Guruji {
-  id: string;
-  name: string;
-  specialization: string;
-  availableSlots: string[];
-}
-
-interface TimeSlot {
-  id: string;
-  time: string;
-  available: boolean;
-  gurujiId: string;
-}
-
 interface AppointmentFormProps {
-  gurujis: Guruji[];
-  timeSlots: TimeSlot[];
   onSubmit: (data: AppointmentFormData) => Promise<void>;
   isLoading?: boolean;
 }
 
+// Available time slots for appointments
+const TIME_SLOTS = [
+  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+  "12:00", "12:30", "14:00", "14:30", "15:00", "15:30",
+  "16:00", "16:30", "17:00", "17:30"
+];
+
 export function AppointmentForm({
-  gurujis,
-  timeSlots,
   onSubmit,
   isLoading = false,
 }: AppointmentFormProps) {
-  const [selectedGuruji, setSelectedGuruji] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [isRecurring, setIsRecurring] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
   const {
     register,
@@ -84,41 +69,51 @@ export function AppointmentForm({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
       priority: "NORMAL",
-      isRecurring: false,
     },
   });
 
-  const watchedGuruji = watch("gurujiId");
   const watchedDate = watch("date");
+  const watchedTime = watch("time");
 
-  // Filter time slots based on selected guruji and date
-  const availableTimeSlots = timeSlots.filter(
-    (slot) => slot.gurujiId === watchedGuruji && slot.available
-  );
+  // Fetch booked slots for selected date
+  useEffect(() => {
+    if (selectedDate) {
+      fetchBookedSlots(selectedDate);
+    }
+  }, [selectedDate]);
+
+  const fetchBookedSlots = async (date: string) => {
+    try {
+      const response = await fetch(`/api/appointments/availability?date=${date}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBookedSlots(data.bookedSlots || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch booked slots:', error);
+    }
+  };
+
+  // Filter available time slots
+  const availableTimeSlots = TIME_SLOTS.filter(slot => !bookedSlots.includes(slot));
 
   const handleFormSubmit = async (data: AppointmentFormData) => {
     try {
       await onSubmit(data);
       toast.success("Appointment booked successfully!");
       reset();
-      setSelectedGuruji("");
       setSelectedDate("");
-      setIsRecurring(false);
-    } catch {
+      setBookedSlots([]);
+    } catch (error) {
+      console.error('Appointment booking error:', error);
       toast.error("Failed to book appointment. Please try again.");
     }
-  };
-
-  const handleGurujiChange = (gurujiId: string) => {
-    setSelectedGuruji(gurujiId);
-    setValue("gurujiId", gurujiId);
-    setValue("timeSlot", ""); // Reset time slot when guruji changes
   };
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setValue("date", date);
-    setValue("timeSlot", ""); // Reset time slot when date changes
+    setValue("time", ""); // Reset time slot when date changes
   };
 
   return (
@@ -131,43 +126,25 @@ export function AppointmentForm({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Book Appointment
+            Book Appointment with Shivgoraksha Guruji
           </CardTitle>
           <CardDescription>
-            Select your preferred Guruji, date, and time for your consultation
+            Select your preferred date and time for your spiritual consultation
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-            {/* Guruji Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="gurujiId">Select Guruji</Label>
-              <Select value={selectedGuruji} onValueChange={handleGurujiChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a Guruji" />
-                </SelectTrigger>
-                <SelectContent>
-                  {gurujis.map((guruji) => (
-                    <SelectItem key={guruji.id} value={guruji.id}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        <div>
-                          <div className="font-medium">{guruji.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {guruji.specialization}
-                          </div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.gurujiId && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{errors.gurujiId.message}</AlertDescription>
-                </Alert>
-              )}
+            {/* Guruji Info */}
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold">Shivgoraksha Guruji</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Spiritual Guide and Healer
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Date Selection */}
@@ -189,36 +166,41 @@ export function AppointmentForm({
             </div>
 
             {/* Time Slot Selection */}
-            {watchedGuruji && watchedDate && (
+            {watchedDate && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 transition={{ duration: 0.3 }}
                 className="space-y-2"
               >
-                <Label htmlFor="timeSlot">Select Time Slot</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {availableTimeSlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      type="button"
-                      variant={
-                        watch("timeSlot") === slot.id ? "default" : "outline"
-                      }
-                      onClick={() => setValue("timeSlot", slot.id)}
-                      className="h-12"
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      {slot.time}
-                    </Button>
-                  ))}
-                </div>
-                {errors.timeSlot && (
-                  <Alert variant="destructive">
+                <Label htmlFor="time">Select Time Slot</Label>
+                {availableTimeSlots.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {availableTimeSlots.map((slot) => (
+                      <Button
+                        key={slot}
+                        type="button"
+                        variant={watchedTime === slot ? "default" : "outline"}
+                        onClick={() => setValue("time", slot)}
+                        className="h-12"
+                      >
+                        <Clock className="h-4 w-4 mr-2" />
+                        {slot}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      {errors.timeSlot.message}
+                      No available time slots for this date. Please select another date.
                     </AlertDescription>
+                  </Alert>
+                )}
+                {errors.time && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{errors.time.message}</AlertDescription>
                   </Alert>
                 )}
               </motion.div>
@@ -294,44 +276,6 @@ export function AppointmentForm({
               />
             </div>
 
-            {/* Recurring Appointment */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isRecurring"
-                {...register("isRecurring")}
-                checked={isRecurring}
-                onChange={(e) => setIsRecurring(e.target.checked)}
-                className="rounded"
-              />
-              <Label htmlFor="isRecurring">
-                Make this a recurring appointment
-              </Label>
-            </div>
-
-            {isRecurring && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                transition={{ duration: 0.3 }}
-                className="space-y-2"
-              >
-                <Label htmlFor="recurringPattern">Recurring Pattern</Label>
-                <Select
-                  value={watch("recurringPattern")}
-                  onValueChange={(value) => setValue("recurringPattern", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pattern" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="biweekly">Bi-weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </motion.div>
-            )}
 
             {/* Submit Button */}
             <Button

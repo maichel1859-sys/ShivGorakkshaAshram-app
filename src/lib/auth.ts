@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { Role } from "@prisma/client"
@@ -9,6 +10,19 @@ import { authRateLimiter, loginBackoffLimiter } from "@/lib/rate-limit"
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+          role: 'USER' as Role, // Default role for Google sign-in users
+        }
+      },
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {

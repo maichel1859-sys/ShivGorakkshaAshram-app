@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { AppointmentStatus, QueueStatus } from "@prisma/client";
+import { createErrorResponse, createSuccessResponse } from "@/lib/error-handler";
+import { cacheInvalidation } from "@/lib/cache";
 
 const manualCheckInSchema = z.object({
   appointmentCode: z.string().min(1, "Appointment code is required"),
@@ -20,8 +22,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      console.error("JSON parsing error:", error);
+      return NextResponse.json(
+        { message: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { message: "Request body must be a valid JSON object" },
+        { status: 400 }
+      );
+    }
+
     const validatedData = manualCheckInSchema.parse(body);
+
+    // Rate limiting - prevent multiple check-in attempts
+    const recentAttempt = await prisma.auditLog.findFirst({
+      where: {
+        userId: session.user.id,
+        action: "MANUAL_CHECK_IN",
+        createdAt: {
+          gte: new Date(Date.now() - 30000), // 30 seconds
+        },
+      },
+    });
+
+    if (recentAttempt) {
+      return createErrorResponse("Please wait before attempting another check-in", 429);
+    }
 
     // Find appointment by reference code (for demo, using appointment ID)
     // In real implementation, you'd have a separate reference code field
@@ -56,10 +90,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!appointment) {
-      return NextResponse.json(
-        { message: "Invalid appointment code or appointment not found" },
-        { status: 400 }
-      );
+      return createErrorResponse("Invalid appointment code or appointment not found", 404);
     }
 
     // Check if appointment is for today (within reasonable time range)
@@ -69,18 +100,12 @@ export async function POST(req: NextRequest) {
     const hoursDiff = timeDiff / (1000 * 60 * 60);
 
     if (hoursDiff > 24) {
-      return NextResponse.json(
-        { message: "Check-in is only available on the day of appointment" },
-        { status: 400 }
-      );
+      return createErrorResponse("Check-in is only available on the day of appointment", 400);
     }
 
     // Check if already checked in
     if (appointment.status === ("CHECKED_IN" as AppointmentStatus)) {
-      return NextResponse.json(
-        { message: "Already checked in for this appointment" },
-        { status: 400 }
-      );
+      return createErrorResponse("Already checked in for this appointment", 400);
     }
 
     // Update appointment status
@@ -177,28 +202,26 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      message: "Manual check-in successful",
+    // Invalidate caches
+    cacheInvalidation.invalidateAppointments();
+    cacheInvalidation.invalidateQueue();
+    cacheInvalidation.invalidateUser(session.user.id);
+
+    return createSuccessResponse({
       appointment: updatedAppointment,
       queueEntry: {
         position: queueEntry.position,
         estimatedWait: queueEntry.estimatedWait,
         status: queueEntry.status,
       },
-    });
+    }, "Manual check-in successful", 200);
   } catch (error) {
     console.error("Manual check-in error:", error);
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: "Validation error", errors: error.errors },
-        { status: 400 }
-      );
+      return createErrorResponse("Validation error", 400);
     }
 
-    return NextResponse.json(
-      { message: "Internal server error" },
-      { status: 500 }
-    );
+    return createErrorResponse("Internal server error", 500);
   }
 }

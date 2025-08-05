@@ -39,72 +39,84 @@ async function setupShivgorakshaAshram() {
       {
         key: 'ASHRAM_NAME',
         value: 'Shivgoraksha Ashram',
+        type: 'string',
         description: 'Name of the Ashram',
         isPublic: true,
       },
       {
         key: 'GURUJI_NAME',
         value: 'Shivgoraksha Guruji',
+        type: 'string',
         description: 'Name of the main Guruji',
         isPublic: true,
       },
       {
         key: 'DEFAULT_GURUJI_ID',
         value: guruji.id,
+        type: 'string',
         description: 'ID of the default/only Guruji',
         isPublic: false,
       },
       {
         key: 'APPOINTMENT_DURATION',
         value: '30',
+        type: 'number',
         description: 'Default appointment duration in minutes',
         isPublic: false,
       },
       {
         key: 'BUSINESS_HOURS_START',
         value: '09:00',
+        type: 'string',
         description: 'Business hours start time',
         isPublic: true,
       },
       {
         key: 'BUSINESS_HOURS_END',
         value: '18:00',
+        type: 'string',
         description: 'Business hours end time',
         isPublic: true,
       },
       {
         key: 'WORKING_DAYS',
         value: 'MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY',
+        type: 'string',
         description: 'Working days of the week',
         isPublic: true,
       },
       {
         key: 'MAX_APPOINTMENTS_PER_DAY',
         value: '20',
+        type: 'number',
         description: 'Maximum appointments per day',
         isPublic: false,
       },
       {
         key: 'ADVANCE_BOOKING_DAYS',
         value: '30',
+        type: 'number',
         description: 'Maximum days in advance for booking',
         isPublic: true,
       },
       {
         key: 'ASHRAM_CONTACT_EMAIL',
         value: 'contact@shivgoraksha.ashram',
+        type: 'string',
         description: 'Contact email for the ashram',
         isPublic: true,
       },
       {
         key: 'ASHRAM_CONTACT_PHONE',
         value: '+91-9999999999',
+        type: 'string',
         description: 'Contact phone for the ashram',
         isPublic: true,
       },
       {
         key: 'ASHRAM_ADDRESS',
         value: 'Shivgoraksha Ashram, Sacred Grounds, Spiritual City',
+        type: 'string',
         description: 'Physical address of the ashram',
         isPublic: true,
       },
@@ -143,53 +155,7 @@ async function setupShivgorakshaAshram() {
       console.log('   Password: AdminPassword@123');
     }
 
-    // Create sample remedy templates
-    const sampleRemedies = [
-      {
-        name: 'Morning Meditation Practice',
-        type: 'SPIRITUAL',
-        category: 'Meditation',
-        description: 'Daily morning meditation practice for inner peace',
-        instructions: '1. Sit in a quiet place facing east\n2. Focus on your breathing for 20 minutes\n3. Chant "Om Namah Shivaya" 108 times\n4. End with gratitude prayer',
-        dosage: 'Once daily in the morning',
-        duration: '21 days minimum',
-        language: 'en',
-        tags: ['meditation', 'morning', 'peace', 'spiritual'],
-        isActive: true,
-      },
-      {
-        name: 'Tulsi Water Remedy',
-        type: 'AYURVEDIC',
-        category: 'Herbal Medicine',
-        description: 'Sacred Tulsi water for purification and health',
-        instructions: '1. Boil 1 liter of water with 10-15 fresh Tulsi leaves\n2. Let it cool to room temperature\n3. Drink 1 glass early morning on empty stomach\n4. Offer prayers to Tulsi before consuming',
-        dosage: '1 glass daily on empty stomach',
-        duration: '40 days',
-        language: 'en',
-        tags: ['tulsi', 'purification', 'health', 'ayurvedic'],
-        isActive: true,
-      },
-      {
-        name: 'Shiva Mantra Healing',
-        type: 'SPIRITUAL',
-        category: 'Mantra Therapy',
-        description: 'Powerful Shiva mantras for healing and protection',
-        instructions: '1. Sit facing a Shiva lingam or picture\n2. Light a diya with ghee\n3. Chant "Om Namah Shivaya" 1008 times\n4. Follow with "Mahamrityunjaya Mantra" 108 times\n5. Offer flowers and prasad',
-        dosage: 'Twice daily - morning and evening',
-        duration: 'As guided by Guruji',
-        language: 'en',
-        tags: ['shiva', 'mantra', 'healing', 'protection'],
-        isActive: true,
-      },
-    ];
-
-    for (const remedy of sampleRemedies) {
-      await prisma.remedyTemplate.upsert({
-        where: { name: remedy.name },
-        update: remedy,
-        create: remedy,
-      });
-    }
+    console.log('📋 Remedy templates will be created by Guruji as needed');
 
     // Create audit log for setup
     await prisma.auditLog.create({
@@ -223,10 +189,9 @@ async function setupShivgorakshaAshram() {
     console.log('   Working Days: Monday to Saturday');
     console.log('   Max Appointments/Day: 20');
     console.log('');
-    console.log('📚 Sample Remedies Created:');
-    console.log('   - Morning Meditation Practice');
-    console.log('   - Tulsi Water Remedy');
-    console.log('   - Shiva Mantra Healing');
+    console.log('📚 Remedy System:');
+    console.log('   - Ready for Guruji to create remedy templates');
+    console.log('   - System supports all remedy types (SPIRITUAL, AYURVEDIC, etc.)');
     console.log('');
     console.log('⚠️  IMPORTANT: Please change default passwords after first login!');
 

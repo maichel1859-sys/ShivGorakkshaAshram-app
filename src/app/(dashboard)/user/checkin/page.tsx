@@ -333,6 +333,11 @@ export default function CheckInPage() {
               onError={(error) => toast.error(error)}
               isActive={activeTab === "qr" && !isLoading}
             />
+            
+            <div className="text-center text-sm text-muted-foreground">
+              <p>📱 Position your QR code within the camera frame</p>
+              <p>✨ The scanner will automatically detect valid QR codes</p>
+            </div>
 
             {isLoading && (
               <Card className="border-blue-200 bg-blue-50">

@@ -43,54 +43,15 @@ export default function UserAppointmentsPage() {
 
   const fetchAppointments = async () => {
     try {
-      // Mock data for now
-      const mockAppointments: Appointment[] = [
-        {
-          id: "1",
-          date: "2024-01-25",
-          startTime: "10:00:00",
-          endTime: "11:00:00",
-          status: "BOOKED",
-          priority: "NORMAL",
-          reason: "General consultation",
-          guruji: {
-            name: "Dr. Sharma",
-            email: "sharma@ashram.com",
-          },
-          createdAt: "2024-01-20",
-        },
-        {
-          id: "2",
-          date: "2024-01-26",
-          startTime: "14:00:00",
-          endTime: "15:00:00",
-          status: "CHECKED_IN",
-          priority: "HIGH",
-          reason: "Follow-up consultation",
-          guruji: {
-            name: "Dr. Patel",
-            email: "patel@ashram.com",
-          },
-          checkedInAt: "2024-01-26T13:45:00Z",
-          createdAt: "2024-01-22",
-        },
-        {
-          id: "3",
-          date: "2024-01-24",
-          startTime: "09:00:00",
-          endTime: "10:00:00",
-          status: "COMPLETED",
-          priority: "NORMAL",
-          reason: "Initial consultation",
-          guruji: {
-            name: "Dr. Gupta",
-            email: "gupta@ashram.com",
-          },
-          createdAt: "2024-01-18",
-        },
-      ];
-
-      setAppointments(mockAppointments);
+      setIsLoading(true);
+      const response = await fetch('/api/appointments');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointments');
+      }
+      
+      const data = await response.json();
+      setAppointments(data.appointments || []);
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
       toast.error("Failed to load appointments");

@@ -192,8 +192,6 @@ export const cachedFunctions = {
           name: true,
           email: true,
           phone: true,
-          specialization: true,
-          availability: true,
         },
         orderBy: { createdAt: 'asc' },
       });
@@ -216,8 +214,6 @@ export const cachedFunctions = {
           name: true,
           email: true,
           phone: true,
-          specialization: true,
-          availability: true,
           address: true,
         },
       });
@@ -417,7 +413,7 @@ export const cacheInvalidation = {
 // Rate limiting using memory cache
 export const rateLimitCache = {
   // Check rate limit
-  check: (key: string, limit: number, windowSeconds: number): { allowed: boolean; remaining: number; resetTime: number } => {
+  check: (key: string, limit: number, windowSeconds: number): { allowed: boolean; remaining: number; resetTime: number; totalRequests: number } => {
     const now = Date.now();
     const windowStart = now - (windowSeconds * 1000);
     
@@ -431,7 +427,7 @@ export const rateLimitCache = {
     const remaining = Math.max(0, limit - recentRequests.length);
     const resetTime = Math.min(...recentRequests) + (windowSeconds * 1000);
     
-    return { allowed, remaining, resetTime };
+    return { allowed, remaining, resetTime, totalRequests: recentRequests.length };
   },
 
   // Increment rate limit
