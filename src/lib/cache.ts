@@ -22,7 +22,7 @@ export const CACHE_TIMES = {
 
 // In-memory cache for rate limiting and sessions (since we don't have Redis)
 class MemoryCache {
-  private cache = new Map<string, { value: any; expiry: number; tags?: string[] }>();
+  private cache = new Map<string, { value: unknown; expiry: number; tags?: string[] }>();
   private cleanupInterval: NodeJS.Timeout;
 
   constructor() {
@@ -32,12 +32,12 @@ class MemoryCache {
     }, 5 * 60 * 1000);
   }
 
-  set(key: string, value: any, ttlSeconds: number = 300, tags?: string[]): void {
+  set(key: string, value: unknown, ttlSeconds: number = 300, tags?: string[]): void {
     const expiry = Date.now() + (ttlSeconds * 1000);
     this.cache.set(key, { value, expiry, tags });
   }
 
-  get<T = any>(key: string): T | null {
+  get<T = unknown>(key: string): T | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
     
@@ -136,7 +136,7 @@ export const cachedFunctions = {
   // User-related caches
   getUser: cache(
     async (userId: string) => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       return prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -162,7 +162,7 @@ export const cachedFunctions = {
   // Get the primary/default Guruji (currently Shivgoraksha Guruji)
   getGuruji: cache(
     async () => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       return prisma.user.findFirst({
         where: { role: 'GURUJI', isActive: true },
         select: {
@@ -184,7 +184,7 @@ export const cachedFunctions = {
   // Get all active Gurujis (for future multi-Guruji support)
   getAllGurujis: cache(
     async () => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       return prisma.user.findMany({
         where: { role: 'GURUJI', isActive: true },
         select: {
@@ -206,7 +206,7 @@ export const cachedFunctions = {
   // Get specific Guruji by ID
   getGurujiById: cache(
     async (gurujiId: string) => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       return prisma.user.findUnique({
         where: { id: gurujiId, role: 'GURUJI', isActive: true },
         select: {
@@ -228,7 +228,7 @@ export const cachedFunctions = {
   // Appointment-related caches
   getUserAppointments: cache(
     async (userId: string, limit: number = 10) => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       return prisma.appointment.findMany({
         where: { userId },
         include: {
@@ -248,7 +248,7 @@ export const cachedFunctions = {
 
   getTodayAppointments: cache(
     async (gurujiId?: string) => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -276,7 +276,7 @@ export const cachedFunctions = {
   // Queue-related caches
   getQueueEntries: cache(
     async (gurujiId?: string) => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       return prisma.queueEntry.findMany({
         where: {
           status: { in: ['WAITING', 'IN_PROGRESS'] },
@@ -302,14 +302,14 @@ export const cachedFunctions = {
   // Dashboard data
   getDashboardStats: cache(
     async (userId: string, userRole: string) => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       const baseWhere = userRole === 'GURUJI' ? { gurujiId: userId } : 
-                       userRole === 'USER' ? { userId } : {};
+                       userRole === 'USER' ? { userId } : {} as Record<string, never>;
 
       const [
         totalAppointments,
@@ -356,7 +356,7 @@ export const cachedFunctions = {
   // Settings
   getSystemSettings: cache(
     async () => {
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       const settings = await prisma.systemSetting.findMany({
         where: { isPublic: true },
       });
@@ -450,11 +450,11 @@ export const rateLimitCache = {
 
 // Session cache (for temporary data)
 export const sessionCache = {
-  set: (sessionId: string, data: any, ttlSeconds: number = 1800) => {
+  set: (sessionId: string, data: unknown, ttlSeconds: number = 1800) => {
     memoryCache.set(`session:${sessionId}`, data, ttlSeconds, ['session']);
   },
 
-  get: <T = any>(sessionId: string): T | null => {
+  get: <T = unknown>(sessionId: string): T | null => {
     return memoryCache.get(`session:${sessionId}`);
   },
 
@@ -555,7 +555,7 @@ if (typeof process !== 'undefined') {
   });
 }
 
-export default {
+const cacheModule = {
   cachedFunctions,
   cacheInvalidation,
   rateLimitCache,
@@ -565,3 +565,5 @@ export default {
   cacheUtils,
   memoryCache,
 };
+
+export default cacheModule;

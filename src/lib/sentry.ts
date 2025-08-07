@@ -36,14 +36,14 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
       // Filter out privacy-sensitive information
       if (event.request?.data) {
         const data = event.request.data;
-        if (typeof data === 'object') {
-          // Remove sensitive fields
-          const filteredData = { ...data };
-          delete filteredData.password;
-          delete filteredData.otp;
-          delete filteredData.token;
-          event.request.data = filteredData;
+        // Filter out sensitive data
+        const filteredData = { ...data };
+        if (filteredData && typeof filteredData === 'object') {
+          delete (filteredData as Record<string, unknown>).password;
+          delete (filteredData as Record<string, unknown>).otp;
+          delete (filteredData as Record<string, unknown>).token;
         }
+        event.request.data = filteredData;
       }
       
       return event;
@@ -59,7 +59,7 @@ export const logError = (error: Error, context?: Record<string, unknown>) => {
     Sentry.withScope((scope) => {
       if (context) {
         Object.entries(context).forEach(([key, value]) => {
-          scope.setContext(key, value);
+          scope.setContext(key, value as Record<string, unknown>);
         });
       }
       Sentry.captureException(error);
@@ -74,7 +74,7 @@ export const logMessage = (message: string, level: 'info' | 'warning' | 'error' 
     Sentry.withScope((scope) => {
       if (context) {
         Object.entries(context).forEach(([key, value]) => {
-          scope.setContext(key, value);
+          scope.setContext(key, value as Record<string, unknown>);
         });
       }
       Sentry.captureMessage(message, level);
@@ -102,7 +102,10 @@ export const clearUserContext = () => {
 // Performance monitoring
 export const startTransaction = (name: string, op: string) => {
   if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    return Sentry.startTransaction({ name, op });
+    // Use modern Sentry API - startTransaction is deprecated
+    return Sentry.startSpan({ name, op }, (span) => {
+      return span;
+    });
   }
   return null;
 };

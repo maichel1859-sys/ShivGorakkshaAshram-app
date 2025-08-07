@@ -22,12 +22,14 @@ import {
   Clock,
   Check,
   Users,
+  Loader2,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import Link from "next/link";
+import { sendPhoneOTP, verifyPhoneOTP } from "@/lib/actions/auth-actions";
 
 const phoneLoginSchema = z.object({
   phone: z
@@ -85,21 +87,19 @@ export default function PhoneLoginPage() {
     try {
       const formattedPhone = formatPhoneNumber(data.phone);
 
-      const response = await fetch("/api/auth/phone/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: formattedPhone }),
-      });
+      // Convert to FormData for Server Action
+      const formData = new FormData();
+      formData.append("phone", formattedPhone);
 
-      const result = await response.json();
+      const result = await sendPhoneOTP(formData);
 
-      if (response.ok) {
+      if (result.success) {
         setPhoneNumber(formattedPhone);
         setStep("otp");
         startResendCountdown();
         toast.success("OTP sent successfully to your phone");
       } else {
-        throw new Error(result.message || "Failed to send OTP");
+        throw new Error(result.error || "Failed to send OTP");
       }
     } catch (error: unknown) {
       console.error("Phone login error:", error);
@@ -115,25 +115,21 @@ export default function PhoneLoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/phone/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: phoneNumber,
-          otp: data.otp,
-        }),
-      });
+      // Convert to FormData for Server Action
+      const formData = new FormData();
+      formData.append("phone", phoneNumber);
+      formData.append("otp", data.otp);
 
-      const result = await response.json();
+      const result = await verifyPhoneOTP(formData);
 
-      if (response.ok) {
+      if (result.success && result.user) {
         toast.success("Login successful!");
 
         // Redirect based on user role
         const redirectPath = getRedirectPath(result.user.role);
         router.push(redirectPath);
       } else {
-        throw new Error(result.message || "Invalid OTP");
+        throw new Error(result.error || "Invalid OTP");
       }
     } catch (error: unknown) {
       console.error("OTP verification error:", error);
@@ -163,17 +159,17 @@ export default function PhoneLoginPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/auth/phone/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneNumber }),
-      });
+      // Convert to FormData for Server Action
+      const formData = new FormData();
+      formData.append("phone", phoneNumber);
 
-      if (response.ok) {
+      const result = await sendPhoneOTP(formData);
+
+      if (result.success) {
         startResendCountdown();
         toast.success("New OTP sent to your phone");
       } else {
-        throw new Error("Failed to resend OTP");
+        throw new Error(result.error || "Failed to resend OTP");
       }
     } catch (error: unknown) {
       const errorMessage =
@@ -271,7 +267,7 @@ export default function PhoneLoginPage() {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Sending OTP...
                     </>
                   ) : (
@@ -328,7 +324,7 @@ export default function PhoneLoginPage() {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Verifying...
                       </>
                     ) : (

@@ -222,7 +222,6 @@ const options = {
   definition: swaggerDefinition,
   apis: [
     './src/app/api/**/*.ts',
-    './src/pages/api/**/*.ts',
     './docs/api-schemas.yaml'
   ],
 };

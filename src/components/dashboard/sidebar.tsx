@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/helpers";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSession, signOut } from "next-auth/react";
@@ -20,7 +20,6 @@ import {
   BarChart3,
   Activity,
   FileText,
-  Monitor,
 } from "lucide-react";
 import { Role } from "@prisma/client";
 

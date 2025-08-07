@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import {
   Card,
@@ -32,59 +32,17 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  AlertTriangle,
 } from "lucide-react";
 
 import { useRouter } from "next/navigation";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { DateRange } from "react-day-picker";
+import { useUsageReports, useExportUsageReport } from "@/hooks/queries";
 
-interface UsageStats {
-  totalUsers: number;
-  activeUsers: number;
-  newUsers: number;
-  totalAppointments: number;
-  completedAppointments: number;
-  cancelledAppointments: number;
-  totalRemedies: number;
-  averageWaitTime: number;
-  systemUptime: number;
-  userGrowth: number;
-  appointmentGrowth: number;
-  remedyGrowth: number;
-}
 
-interface DailyUsage {
-  date: string;
-  users: number;
-  appointments: number;
-  remedies: number;
-  avgWaitTime: number;
-}
-
-interface UserTypeStats {
-  type: string;
-  count: number;
-  percentage: number;
-  growth: number;
-}
-
-interface GurujiPerformance {
-  id: string;
-  name: string;
-  totalConsultations: number;
-  averageRating: number;
-  averageSessionTime: number;
-  totalRemediesPrescribed: number;
-}
 
 export default function UsageAnalyticsPage() {
-  const [stats, setStats] = useState<UsageStats | null>(null);
-  const [dailyUsage, setDailyUsage] = useState<DailyUsage[]>([]);
-  const [userTypeStats, setUserTypeStats] = useState<UserTypeStats[]>([]);
-  const [gurujiPerformance, setGurujiPerformance] = useState<
-    GurujiPerformance[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
     to: new Date(),
@@ -92,47 +50,37 @@ export default function UsageAnalyticsPage() {
   const [reportType, setReportType] = useState<string>("summary");
   const router = useRouter();
 
-  const fetchUsageData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        type: reportType,
-        ...(dateRange?.from && { from: format(dateRange.from, "yyyy-MM-dd") }),
-        ...(dateRange?.to && { to: format(dateRange.to, "yyyy-MM-dd") }),
-      });
+  // Use React Query for data fetching
+  const { data, isLoading, error, refetch } = useUsageReports({
+    dateFrom: dateRange?.from
+      ? format(dateRange.from, "yyyy-MM-dd")
+      : undefined,
+    dateTo: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+    type: reportType as "summary" | "detailed" | "performance" | "trends",
+  });
 
-      const response = await fetch(`/api/admin/reports/usage?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
-        setDailyUsage(data.dailyUsage || []);
-        setUserTypeStats(data.userTypeStats || []);
-        setGurujiPerformance(data.gurujiPerformance || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch usage data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [reportType, dateRange]);
+  // Use React Query for export functionality
+  const exportReportMutation = useExportUsageReport();
 
-  useEffect(() => {
-    fetchUsageData();
-  }, [dateRange, reportType, fetchUsageData]);
+  const stats = data?.stats;
+  const dailyUsage = data?.dailyUsage || [];
+  const userTypeStats = data?.userTypeStats || [];
+  const gurujiPerformance = data?.gurujiPerformance || [];
 
   const exportReport = async () => {
     try {
-      const params = new URLSearchParams({
-        type: reportType,
-        format: "csv",
-        ...(dateRange?.from && { from: format(dateRange.from, "yyyy-MM-dd") }),
-        ...(dateRange?.to && { to: format(dateRange.to, "yyyy-MM-dd") }),
-      });
+      const options = {
+        dateFrom: dateRange?.from
+          ? format(dateRange.from, "yyyy-MM-dd")
+          : undefined,
+        dateTo: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+        type: reportType as "summary" | "detailed" | "performance" | "trends",
+      };
 
-      const response = await fetch(`/api/admin/reports/usage/export?${params}`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
+      const result = await exportReportMutation.mutateAsync(options);
+
+      if (result.blob) {
+        const url = URL.createObjectURL(result.blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `usage-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
@@ -183,6 +131,28 @@ export default function UsageAnalyticsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <DashboardLayout title="Usage Analytics" allowedRoles={["ADMIN"]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading usage data
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+            <Button onClick={() => refetch()} className="mt-4">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout title="Usage Analytics" allowedRoles={["ADMIN"]}>
       <div className="max-w-7xl mx-auto space-y-6">
@@ -203,7 +173,7 @@ export default function UsageAnalyticsPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={fetchUsageData}>
+            <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>

@@ -2,6 +2,21 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  experimental: {
+    // reactCompiler: true, // Disabled until babel-plugin-react-compiler is installed
+    staleTimes: {
+      dynamic: 30, // 30 seconds for dynamic pages
+      static: 180, // 3 minutes for static pages
+    },
+  },
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    }
+  },
   images: {
     remotePatterns: [
       {

@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { usePWAState, useAppStore } from '@/store/app-store';
-import { Download, X, Smartphone } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { usePWAState, useAppStore } from "@/store/app-store";
+import { Download, X, Smartphone } from "lucide-react";
 
 export function PWAInstallPrompt() {
   const { canInstall, installPrompt, isInstalled } = usePWAState();
-  const setPWAState = useAppStore(state => state.setPWAState);
+  const setPWAState = useAppStore((state) => state.setPWAState);
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -27,9 +33,13 @@ export function PWAInstallPrompt() {
     if (!installPrompt) return;
 
     try {
-      const result = await (installPrompt as { prompt: () => Promise<{ outcome: string }> }).prompt();
-      
-      if (result.outcome === 'accepted') {
+      const result = await (
+        installPrompt as unknown as {
+          prompt: () => Promise<{ outcome: string }>;
+        }
+      ).prompt();
+
+      if (result.outcome === "accepted") {
         setPWAState({
           isInstalled: true,
           canInstall: false,
@@ -37,7 +47,7 @@ export function PWAInstallPrompt() {
         });
       }
     } catch (error) {
-      console.error('Failed to install PWA:', error);
+      console.error("Failed to install PWA:", error);
     }
 
     setShowPrompt(false);
@@ -46,14 +56,14 @@ export function PWAInstallPrompt() {
   const handleDismiss = () => {
     setShowPrompt(false);
     setDismissed(true);
-    
+
     // Remember dismissal for this session
-    sessionStorage.setItem('pwa-install-dismissed', 'true');
+    sessionStorage.setItem("pwa-install-dismissed", "true");
   };
 
   // Check if user dismissed this session
   useEffect(() => {
-    const wasDismissed = sessionStorage.getItem('pwa-install-dismissed');
+    const wasDismissed = sessionStorage.getItem("pwa-install-dismissed");
     if (wasDismissed) {
       setDismissed(true);
     }
@@ -81,16 +91,16 @@ export function PWAInstallPrompt() {
               <Download className="h-4 w-4 mr-2" />
               Install
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDismiss}
               className="px-3"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <div className="mt-3 text-xs text-muted-foreground">
             <ul className="space-y-1">
               <li>• Works offline</li>

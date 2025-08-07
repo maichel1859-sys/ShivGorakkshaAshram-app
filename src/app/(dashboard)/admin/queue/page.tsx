@@ -1,70 +1,63 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Clock, 
-  User, 
-  Search,
-  Download,
-  Plus,
-  AlertCircle
-} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Clock, User, Search, Download, Plus, AlertCircle } from "lucide-react";
+import { useAdminQueue } from "@/hooks/queries";
 
 interface QueueEntry {
   id: string;
   appointmentId: string;
   userId: string;
-  gurujiId?: string;
+  gurujiId: string | null;
   position: number;
   status: string;
   priority: string;
-  estimatedWait?: number;
+  estimatedWait: number | null;
   checkedInAt: string;
   startedAt?: string;
   completedAt?: string;
   user: {
-    name: string;
-    email: string;
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
   };
   guruji?: {
-    name: string;
-  };
+    id: string;
+    name: string | null;
+  } | null;
   appointment: {
+    id: string;
     date: string;
-    startTime: string;
-    reason?: string;
+    startTime: Date;
+    reason: string | null;
   };
 }
 
 export default function AdminQueuePage() {
-  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    fetchQueueEntries();
-  }, []);
-
-  const fetchQueueEntries = async () => {
-    try {
-      const response = await fetch("/api/admin/queue");
-      if (response.ok) {
-        const data = await response.json();
-        setQueueEntries(data.queueEntries || []);
-      }
-    } catch (error) {
-      console.error("Error fetching queue entries:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Use React Query for data fetching
+  const { data: queueEntries = [], isLoading, error } = useAdminQueue();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -96,15 +89,23 @@ export default function AdminQueuePage() {
     }
   };
 
-  const filteredQueueEntries = queueEntries.filter(entry => {
-    const matchesSearch = entry.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
+  const filteredQueueEntries = queueEntries.filter((entry: QueueEntry) => {
+    const matchesSearch =
+      entry.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      false ||
+      entry.user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      false;
+    const matchesStatus =
+      statusFilter === "all" || entry.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const waitingCount = queueEntries.filter(entry => entry.status === "WAITING").length;
-  const inProgressCount = queueEntries.filter(entry => entry.status === "IN_PROGRESS").length;
+  const waitingCount = queueEntries.filter(
+    (entry: QueueEntry) => entry.status === "WAITING"
+  ).length;
+  const inProgressCount = queueEntries.filter(
+    (entry: QueueEntry) => entry.status === "IN_PROGRESS"
+  ).length;
 
   if (isLoading) {
     return (
@@ -116,13 +117,33 @@ export default function AdminQueuePage() {
     );
   }
 
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading queue data
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Queue Management</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Queue Management
+            </h1>
             <p className="text-muted-foreground">
               Monitor and manage all queue entries across the system
             </p>
@@ -137,14 +158,14 @@ export default function AdminQueuePage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total in Queue</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total in Queue
+              </CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{queueEntries.length}</div>
-              <p className="text-xs text-muted-foreground">
-                All queue entries
-              </p>
+              <p className="text-xs text-muted-foreground">All queue entries</p>
             </CardContent>
           </Card>
           <Card>
@@ -154,9 +175,7 @@ export default function AdminQueuePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{waitingCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Patients waiting
-              </p>
+              <p className="text-xs text-muted-foreground">Patients waiting</p>
             </CardContent>
           </Card>
           <Card>
@@ -177,9 +196,7 @@ export default function AdminQueuePage() {
         <Card>
           <CardHeader>
             <CardTitle>Filters</CardTitle>
-            <CardDescription>
-              Search and filter queue entries
-            </CardDescription>
+            <CardDescription>Search and filter queue entries</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex gap-4">
@@ -231,13 +248,15 @@ export default function AdminQueuePage() {
               {filteredQueueEntries.length === 0 ? (
                 <div className="text-center py-8">
                   <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-2 text-sm font-semibold">No queue entries</h3>
+                  <h3 className="mt-2 text-sm font-semibold">
+                    No queue entries
+                  </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     No queue entries found matching your criteria.
                   </p>
                 </div>
               ) : (
-                filteredQueueEntries.map((entry) => (
+                filteredQueueEntries.map((entry: QueueEntry) => (
                   <div
                     key={entry.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
@@ -264,7 +283,8 @@ export default function AdminQueuePage() {
                         <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
                           <span className="flex items-center">
                             <Clock className="mr-1 h-3 w-3" />
-                            Checked in: {new Date(entry.checkedInAt).toLocaleTimeString()}
+                            Checked in:{" "}
+                            {new Date(entry.checkedInAt).toLocaleTimeString()}
                           </span>
                           {entry.estimatedWait && (
                             <span className="flex items-center">
@@ -298,4 +318,4 @@ export default function AdminQueuePage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

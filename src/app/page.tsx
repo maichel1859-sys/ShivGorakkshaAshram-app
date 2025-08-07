@@ -1,8 +1,5 @@
-"use client";
-
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/core/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,37 +19,21 @@ import {
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import Link from "next/link";
 
-export default function Home() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+export default async function Home() {
+  const session = await auth();
 
-  useEffect(() => {
-    if (status === "loading") return; // Still loading
-
-    if (session?.user) {
-      // Redirect authenticated users to their respective dashboards
-      switch (session.user.role) {
-        case "ADMIN":
-          router.push("/admin");
-          break;
-        case "COORDINATOR":
-          router.push("/coordinator");
-          break;
-        case "GURUJI":
-          router.push("/guruji");
-          break;
-        default:
-          router.push("/user");
-      }
+  // Server-side redirect for authenticated users
+  if (session?.user) {
+    switch (session.user.role) {
+      case "ADMIN":
+        redirect("/admin");
+      case "COORDINATOR":
+        redirect("/coordinator");
+      case "GURUJI":
+        redirect("/guruji");
+      default:
+        redirect("/user");
     }
-  }, [session, status, router]);
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
   }
 
   return (

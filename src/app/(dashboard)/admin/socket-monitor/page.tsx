@@ -11,7 +11,6 @@ import {
   ExternalLink, 
   Monitor,
   AlertCircle,
-  CheckCircle,
   Wifi,
   Server,
   Users,

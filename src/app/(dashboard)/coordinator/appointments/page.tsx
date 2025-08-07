@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,51 +13,31 @@ import {
   User, 
   Search,
   Download,
-  Plus
+  Plus,
+  AlertTriangle
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getCoordinatorAppointments } from "@/lib/actions/appointment-actions";
 
-interface Appointment {
-  id: string;
-  userId: string;
-  gurujiId?: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  priority: string;
-  reason?: string;
-  user: {
-    name: string;
-    email: string;
-  };
-  guruji?: {
-    name: string;
-  };
-}
+
 
 export default function CoordinatorAppointmentsPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
-
-  const fetchAppointments = async () => {
-    try {
-      const response = await fetch("/api/coordinator/appointments");
-      if (response.ok) {
-        const data = await response.json();
-        setAppointments(data.appointments || []);
+  // Use React Query for data fetching
+  const { data: appointments = [], isLoading, error } = useQuery({
+    queryKey: ['coordinator', 'appointments'],
+    queryFn: async () => {
+      const result = await getCoordinatorAppointments();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch appointments');
       }
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return result.appointments;
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -94,8 +74,8 @@ export default function CoordinatorAppointmentsPage() {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = appointment.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (appointment.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                         (appointment.user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -104,11 +84,32 @@ export default function CoordinatorAppointmentsPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading appointments...</p>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">Error loading appointments</h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : 'An error occurred'}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+
 
   return (
     <DashboardLayout>

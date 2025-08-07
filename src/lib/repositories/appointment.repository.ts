@@ -1,16 +1,17 @@
-import { Appointment, Prisma, AppointmentStatus, Priority } from '@prisma/client';
+import { Prisma, AppointmentStatus, Priority } from '@prisma/client';
+import { prisma } from '@/lib/database/prisma';
 import { BaseRepository, FindManyOptions } from './base.repository';
 
 // Types for Appointment repository
 export type AppointmentCreateInput = Prisma.AppointmentCreateInput;
 export type AppointmentUpdateInput = Prisma.AppointmentUpdateInput;
 export type AppointmentWhereInput = Prisma.AppointmentWhereInput;
-export type AppointmentWithRelations = Appointment & {
-  user?: unknown;
-  guruji?: unknown;
-  queueEntry?: unknown;
-  consultationSession?: unknown;
-};
+export type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
+  include: {
+    user: true;
+    guruji: true;
+  };
+}>;
 
 export interface AppointmentSearchOptions extends FindManyOptions<AppointmentWhereInput> {
   search?: string;
@@ -20,7 +21,6 @@ export interface AppointmentSearchOptions extends FindManyOptions<AppointmentWhe
   userId?: string;
   dateFrom?: Date;
   dateTo?: Date;
-  includeRelations?: boolean;
 }
 
 export interface AppointmentStats {
@@ -29,124 +29,81 @@ export interface AppointmentStats {
   byPriority: Record<Priority, number>;
   todayCount: number;
   upcomingCount: number;
-  completedToday: number;
+  completedCount: number;
+  cancelledCount: number;
 }
 
-export interface AvailabilitySlot {
-  date: Date;
-  startTime: Date;
-  endTime: Date;
-  isAvailable: boolean;
-  gurujiId: string;
-}
-
-export class AppointmentRepository extends BaseRepository<Appointment, AppointmentCreateInput, AppointmentUpdateInput, AppointmentWhereInput> {
+export class AppointmentRepository extends BaseRepository<Prisma.AppointmentGetPayload<Record<string, unknown>>, AppointmentCreateInput, AppointmentUpdateInput, AppointmentWhereInput> {
   protected modelName = 'appointment';
 
   // Enhanced find methods
   async findByIdWithRelations(id: string): Promise<AppointmentWithRelations | null> {
     try {
-      return await this.model.findUnique({
+      return await prisma.appointment.findUnique({
         where: { id },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            }
-          },
-          guruji: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
-          },
-          queueEntry: true,
-          consultationSession: true,
-        }
+          user: true,
+          guruji: true,
+        },
       });
     } catch (error) {
       this.handleError('findByIdWithRelations', error);
-      throw error;
+      return null;
     }
   }
 
   async findByQRCode(qrCode: string): Promise<AppointmentWithRelations | null> {
     try {
-      return await this.model.findUnique({
+      return await prisma.appointment.findUnique({
         where: { qrCode },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            }
-          },
-          guruji: {
-            select: {
-              id: true,
-              name: true,
-            }
-          },
-        }
+          user: true,
+          guruji: true,
+        },
       });
     } catch (error) {
       this.handleError('findByQRCode', error);
-      throw error;
+      return null;
     }
   }
 
-  async findByUserId(userId: string, options?: FindManyOptions<AppointmentWhereInput>): Promise<Appointment[]> {
+  async findByUserId(userId: string, options?: FindManyOptions<AppointmentWhereInput>): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
       return await this.findMany({
         ...options,
-        where: {
-          ...options?.where,
-          userId
-        }
+        where: { ...options?.where, userId },
       });
     } catch (error) {
       this.handleError('findByUserId', error);
-      throw error;
+      return [];
     }
   }
 
-  async findByGurujiId(gurujiId: string, options?: FindManyOptions<AppointmentWhereInput>): Promise<Appointment[]> {
+  async findByGurujiId(gurujiId: string, options?: FindManyOptions<AppointmentWhereInput>): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
       return await this.findMany({
         ...options,
-        where: {
-          ...options?.where,
-          gurujiId
-        }
+        where: { ...options?.where, gurujiId },
       });
     } catch (error) {
       this.handleError('findByGurujiId', error);
-      throw error;
+      return [];
     }
   }
 
-  async findByStatus(status: AppointmentStatus, options?: FindManyOptions<AppointmentWhereInput>): Promise<Appointment[]> {
+  async findByStatus(status: AppointmentStatus, options?: FindManyOptions<AppointmentWhereInput>): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
       return await this.findMany({
         ...options,
-        where: {
-          ...options?.where,
-          status
-        }
+        where: { ...options?.where, status },
       });
     } catch (error) {
       this.handleError('findByStatus', error);
-      throw error;
+      return [];
     }
   }
 
-  async findByDateRange(startDate: Date, endDate: Date, options?: FindManyOptions<AppointmentWhereInput>): Promise<Appointment[]> {
+  async findByDateRange(startDate: Date, endDate: Date, options?: FindManyOptions<AppointmentWhereInput>): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
       return await this.findMany({
         ...options,
@@ -154,95 +111,47 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
           ...options?.where,
           date: {
             gte: startDate,
-            lte: endDate
-          }
-        }
+            lte: endDate,
+          },
+        },
       });
     } catch (error) {
       this.handleError('findByDateRange', error);
-      throw error;
+      return [];
     }
   }
 
-  async findTodayAppointments(gurujiId?: string): Promise<AppointmentWithRelations[]> {
+  async findUpcomingAppointments(userId: string, days: number = 7): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const where: AppointmentWhereInput = {
-        date: {
-          gte: today,
-          lt: tomorrow
-        }
-      };
-
-      if (gurujiId) {
-        where.gurujiId = gurujiId;
-      }
-
-      return await this.model.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              phone: true,
-            }
-          },
-          guruji: {
-            select: {
-              id: true,
-              name: true,
-            }
-          },
-          queueEntry: true,
-        },
-        orderBy: { startTime: 'asc' }
-      });
-    } catch (error) {
-      this.handleError('findTodayAppointments', error);
-      throw error;
-    }
-  }
-
-  async findUpcomingAppointments(userId: string, days: number = 7): Promise<AppointmentWithRelations[]> {
-    try {
-      const now = new Date();
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + days);
 
-      return await this.model.findMany({
+      return await prisma.appointment.findMany({
         where: {
           userId,
           date: {
-            gte: now,
-            lte: futureDate
+            gte: new Date(),
+            lte: futureDate,
           },
           status: {
-            in: ['BOOKED', 'CONFIRMED', 'CHECKED_IN']
-          }
-        },
-        include: {
-          guruji: {
-            select: {
-              id: true,
-              name: true,
-            }
+            in: ['BOOKED', 'CONFIRMED'],
           },
         },
-        orderBy: { date: 'asc' }
+        include: {
+          user: true,
+          guruji: true,
+        },
+        orderBy: {
+          date: 'asc',
+        },
       });
     } catch (error) {
       this.handleError('findUpcomingAppointments', error);
-      throw error;
+      return [];
     }
   }
 
-  async searchAppointments(options: AppointmentSearchOptions): Promise<Appointment[]> {
+  async searchAppointments(options: AppointmentSearchOptions): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
       const { 
         search, 
@@ -251,89 +160,51 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
         gurujiId, 
         userId, 
         dateFrom, 
-        dateTo, 
-        includeRelations,
-        ...baseOptions 
+        dateTo,
+        ...findOptions 
       } = options;
-      
-      const where: AppointmentWhereInput = { ...baseOptions.where };
 
-      // Add filters
+      const where: AppointmentWhereInput = {
+        ...findOptions.where,
+      };
+
+      if (search) {
+        where.OR = [
+          { reason: { contains: search, mode: 'insensitive' } },
+          { user: { name: { contains: search, mode: 'insensitive' } } },
+          { guruji: { name: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
+
       if (status) where.status = status;
       if (priority) where.priority = priority;
       if (gurujiId) where.gurujiId = gurujiId;
       if (userId) where.userId = userId;
 
-      // Add date range filter
       if (dateFrom || dateTo) {
         where.date = {};
         if (dateFrom) where.date.gte = dateFrom;
         if (dateTo) where.date.lte = dateTo;
       }
 
-      // Add search filter
-      if (search) {
-        where.OR = [
-          {
-            user: {
-              name: {
-                contains: search,
-                mode: 'insensitive'
-              }
-            }
-          },
-          {
-            guruji: {
-              name: {
-                contains: search,
-                mode: 'insensitive'
-              }
-            }
-          },
-          {
-            reason: {
-              contains: search,
-              mode: 'insensitive'
-            }
-          }
-        ];
-      }
-
       return await this.findMany({
-        ...baseOptions,
+        ...findOptions,
         where,
-        include: includeRelations ? {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            }
-          },
-          guruji: {
-            select: {
-              id: true,
-              name: true,
-            }
-          },
-        } : undefined
       });
     } catch (error) {
       this.handleError('searchAppointments', error);
-      throw error;
+      return [];
     }
   }
 
-  // Appointment management methods
-  async createAppointment(data: AppointmentCreateInput): Promise<AppointmentWithRelations> {
+  async createAppointment(data: AppointmentCreateInput): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>> {
     try {
       // Check for conflicts
       const conflicts = await this.findConflictingAppointments(
-        data.gurujiId as string,
+        data.guruji as string,
         data.date as Date,
         data.startTime as Date,
-        data.endTime as Date
+        data.endTime as Date,
       );
 
       if (conflicts.length > 0) {
@@ -343,28 +214,15 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
       // Generate QR code
       const qrCode = this.generateQRCode();
 
-      const appointment = await this.model.create({
+      const appointment = await prisma.appointment.create({
         data: {
           ...data,
-          qrCode
+          qrCode,
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            }
-          },
-          guruji: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
-          },
-        }
+          user: true,
+          guruji: true,
+        },
       });
 
       return appointment;
@@ -374,15 +232,9 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
     }
   }
 
-  async updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<Appointment> {
+  async updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>> {
     try {
       const updateData: AppointmentUpdateInput = { status };
-
-      // Set checkedInAt when status changes to CHECKED_IN
-      if (status === 'CHECKED_IN') {
-        updateData.checkedInAt = new Date();
-      }
-
       return await this.update(id, updateData);
     } catch (error) {
       this.handleError('updateAppointmentStatus', error);
@@ -390,7 +242,7 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
     }
   }
 
-  async checkInAppointment(id: string): Promise<Appointment> {
+  async checkInAppointment(id: string): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>> {
     try {
       return await this.updateAppointmentStatus(id, 'CHECKED_IN');
     } catch (error) {
@@ -399,13 +251,12 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
     }
   }
 
-  async cancelAppointment(id: string, reason?: string): Promise<Appointment> {
+  async cancelAppointment(id: string, reason?: string): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>> {
     try {
       const updateData: AppointmentUpdateInput = { 
         status: 'CANCELLED',
-        notes: reason 
+        reason: reason || 'Cancelled by user',
       };
-
       return await this.update(id, updateData);
     } catch (error) {
       this.handleError('cancelAppointment', error);
@@ -413,7 +264,7 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
     }
   }
 
-  async completeAppointment(id: string): Promise<Appointment> {
+  async completeAppointment(id: string): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>> {
     try {
       return await this.updateAppointmentStatus(id, 'COMPLETED');
     } catch (error) {
@@ -422,14 +273,13 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
     }
   }
 
-  // Availability and scheduling
-  async findConflictingAppointments(
+  private async findConflictingAppointments(
     gurujiId: string,
     date: Date,
     startTime: Date,
     endTime: Date,
     excludeId?: string
-  ): Promise<Appointment[]> {
+  ): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
       const dayStart = new Date(date);
       dayStart.setHours(0, 0, 0, 0);
@@ -437,158 +287,110 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
       const dayEnd = new Date(date);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const where: AppointmentWhereInput = {
-        gurujiId,
-        date: {
-          gte: dayStart,
-          lte: dayEnd
-        },
-        status: {
-          notIn: ['CANCELLED', 'NO_SHOW']
-        },
-        OR: [
-          {
-            // New appointment starts during existing appointment
-            AND: [
-              { startTime: { lte: startTime } },
-              { endTime: { gt: startTime } }
-            ]
+      return await prisma.appointment.findMany({
+        where: {
+          gurujiId,
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
           },
-          {
-            // New appointment ends during existing appointment
-            AND: [
-              { startTime: { lt: endTime } },
-              { endTime: { gte: endTime } }
-            ]
+          status: {
+            notIn: ['CANCELLED', 'NO_SHOW'],
           },
-          {
-            // New appointment encompasses existing appointment
-            AND: [
-              { startTime: { gte: startTime } },
-              { endTime: { lte: endTime } }
-            ]
-          }
-        ]
-      };
-
-      if (excludeId) {
-        where.id = { not: excludeId };
-      }
-
-      return await this.findMany({ where });
+          OR: [
+            {
+              startTime: {
+                lt: endTime,
+                gte: startTime,
+              },
+            },
+            {
+              endTime: {
+                gt: startTime,
+                lte: endTime,
+              },
+            },
+            {
+              AND: [
+                { startTime: { lte: startTime } },
+                { endTime: { gte: endTime } },
+              ],
+            },
+          ],
+          ...(excludeId && { id: { not: excludeId } }),
+        },
+      });
     } catch (error) {
       this.handleError('findConflictingAppointments', error);
-      throw error;
+      return [];
     }
   }
 
-  async getAvailableSlots(
-    gurujiId: string,
-    date: Date,
-    slotDuration: number = 30
-  ): Promise<AvailabilitySlot[]> {
-    try {
-      const businessHours = {
-        start: 9, // 9 AM
-        end: 18,  // 6 PM
-      };
-
-      const slots: AvailabilitySlot[] = [];
-      const existingAppointments = await this.findByDateRange(
-        new Date(date.setHours(0, 0, 0, 0)),
-        new Date(date.setHours(23, 59, 59, 999)),
-        {
-          where: {
-            gurujiId,
-            status: { notIn: ['CANCELLED', 'NO_SHOW'] }
-          }
-        }
-      );
-
-      // Generate time slots
-      for (let hour = businessHours.start; hour < businessHours.end; hour++) {
-        for (let minute = 0; minute < 60; minute += slotDuration) {
-          const startTime = new Date(date);
-          startTime.setHours(hour, minute, 0, 0);
-          
-          const endTime = new Date(startTime);
-          endTime.setMinutes(endTime.getMinutes() + slotDuration);
-
-          // Check if slot conflicts with existing appointments
-          const hasConflict = existingAppointments.some(apt => {
-            const aptStart = new Date(apt.startTime);
-            const aptEnd = new Date(apt.endTime);
-            
-            return (
-              (startTime >= aptStart && startTime < aptEnd) ||
-              (endTime > aptStart && endTime <= aptEnd) ||
-              (startTime <= aptStart && endTime >= aptEnd)
-            );
-          });
-
-          slots.push({
-            date,
-            startTime,
-            endTime,
-            isAvailable: !hasConflict,
-            gurujiId
-          });
-        }
-      }
-
-      return slots;
-    } catch (error) {
-      this.handleError('getAvailableSlots', error);
-      throw error;
-    }
+  private generateQRCode(): string {
+    // Simple QR code generation - in production, use a proper QR library
+    return `QR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  // Statistics and reporting
-  async getAppointmentStats(
-    dateFrom?: Date,
-    dateTo?: Date,
-    gurujiId?: string
-  ): Promise<AppointmentStats> {
+  async getAppointmentStats(where?: AppointmentWhereInput): Promise<AppointmentStats> {
     try {
-      const where: AppointmentWhereInput = {};
-
-      if (dateFrom || dateTo) {
-        where.date = {};
-        if (dateFrom) where.date.gte = dateFrom;
-        if (dateTo) where.date.lte = dateTo;
-      }
-
-      if (gurujiId) {
-        where.gurujiId = gurujiId;
-      }
-
       const [
         total,
-        statusCounts,
-        priorityCounts,
         todayCount,
         upcomingCount,
-        completedToday
+        completedCount,
+        cancelledCount,
+        statusDistribution,
+        priorityDistribution,
       ] = await Promise.all([
         this.count(where),
+        this.count({
+          ...where,
+          date: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            lte: new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        }),
+        this.count({
+          ...where,
+          date: {
+            gte: new Date(),
+          },
+          status: {
+            in: ['BOOKED', 'CONFIRMED'],
+          },
+        }),
+        this.count({
+          ...where,
+          status: 'COMPLETED',
+        }),
+        this.count({
+          ...where,
+          status: 'CANCELLED',
+        }),
         this.getStatusDistribution(where),
         this.getPriorityDistribution(where),
-        this.getTodayAppointmentCount(gurujiId),
-        this.getUpcomingAppointmentCount(gurujiId),
-        this.getCompletedTodayCount(gurujiId)
       ]);
 
       return {
         total,
-        byStatus: statusCounts,
-        byPriority: priorityCounts,
+        byStatus: statusDistribution,
+        byPriority: priorityDistribution,
         todayCount,
         upcomingCount,
-        completedToday
+        completedCount,
+        cancelledCount,
       };
     } catch (error) {
       this.handleError('getAppointmentStats', error);
-      throw error;
+      return {
+        total: 0,
+        byStatus: {} as Record<AppointmentStatus, number>,
+        byPriority: {} as Record<Priority, number>,
+        todayCount: 0,
+        upcomingCount: 0,
+        completedCount: 0,
+        cancelledCount: 0,
+      };
     }
   }
 
@@ -598,7 +400,6 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
       const statusPromises = statuses.map(status => 
         this.count({ ...where, status })
       );
-      
       const statusCounts = await Promise.all(statusPromises);
       
       return statuses.reduce((acc, status, index) => {
@@ -607,7 +408,7 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
       }, {} as Record<AppointmentStatus, number>);
     } catch (error) {
       this.handleError('getStatusDistribution', error);
-      throw error;
+      return {} as Record<AppointmentStatus, number>;
     }
   }
 
@@ -617,7 +418,6 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
       const priorityPromises = priorities.map(priority => 
         this.count({ ...where, priority })
       );
-      
       const priorityCounts = await Promise.all(priorityPromises);
       
       return priorities.reduce((acc, priority, index) => {
@@ -626,130 +426,130 @@ export class AppointmentRepository extends BaseRepository<Appointment, Appointme
       }, {} as Record<Priority, number>);
     } catch (error) {
       this.handleError('getPriorityDistribution', error);
-      throw error;
+      return {} as Record<Priority, number>;
     }
-  }
-
-  private async getTodayAppointmentCount(gurujiId?: string): Promise<number> {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const where: AppointmentWhereInput = {
-        date: {
-          gte: today,
-          lt: tomorrow
-        }
-      };
-
-      if (gurujiId) where.gurujiId = gurujiId;
-
-      return await this.count(where);
-    } catch (error) {
-      this.handleError('getTodayAppointmentCount', error);
-      throw error;
-    }
-  }
-
-  private async getUpcomingAppointmentCount(gurujiId?: string): Promise<number> {
-    try {
-      const now = new Date();
-      const where: AppointmentWhereInput = {
-        date: { gte: now },
-        status: { in: ['BOOKED', 'CONFIRMED'] }
-      };
-
-      if (gurujiId) where.gurujiId = gurujiId;
-
-      return await this.count(where);
-    } catch (error) {
-      this.handleError('getUpcomingAppointmentCount', error);
-      throw error;
-    }
-  }
-
-  private async getCompletedTodayCount(gurujiId?: string): Promise<number> {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const where: AppointmentWhereInput = {
-        date: {
-          gte: today,
-          lt: tomorrow
-        },
-        status: 'COMPLETED'
-      };
-
-      if (gurujiId) where.gurujiId = gurujiId;
-
-      return await this.count(where);
-    } catch (error) {
-      this.handleError('getCompletedTodayCount', error);
-      throw error;
-    }
-  }
-
-  // Utility methods
-  private generateQRCode(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substr(2, 9);
-    return `APT-${timestamp}-${random}`.toUpperCase();
   }
 
   // Bulk operations
   async bulkUpdateStatus(appointmentIds: string[], status: AppointmentStatus): Promise<{ count: number }> {
     try {
       const updateData: AppointmentUpdateInput = { status };
+      const updatePromises = appointmentIds.map(id => this.update(id, updateData));
+      await Promise.all(updatePromises);
       
-      if (status === 'CHECKED_IN') {
-        updateData.checkedInAt = new Date();
-      }
-
-      return await this.updateMany(
-        { id: { in: appointmentIds } },
-        updateData
-      );
+      return { count: appointmentIds.length };
     } catch (error) {
       this.handleError('bulkUpdateStatus', error);
       throw error;
     }
   }
 
-  async bulkCancel(appointmentIds: string[], reason?: string): Promise<{ count: number }> {
+  async bulkCancelAppointments(appointmentIds: string[], reason?: string): Promise<{ count: number }> {
     try {
-      return await this.updateMany(
-        { id: { in: appointmentIds } },
-        { 
-          status: 'CANCELLED',
-          notes: reason 
-        }
-      );
+      const updateData: AppointmentUpdateInput = { 
+        status: 'CANCELLED',
+        reason: reason || 'Bulk cancelled',
+      };
+      const updatePromises = appointmentIds.map(id => this.update(id, updateData));
+      await Promise.all(updatePromises);
+      
+      return { count: appointmentIds.length };
     } catch (error) {
-      this.handleError('bulkCancel', error);
+      this.handleError('bulkCancelAppointments', error);
       throw error;
     }
   }
 
-  // Cleanup methods
-  async deleteOldCancelledAppointments(daysOld: number = 90): Promise<{ count: number }> {
+  // Advanced queries
+  async findAppointmentsByDateRange(startDate: Date, endDate: Date, options?: FindManyOptions<AppointmentWhereInput>): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-      return await this.deleteMany({
-        status: 'CANCELLED',
-        updatedAt: { lt: cutoffDate }
+      return await this.findMany({
+        ...options,
+        where: {
+          ...options?.where,
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
       });
     } catch (error) {
-      this.handleError('deleteOldCancelledAppointments', error);
-      throw error;
+      this.handleError('findAppointmentsByDateRange', error);
+      return [];
+    }
+  }
+
+  async findAppointmentsByGurujiAndDate(gurujiId: string, date: Date): Promise<Prisma.AppointmentGetPayload<Record<string, unknown>>[]> {
+    try {
+      const dayStart = new Date(date);
+      dayStart.setHours(0, 0, 0, 0);
+      
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      return await prisma.appointment.findMany({
+        where: {
+          gurujiId,
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+        },
+        include: {
+          user: true,
+          guruji: true,
+        },
+        orderBy: {
+          startTime: 'asc',
+        },
+      });
+    } catch (error) {
+      this.handleError('findAppointmentsByGurujiAndDate', error);
+      return [];
+    }
+  }
+
+  async findAvailableTimeSlots(gurujiId: string, date: Date, duration: number = 30): Promise<Date[]> {
+    try {
+      const existingAppointments = await this.findAppointmentsByGurujiAndDate(gurujiId, date);
+      
+      // Business hours: 9 AM to 6 PM
+      const businessStart = new Date(date);
+      businessStart.setHours(9, 0, 0, 0);
+      
+      const businessEnd = new Date(date);
+      businessEnd.setHours(18, 0, 0, 0);
+      
+      const availableSlots: Date[] = [];
+      const currentSlot = new Date(businessStart);
+      
+      while (currentSlot < businessEnd) {
+        const slotEnd = new Date(currentSlot.getTime() + duration * 60000);
+        
+        if (slotEnd <= businessEnd) {
+          const hasConflict = existingAppointments.some(appointment => {
+            const appointmentStart = new Date(appointment.startTime);
+            const appointmentEnd = new Date(appointment.endTime);
+            
+            return (
+              (currentSlot >= appointmentStart && currentSlot < appointmentEnd) ||
+              (slotEnd > appointmentStart && slotEnd <= appointmentEnd) ||
+              (currentSlot <= appointmentStart && slotEnd >= appointmentEnd)
+            );
+          });
+          
+          if (!hasConflict) {
+            availableSlots.push(new Date(currentSlot));
+          }
+        }
+        
+        currentSlot.setMinutes(currentSlot.getMinutes() + duration);
+      }
+      
+      return availableSlots;
+    } catch (error) {
+      this.handleError('findAvailableTimeSlots', error);
+      return [];
     }
   }
 }

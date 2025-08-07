@@ -1,6 +1,16 @@
 // Base service interface and abstract class
 import { logError, logMessage } from '@/lib/sentry';
-import { AuthContext } from '@/lib/middleware/auth';
+// Note: AuthContext type removed since middleware/auth was removed
+interface AuthenticatedUser {
+  id: string;
+  role: string;
+  permissions?: string[];
+}
+
+interface AuthContext {
+  user: AuthenticatedUser;
+  session: unknown;
+}
 
 // Base service interface
 export interface IBaseService {

@@ -51,11 +51,12 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
 - **React Hook Form** - Form management with Zod validation
 
 ### Backend
-- **Next.js API Routes** - Serverless API endpoints
-- **Prisma ORM** - Database management
-- **PostgreSQL** - Primary database
-- **NextAuth.js** - Authentication system
-- **Zod** - Schema validation
+- **Next.js 15 Server Actions** - Secure server-side functions (No API routes)
+- **React Server Components** - Server-side rendering with zero client JS
+- **Prisma ORM** - Database management with full TypeScript support
+- **PostgreSQL** - Primary database with audit logging
+- **NextAuth.js** - Authentication system with role-based access
+- **Zod** - Schema validation and input sanitization
 
 ### Real-time & Caching
 - **Socket.IO** - Real-time bidirectional communication
@@ -172,25 +173,102 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
 
 ## 🏗️ Architecture Overview
 
-### Caching Strategy
-The application uses a multi-layer caching approach:
+### Modern Next.js 15 Architecture
+
+The application uses a **layered architecture** with **Server Actions** replacing traditional API routes:
+
+```
+┌─────────────────────────────────────────┐
+│        UI Layer (React Server Components) │
+│  • Zero client-side JavaScript for data  │
+│  • Parallel & Intercepting Routes        │
+│  • Suspense boundaries                   │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│            Server Actions               │
+│  • Authentication & Authorization       │
+│  • Input Validation (Zod)              │
+│  • Business Logic Orchestration        │
+│  • Cache Management                    │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│          Services & Repositories        │
+│  • Complex Business Logic              │
+│  • Data Access Layer                   │
+│  • External Integrations               │
+└─────────────────────────────────────────┘
+```
+
+### Server Actions Architecture
+
+All business logic is handled by **Server Actions** organized by domain:
 
 ```typescript
-// Next.js unstable_cache for server-side caching
-export const cachedFunctions = {
-  getUser: cache(async (userId: string) => { /* implementation */ }),
-  getGuruji: cache(async () => { /* implementation */ }),
-  getAppointments: cache(async (filters) => { /* implementation */ }),
-};
+// Server Action Pattern - Consistent across all domains
+export async function createItem(formData: FormData) {
+  // 1. Authentication Check
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
 
-// Memory cache for session and rate limiting
-class MemoryCache {
-  private cache = new Map();
-  private timers = new Map();
+  // 2. Input Validation  
+  const data = itemSchema.parse({
+    name: formData.get('name'),
+    // ... other fields
+  });
+
+  // 3. Business Logic
+  const item = await prisma.item.create({ data });
+
+  // 4. Cache Invalidation
+  revalidatePath('/items');
+
+  // 5. Consistent Response
+  return { success: true, item };
+}
+```
+
+### Server Actions Organization
+
+```
+src/lib/actions/
+├── auth-actions.ts       # Authentication & user management
+├── appointment-actions.ts # Appointment lifecycle
+├── consultation-actions.ts # Medical consultations  
+├── remedy-actions.ts     # Remedy prescriptions
+├── notification-actions.ts # Notification system
+├── user-actions.ts       # User CRUD operations
+├── admin-actions.ts      # Admin dashboard
+├── dashboard-actions.ts  # Analytics & reporting
+├── system-actions.ts     # System health & monitoring
+├── settings-actions.ts   # Configuration management
+├── checkin-actions.ts    # QR code check-in
+└── queue-actions.ts      # Real-time queue management
+```
+
+### Caching Strategy
+Multi-layer caching with Next.js 15:
+
+```typescript
+// Server Actions with built-in caching
+export const getCachedAppointments = cache(async (filters) => {
+  return await prisma.appointment.findMany({ 
+    where: buildFilterClause(filters) 
+  });
+});
+
+// Automatic cache invalidation
+export async function createAppointment(formData: FormData) {
+  const appointment = await prisma.appointment.create({ data });
   
-  set(key: string, value: any, ttlSeconds: number) { /* implementation */ }
-  get(key: string) { /* implementation */ }
-  delete(key: string) { /* implementation */ }
+  // Granular cache invalidation
+  revalidatePath('/appointments');
+  revalidatePath('/dashboard');
+  
+  return { success: true, appointment };
 }
 ```
 
@@ -278,32 +356,38 @@ Access the complete, interactive API documentation with live testing capabilitie
 - **Live API Testing** - Test endpoints directly from the documentation
 - **Authentication Included** - Uses your current session for testing
 
-### Key API Endpoints
+### Key Server Actions
 
-#### Authentication Endpoints
-- `POST /api/auth/signin` - User login
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/signout` - User logout
+#### Authentication Actions (`auth-actions.ts`)
+- `sendPhoneOTP()` - Send OTP for phone verification
+- `verifyPhoneOTP()` - Verify OTP and authenticate
+- `registerUser()` - User registration with validation
+- `changePassword()` - Secure password change
+- `addFamilyContact()` - Manage family contacts
 
-#### Appointment Management
-- `GET /api/appointments` - List appointments with filtering
-- `POST /api/appointments` - Book new appointment with conflict detection
-- `PUT /api/appointments/[id]` - Update appointment
-- `DELETE /api/appointments/[id]` - Cancel appointment
+#### Appointment Actions (`appointment-actions.ts`)
+- `getAppointments()` - List appointments with advanced filtering
+- `createAppointment()` - Book appointment with conflict detection
+- `updateAppointment()` - Update appointment details
+- `cancelAppointment()` - Cancel appointment with notifications
+- `getAppointmentAvailability()` - Check time slot availability
 
-#### Queue Management
-- `GET /api/queue` - Get current queue status
-- `POST /api/checkin` - Check-in for appointment with rate limiting
-- `PUT /api/queue/[id]` - Update queue position
+#### Queue Actions (`queue-actions.ts`)
+- `getQueueStatus()` - Real-time queue status
+- `joinQueue()` - Join appointment queue
+- `updateQueueStatus()` - Update queue position
+- `leaveQueue()` - Leave queue system
 
-#### User Management
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update user profile
-- `GET /api/users/appointments` - Get user appointments
+#### User Actions (`user-actions.ts`)
+- `getUser()` - Get user profile
+- `updateUserProfile()` - Update profile information
+- `getUserAppointments()` - Get user's appointments
+- `toggleUserStatus()` - Admin user management
 
-#### Admin Endpoints
-- `GET /api/docs` - OpenAPI specification
-- `GET /api/admin/*` - Administrative functions (Admin only)
+#### Admin Actions (`admin-actions.ts`)
+- `getAdminDashboardStats()` - Complete dashboard analytics  
+- `getSystemAlerts()` - System health alerts
+- `getUsers()` - User management for admins
 
 ## 🔧 Configuration
 
@@ -477,6 +561,69 @@ After running `npm run setup:ashram`:
 - **Technical Issues:** Contact system administrator
 - **Feature Requests:** Submit through appropriate channels
 - **Emergency Support:** Available during business hours
+
+## 🔄 Migration to Server Actions & RSC
+
+### ✅ Completed Migration
+
+The application has been successfully migrated from API routes to **Next.js Server Actions** and **React Server Components (RSC)**, following Next.js 15 best practices.
+
+#### Migrated Components
+
+1. **Dashboard Actions** - `src/lib/actions/dashboard-actions.ts`
+   - Admin, Coordinator, and Guruji dashboard statistics
+   - System alerts and usage reports
+
+2. **System Actions** - `src/lib/actions/system-actions.ts`
+   - System health, metrics, and monitoring
+   - API documentation and cache management
+
+3. **Authentication Actions** - `src/lib/actions/auth-actions.ts`
+   - Phone OTP, user registration, family contacts
+   - Password management and security
+
+4. **Check-in Actions** - `src/lib/actions/checkin-actions.ts`
+   - QR code and manual check-in functionality
+   - Check-in history and statistics
+
+5. **Settings Actions** - `src/lib/actions/settings-actions.ts`
+   - System and user settings management
+   - Privacy and notification preferences
+
+6. **Queue Actions** - `src/lib/actions/queue-actions.ts`
+   - Real-time queue management
+   - Join, leave, and status updates
+
+7. **Notification Actions** - `src/lib/actions/notification-actions.ts`
+   - User notification management
+   - Read/unread status and deletion
+
+8. **Remedy Actions** - `src/lib/actions/remedy-actions.ts`
+   - Remedy template management
+   - Prescription and PDF generation
+
+#### UI Components Updated
+
+- **Admin Dashboard** - Server Components with Suspense
+- **User Settings** - RSC with client-side forms
+- **Create User Modal** - Intercepting routes with server actions
+- **User List** - Server-side rendering with search
+- **Settings Forms** - Client components with server action integration
+
+#### Architecture Benefits
+
+- **Performance** - Reduced client-side JavaScript
+- **SEO** - Better server-side rendering
+- **Security** - Server-side validation and authentication
+- **Maintainability** - Centralized server actions
+- **Caching** - Next.js built-in caching strategies
+- **Type Safety** - Full TypeScript support
+
+#### Removed Components
+
+- **All API Routes** - Complete `src/app/api/` directory removed
+- **Duplicate Functionality** - No redundant code
+- **Client-side API Calls** - Replaced with direct server action calls
 
 ---
 

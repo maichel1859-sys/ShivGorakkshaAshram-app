@@ -452,10 +452,10 @@ export class UserRepository extends BaseRepository<User, UserCreateInput, UserUp
         },
         // Don't delete users with any appointments
         patientAppointments: {
-          none: {}
+          none: {} as Record<string, never>
         },
         gurujiAppointments: {
-          none: {}
+          none: {} as Record<string, never>
         }
       });
     } catch (error) {

@@ -1,4 +1,4 @@
-import { Role, AppointmentStatus, QueueStatus, RemedyType, Priority } from "@prisma/client"
+import { Role, AppointmentStatus, QueueStatus, RemedyType, Priority, Prisma } from "@prisma/client"
 
 export interface User {
   id: string
@@ -68,7 +68,7 @@ export interface ConsultationSession {
   symptoms?: string | null
   diagnosis?: string | null
   notes?: string | null
-  recordings?: Record<string, unknown>
+  recordings?: Prisma.JsonValue | null
   createdAt: Date
   updatedAt: Date
   appointment?: Appointment
@@ -189,5 +189,69 @@ export interface RemedyFormData {
   customDosage?: string
   customDuration?: string
 }
+
+// Utility types for better type safety
+export type ApiResponse<T = unknown> = {
+  success: true;
+  data: T;
+  message?: string;
+} | {
+  success: false;
+  error: string;
+  code?: string;
+  errors?: Record<string, string>;
+};
+
+export type ServerActionResponse<T = unknown> = {
+  success: true;
+  data?: T;
+  message?: string;
+} | {
+  success: false;
+  error: string;
+  fieldErrors?: Record<string, string>;
+};
+
+// Generic search/filter types
+export type SearchParams = {
+  search?: string;
+  status?: string;
+  date?: string;
+  page?: string;
+  limit?: string;
+};
+
+export type PaginatedResponse<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+// Database operation types
+export type CreateUserInput = Omit<User, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateUserInput = Partial<Pick<User, 'name' | 'phone' | 'address' | 'emergencyContact' | 'preferences' | 'isActive'>>;
+
+export type CreateAppointmentInput = Omit<Appointment, 'id' | 'createdAt' | 'updatedAt' | 'user' | 'guruji'>;
+export type UpdateAppointmentInput = Partial<Pick<Appointment, 'status' | 'notes' | 'startTime' | 'endTime' | 'priority'>>;
+
+// Component prop types
+export type TableColumn<T = unknown> = {
+  key: keyof T | string;
+  label: string;
+  sortable?: boolean;
+  render?: (value: unknown, row: T) => React.ReactNode;
+};
+
+export type FormField = {
+  name: string;
+  label: string;
+  type: 'text' | 'email' | 'password' | 'select' | 'textarea' | 'date' | 'datetime-local';
+  placeholder?: string;
+  required?: boolean;
+  validation?: Record<string, unknown>;
+  options?: { value: string; label: string }[];
+};
 
 export { Role, AppointmentStatus, QueueStatus, RemedyType, Priority }

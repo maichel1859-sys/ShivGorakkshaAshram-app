@@ -252,7 +252,7 @@ export function QRScanner({
             <Button
               size="sm"
               onClick={startCamera}
-              disabled={hasPermission === false}
+              disabled={!hasPermission}
             >
               <Camera className="mr-2 h-4 w-4" />
               Start Camera

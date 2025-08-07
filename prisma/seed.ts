@@ -107,16 +107,22 @@ async function main() {
     'Dhruv Sharma', 'Ishita Gupta', 'Aryan Singh', 'Kavya Patel', 'Rishabh Kumar',
     'Tanvi Sharma', 'Arnav Reddy', 'Diya Patel', 'Shaurya Singh', 'Aisha Khan',
     'Vedant Kumar', 'Kiara Sharma', 'Advait Singh', 'Myra Patel', 'Rudra Kumar',
-    'Zara Singh', 'Aarav Sharma', 'Anika Patel', 'Vihaan Kumar', 'Aaradhya Singh',
-    'Krishna Sharma', 'Avni Patel', 'Aarush Kumar', 'Anvi Singh', 'Dhruv Patel',
-    'Ira Sharma', 'Aarav Kumar', 'Anaya Singh', 'Vivaan Patel', 'Aisha Sharma',
-    'Arjun Kumar', 'Zara Singh', 'Aarav Patel', 'Anika Kumar', 'Vihaan Singh',
-    'Myra Sharma', 'Rudra Patel', 'Kiara Kumar', 'Advait Singh', 'Diya Sharma',
-    'Shaurya Patel', 'Aisha Kumar', 'Vedant Singh', 'Tanvi Patel', 'Arnav Sharma',
-    'Kavya Kumar', 'Rishabh Singh', 'Ishita Patel', 'Aryan Sharma', 'Riya Kumar',
-    'Aditya Singh', 'Pooja Patel', 'Karan Sharma', 'Meera Kumar', 'Suresh Singh',
-    'Neha Patel', 'Rahul Kumar', 'Anjali Singh', 'Vikram Patel', 'Priya Sharma',
-    'Arjun Kumar', 'Deepika Patel', 'Rajesh Singh', 'Swati Kumar', 'Amit Sharma'
+    'Aarav Sharma', 'Anika Patel', 'Vihaan Kumar', 'Aaradhya Singh', 'Krishna Sharma',
+    'Avni Patel', 'Aarush Kumar', 'Anvi Singh', 'Dhruv Patel', 'Ira Sharma',
+    'Aarav Kumar', 'Anaya Singh', 'Vivaan Patel', 'Aisha Sharma', 'Arjun Kumar',
+    'Aarav Patel', 'Anika Kumar', 'Vihaan Singh', 'Myra Sharma', 'Rudra Patel',
+    'Kiara Kumar', 'Advait Singh', 'Diya Sharma', 'Shaurya Patel', 'Aisha Kumar',
+    'Vedant Singh', 'Tanvi Patel', 'Arnav Sharma', 'Kavya Kumar', 'Rishabh Singh',
+    'Ishita Patel', 'Aryan Sharma', 'Riya Kumar', 'Aditya Singh', 'Pooja Patel',
+    'Karan Sharma', 'Meera Kumar', 'Suresh Singh', 'Neha Patel', 'Rahul Kumar',
+    'Anjali Singh', 'Vikram Patel', 'Priya Sharma', 'Arjun Kumar', 'Deepika Patel',
+    'Rajesh Singh', 'Swati Kumar', 'Amit Sharma', 'Lakshmi Devi', 'Ganesh Prasad',
+    'Radha Rani', 'Hanuman Das', 'Sita Devi', 'Ram Chandra', 'Krishna Das',
+    'Durga Devi', 'Shiva Prasad', 'Parvati Devi', 'Vishnu Das', 'Lakshmi Prasad',
+    'Brahma Das', 'Saraswati Devi', 'Ganga Devi', 'Yamuna Devi', 'Kaveri Devi',
+    'Narmada Devi', 'Godavari Devi', 'Krishna Devi', 'Radha Prasad', 'Hanuman Prasad',
+    'Sita Prasad', 'Ram Das', 'Lakshmi Das', 'Ganesh Das', 'Durga Prasad',
+    'Shiva Das', 'Parvati Prasad', 'Vishnu Prasad', 'Brahma Prasad', 'Saraswati Prasad'
   ];
 
   const cities = [
@@ -144,7 +150,7 @@ async function main() {
   for (let i = 0; i < userNames.length; i++) {
     const userDetail = {
       name: userNames[i],
-      email: `${userNames[i].toLowerCase().replace(' ', '.')}@example.com`,
+      email: `${userNames[i].toLowerCase().replace(/\s+/g, '.')}${i + 1}@example.com`,
       phone: `+91-987654${String(3301 + i).padStart(4, '0')}`,
       dateOfBirth: new Date(1980 + (i % 30), (i % 12), (i % 28) + 1), // Random dates between 1980-2010
       address: cities[i % cities.length],

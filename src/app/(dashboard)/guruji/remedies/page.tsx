@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,26 +38,33 @@ import {
   Trash2,
   Copy,
   Send,
+  AlertTriangle,
 } from "lucide-react";
-import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import {
+  useRemedyTemplates,
+  useCreateRemedyTemplate,
+  useUpdateRemedyTemplate,
+  useDeleteRemedyTemplate,
+} from "@/hooks/queries";
+import { toast } from "sonner";
 
 interface RemedyTemplate {
   id: string;
   name: string;
   type: "HOMEOPATHIC" | "AYURVEDIC" | "SPIRITUAL" | "LIFESTYLE" | "DIETARY";
   category: string;
-  description?: string;
+  description: string | null;
   instructions: string;
-  dosage?: string;
-  duration?: string;
+  dosage: string | null;
+  duration: string | null;
   language: string;
   isActive: boolean;
   tags: string[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const remedySchema = z.object({
@@ -81,11 +88,6 @@ const remedySchema = z.object({
 type RemedyFormData = z.infer<typeof remedySchema>;
 
 export default function RemediesPage() {
-  const [templates, setTemplates] = useState<RemedyTemplate[]>([]);
-  const [filteredTemplates, setFilteredTemplates] = useState<RemedyTemplate[]>(
-    []
-  );
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -94,32 +96,27 @@ export default function RemediesPage() {
     null
   );
 
+  // Use React Query for data fetching and mutations
+  const { data: templatesData, isLoading, error } = useRemedyTemplates();
+  const createTemplateMutation = useCreateRemedyTemplate();
+  const updateTemplateMutation = useUpdateRemedyTemplate();
+  const deleteTemplateMutation = useDeleteRemedyTemplate();
+
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<RemedyFormData>({
     resolver: zodResolver(remedySchema),
   });
 
-  const fetchTemplates = async () => {
-    try {
-      const response = await fetch("/api/remedies/templates");
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data.templates);
-      }
-    } catch (error) {
-      console.error("Failed to fetch templates:", error);
-      toast.error("Failed to load remedy templates");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isSubmitting =
+    createTemplateMutation.isPending || updateTemplateMutation.isPending;
 
-  const filterTemplates = useCallback(() => {
+  const templates = templatesData?.templates || [];
+  const filteredTemplates = useCallback(() => {
     let filtered = templates;
 
     if (searchTerm) {
@@ -143,52 +140,74 @@ export default function RemediesPage() {
       );
     }
 
-    setFilteredTemplates(filtered);
+    return filtered;
   }, [templates, searchTerm, filterType, filterCategory]);
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading remedy templates...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  useEffect(() => {
-    filterTemplates();
-  }, [templates, searchTerm, filterType, filterCategory, filterTemplates]);
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading remedy templates
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const onSubmit = async (data: RemedyFormData) => {
-    try {
-      const tagsArray = data.tags
-        ? data.tags.split(",").map((tag) => tag.trim())
-        : [];
+    const tagsArray = data.tags
+      ? data.tags.split(",").map((tag) => tag.trim())
+      : [];
 
-      const response = await fetch(
-        editingTemplate
-          ? `/api/remedies/templates/${editingTemplate.id}`
-          : "/api/remedies/templates",
-        {
-          method: editingTemplate ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...data,
-            tags: tagsArray,
-            isActive: true,
-          }),
-        }
-      );
+    const formData = new FormData();
+    formData.append("name", data.name);
+    formData.append("type", data.type);
+    formData.append("category", data.category);
+    if (data.description) formData.append("description", data.description);
+    formData.append("instructions", data.instructions);
+    if (data.dosage) formData.append("dosage", data.dosage);
+    if (data.duration) formData.append("duration", data.duration);
+    formData.append("language", data.language);
+    formData.append("tags", JSON.stringify(tagsArray));
+    formData.append("isActive", "true");
 
-      if (response.ok) {
-        toast.success(
-          `Remedy template ${editingTemplate ? "updated" : "created"} successfully`
-        );
-        setIsDialogOpen(false);
-        setEditingTemplate(null);
-        reset();
-        fetchTemplates();
-      } else {
-        throw new Error("Failed to save template");
-      }
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error("Failed to save remedy template");
+    if (editingTemplate) {
+      formData.append("templateId", editingTemplate.id);
+      updateTemplateMutation.mutate(formData, {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setEditingTemplate(null);
+          reset();
+        },
+      });
+    } else {
+      createTemplateMutation.mutate(formData, {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setEditingTemplate(null);
+          reset();
+        },
+      });
     }
   };
 
@@ -209,21 +228,9 @@ export default function RemediesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this template?")) return;
 
-    try {
-      const response = await fetch(`/api/remedies/templates/${id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Template deleted successfully");
-        fetchTemplates();
-      } else {
-        throw new Error("Failed to delete template");
-      }
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete template");
-    }
+    const formData = new FormData();
+    formData.append("templateId", id);
+    deleteTemplateMutation.mutate(formData);
   };
 
   const handleDuplicate = async (template: RemedyTemplate) => {
@@ -515,7 +522,7 @@ export default function RemediesPage() {
 
         {/* Templates Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates.map((template) => (
+          {filteredTemplates().map((template: RemedyTemplate) => (
             <Card
               key={template.id}
               className="hover:shadow-md transition-shadow"

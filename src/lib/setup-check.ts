@@ -85,7 +85,7 @@ export class SystemSetupChecker {
   private async checkDatabaseConnection() {
     try {
       // Dynamic import to avoid issues in client-side
-      const { prisma } = await import('./prisma');
+      const { prisma } = await import('./database/prisma');
       
       // Test database connection
       await prisma.$connect();

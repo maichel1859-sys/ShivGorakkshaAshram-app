@@ -31,7 +31,6 @@ interface SystemDashboardProps {
 export function SystemDashboard({ className = "" }: SystemDashboardProps) {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [_error, setError] = useState<string | null>(null);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
 
   const checker = useMemo(() => new SystemSetupChecker(), []);
@@ -42,10 +41,8 @@ export function SystemDashboard({ className = "" }: SystemDashboardProps) {
       const result = await checker.runAllChecks();
       setHealth(result);
       setLastCheck(new Date());
-      setError(null);
     } catch (error) {
       console.error("Health check failed:", error);
-      setError("Failed to fetch system health");
     } finally {
       setIsLoading(false);
     }

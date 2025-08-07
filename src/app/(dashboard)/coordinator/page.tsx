@@ -1,90 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DashboardLayout } from "@/components/dashboard/layout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  Users,
   Calendar,
   Clock,
-  AlertTriangle,
+  Users,
   CheckCircle,
-  Activity,
-  TrendingUp,
-  UserCheck,
-  Settings,
-  Bell,
-  QrCode,
+  AlertTriangle,
   Phone,
+  Activity,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Link from "next/link";
-
-interface CoordinatorStats {
-  totalAppointmentsToday: number;
-  checkedInToday: number;
-  waitingInQueue: number;
-  completedToday: number;
-  pendingApprovals: number;
-  upcomingAppointments: Array<{
-    id: string;
-    patientName: string;
-    gurujiName: string;
-    time: string;
-    status: string;
-    priority: string;
-  }>;
-  queueSummary: Array<{
-    gurujiId: string;
-    gurujiName: string;
-    waitingCount: number;
-    inProgressCount: number;
-    averageWaitTime: number;
-  }>;
-  todayStats: {
-    appointments: number;
-    checkins: number;
-    completions: number;
-    cancellations: number;
-  };
-}
+import { DashboardLayout } from "@/components/dashboard/layout";
+import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
 
 export default function CoordinatorDashboard() {
-  const [stats, setStats] = useState<CoordinatorStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  // React Query hook
+  const { data: stats, isLoading, error } = useCoordinatorDashboard();
 
+  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      const response = await fetch("/api/coordinator/dashboard");
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch coordinator dashboard data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -122,6 +65,27 @@ export default function CoordinatorDashboard() {
       >
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout
+        title="Coordinator Dashboard"
+        allowedRoles={["COORDINATOR"]}
+      >
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error Loading Dashboard
+            </h3>
+            <p className="text-muted-foreground">
+              Failed to load coordinator data. Please try again.
+            </p>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -167,15 +131,32 @@ export default function CoordinatorDashboard() {
                 {stats?.totalAppointmentsToday || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats?.checkedInToday || 0} checked in
+                Total scheduled today
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Queue</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">
+                Checked In Today
+              </CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stats?.checkedInToday || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Patients arrived</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Waiting in Queue
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -190,375 +171,148 @@ export default function CoordinatorDashboard() {
               <CardTitle className="text-sm font-medium">
                 Completed Today
               </CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {stats?.completedToday || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                Consultations done
+                Consultations finished
               </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pending Approvals
-              </CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats?.pendingApprovals || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">Need attention</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="queue">Queue Management</TabsTrigger>
-            <TabsTrigger value="appointments">Appointments</TabsTrigger>
-            <TabsTrigger value="tools">Tools</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Upcoming Appointments */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5" />
-                    <span>Upcoming Appointments</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Next appointments requiring attention
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {stats?.upcomingAppointments
-                      ?.slice(0, 5)
-                      .map((appointment) => (
-                        <div
-                          key={appointment.id}
-                          className="flex items-center justify-between p-3 border rounded-lg"
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium">
-                              {appointment.patientName}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              with {appointment.gurujiName}
-                            </div>
-                          </div>
-                          <div className="text-right space-y-1">
-                            <div className="font-mono text-sm">
-                              {appointment.time}
-                            </div>
-                            <div className="flex space-x-1">
-                              <Badge
-                                className={getStatusColor(appointment.status)}
-                              >
-                                {appointment.status}
-                              </Badge>
-                              <Badge
-                                className={getPriorityColor(
-                                  appointment.priority
-                                )}
-                              >
-                                {appointment.priority}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    {(!stats?.upcomingAppointments ||
-                      stats.upcomingAppointments.length === 0) && (
-                      <p className="text-sm text-muted-foreground text-center">
-                        No upcoming appointments
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Today's Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Activity className="h-5 w-5" />
-                    <span>Today&apos;s Summary</span>
-                  </CardTitle>
-                  <CardDescription>Daily activity overview</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+        {/* Queue Summary */}
+        {stats?.queueSummary && stats.queueSummary.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Users className="h-5 w-5" />
+                <span>Queue Summary</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {stats.queueSummary.map((summary) => (
+                  <div
+                    key={summary.gurujiId}
+                    className="p-4 border rounded-lg space-y-2"
+                  >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm">Appointments</span>
-                      </div>
-                      <span className="font-medium">
-                        {stats?.todayStats?.appointments || 0}
-                      </span>
+                      <h3 className="font-semibold">{summary.gurujiName}</h3>
+                      <Badge variant="outline">
+                        {summary.waitingCount + summary.inProgressCount} total
+                      </Badge>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <UserCheck className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">Check-ins</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>Waiting:</span>
+                        <span className="font-medium">
+                          {summary.waitingCount}
+                        </span>
                       </div>
-                      <span className="font-medium">
-                        {stats?.todayStats?.checkins || 0}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm">Completions</span>
+                      <div className="flex justify-between text-sm">
+                        <span>In Progress:</span>
+                        <span className="font-medium">
+                          {summary.inProgressCount}
+                        </span>
                       </div>
-                      <span className="font-medium">
-                        {stats?.todayStats?.completions || 0}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                        <span className="text-sm">Cancellations</span>
+                      <div className="flex justify-between text-sm">
+                        <span>Avg Wait:</span>
+                        <span className="font-medium">
+                          {summary.averageWaitTime}m
+                        </span>
                       </div>
-                      <span className="font-medium">
-                        {stats?.todayStats?.cancellations || 0}
-                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          <TabsContent value="queue" className="space-y-4">
+        {/* Upcoming Appointments */}
+        {stats?.upcomingAppointments &&
+          stats.upcomingAppointments.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5" />
-                  <span>Queue Status by Guruji</span>
+                  <Calendar className="h-5 w-5" />
+                  <span>Recent Check-ins</span>
                 </CardTitle>
-                <CardDescription>
-                  Real-time queue management overview
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stats?.queueSummary?.map((queue) => (
-                    <div key={queue.gurujiId} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium">{queue.gurujiName}</h3>
-                        <div className="flex space-x-2">
-                          <Badge variant="outline">
-                            {queue.waitingCount} waiting
-                          </Badge>
-                          <Badge variant="outline">
-                            {queue.inProgressCount} in progress
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Average wait time</span>
-                        <span>{queue.averageWaitTime} minutes</span>
-                      </div>
-                    </div>
-                  ))}
-                  {(!stats?.queueSummary ||
-                    stats.queueSummary.length === 0) && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      No active queues
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="appointments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Appointment Management</CardTitle>
-                <CardDescription>
-                  Tools to manage patient appointments
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <Link href="/coordinator/appointments">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <Calendar className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">
-                              View All Appointments
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Browse and manage appointments
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/coordinator/appointments/create">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <Calendar className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Book Appointment</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Create new appointment
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/coordinator/appointments/pending">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <AlertTriangle className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Pending Approvals</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Review and approve
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="tools" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Coordinator Tools</CardTitle>
-                <CardDescription>
-                  Essential tools for daily coordination tasks
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <Link href="/coordinator/checkin">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <QrCode className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Manual Check-in</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Help patients check in
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/coordinator/queue">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <Users className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Manage Queue</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Reorder and manage queues
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/coordinator/notifications">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <Bell className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Send Notifications</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Notify patients and gurujis
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/coordinator/reports">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <TrendingUp className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Daily Reports</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Generate activity reports
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Link href="/coordinator/settings">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                          <Settings className="h-8 w-8 text-primary" />
-                          <div>
-                            <h3 className="font-medium">Preferences</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Configure settings
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="pt-6">
+                  {stats.upcomingAppointments.slice(0, 5).map((appointment) => (
+                    <div
+                      key={appointment.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="flex items-center space-x-4">
-                        <Phone className="h-8 w-8 text-primary" />
+                        <Avatar>
+                          <AvatarFallback>
+                            {appointment.patientName.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
-                          <h3 className="font-medium">Emergency Contact</h3>
+                          <h3 className="font-semibold">
+                            {appointment.patientName}
+                          </h3>
                           <p className="text-sm text-muted-foreground">
-                            Quick access to help
+                            {appointment.gurujiName} •{" "}
+                            {new Date(appointment.time).toLocaleTimeString()}
                           </p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex items-center space-x-2">
+                        <Badge className={getStatusColor(appointment.status)}>
+                          {appointment.status}
+                        </Badge>
+                        <Badge
+                          className={getPriorityColor(appointment.priority)}
+                        >
+                          {appointment.priority}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button variant="outline" className="h-auto p-4">
+                <div className="flex flex-col items-center space-y-2">
+                  <Users className="h-6 w-6" />
+                  <span>Manage Queue</span>
+                </div>
+              </Button>
+
+              <Button variant="outline" className="h-auto p-4">
+                <div className="flex flex-col items-center space-y-2">
+                  <Calendar className="h-6 w-6" />
+                  <span>View Schedule</span>
+                </div>
+              </Button>
+
+              <Button variant="outline" className="h-auto p-4">
+                <div className="flex flex-col items-center space-y-2">
+                  <Phone className="h-6 w-6" />
+                  <span>Contact Support</span>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

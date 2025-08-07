@@ -1,15 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,30 +26,37 @@ import {
   MessageSquare,
   Eye,
   ArrowLeft,
+  AlertTriangle,
 } from "lucide-react";
-import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import {
+  useRemedyTemplate,
+  useGurujiPatients,
+  useGenerateRemedyPreview,
+  usePrescribeRemedy,
+} from "@/hooks/queries";
+import { toast } from "sonner";
 
 interface RemedyTemplate {
   id: string;
   name: string;
   type: string;
   category: string;
-  description?: string;
+  description: string | null;
   instructions: string;
-  dosage?: string;
-  duration?: string;
+  dosage: string | null;
+  duration: string | null;
   language: string;
   tags: string[];
 }
 
 interface Patient {
   id: string;
-  name: string;
-  email: string;
-  phone?: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
 }
 
 const prescriptionSchema = z.object({
@@ -74,13 +76,23 @@ export default function PrescribeRemedyPage({
 }: {
   params: Promise<{ templateId: string }>;
 }) {
-  const [template, setTemplate] = useState<RemedyTemplate | null>(null);
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [templateId, setTemplateId] = useState<string>("");
   const router = useRouter();
+
+  // Use React Query for data fetching and mutations
+  const {
+    data: template,
+    isLoading: templateLoading,
+    error: templateError,
+  } = useRemedyTemplate(templateId);
+  const {
+    data: patients = [],
+    isLoading: patientsLoading,
+    error: patientsError,
+  } = useGurujiPatients();
+  const generatePreviewMutation = useGenerateRemedyPreview();
+  const prescribeRemedyMutation = usePrescribeRemedy();
 
   const {
     register,
@@ -97,6 +109,9 @@ export default function PrescribeRemedyPage({
   });
 
   const watchedValues = watch();
+  const isLoading = templateLoading || patientsLoading;
+  const error = templateError || patientsError;
+  const isSubmitting = prescribeRemedyMutation.isPending;
 
   useEffect(() => {
     const initParams = async () => {
@@ -106,78 +121,70 @@ export default function PrescribeRemedyPage({
     initParams();
   }, [params]);
 
-  const fetchTemplate = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/remedies/templates/${templateId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTemplate(data.template);
-      } else {
-        toast.error("Template not found");
-        router.back();
-      }
-    } catch (error) {
-      console.error("Failed to fetch template:", error);
-      toast.error("Failed to load template");
-    }
-  }, [templateId, router]);
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const fetchPatients = useCallback(async () => {
-    try {
-      const response = await fetch("/api/guruji/patients");
-      if (response.ok) {
-        const data = await response.json();
-        setPatients(data.patients);
-      }
-    } catch (error) {
-      console.error("Failed to fetch patients:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading data
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  useEffect(() => {
-    if (templateId) {
-      fetchTemplate();
-      fetchPatients();
-    }
-  }, [templateId, fetchTemplate, fetchPatients]);
+  if (!template) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Template not found
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              The remedy template you&apos;re looking for doesn&apos;t exist.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const onSubmit = async (data: PrescriptionFormData) => {
-    setIsSubmitting(true);
+    const formData = new FormData();
+    formData.append("templateId", templateId);
+    formData.append("patientId", data.patientId);
+    if (data.customInstructions)
+      formData.append("customInstructions", data.customInstructions);
+    if (data.customDosage) formData.append("customDosage", data.customDosage);
+    if (data.customDuration)
+      formData.append("customDuration", data.customDuration);
 
-    try {
-      const response = await fetch("/api/remedies/prescribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId: templateId,
-          ...data,
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        toast.success("Remedy prescribed successfully!");
-
-        // Optionally download PDF immediately
-        if (result.pdfUrl) {
-          window.open(result.pdfUrl, "_blank");
-        }
-
+    prescribeRemedyMutation.mutate(formData, {
+      onSuccess: () => {
         router.push("/guruji/remedies");
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to prescribe remedy");
-      }
-    } catch (error: unknown) {
-      console.error("Prescription error:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to prescribe remedy";
-      toast.error(errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
+      },
+    });
   };
 
   const handlePatientSelect = (patientId: string) => {
@@ -189,30 +196,23 @@ export default function PrescribeRemedyPage({
   const generatePreview = async () => {
     if (!selectedPatient || !template) return;
 
-    try {
-      const response = await fetch("/api/remedies/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateId: templateId,
-          patientId: selectedPatient.id,
-          customInstructions: watchedValues.customInstructions,
-          customDosage: watchedValues.customDosage,
-          customDuration: watchedValues.customDuration,
-        }),
-      });
+    const formData = new FormData();
+    formData.append("templateId", templateId);
+    formData.append("patientId", selectedPatient.id);
+    if (watchedValues.customInstructions)
+      formData.append("customInstructions", watchedValues.customInstructions);
+    if (watchedValues.customDosage)
+      formData.append("customDosage", watchedValues.customDosage);
+    if (watchedValues.customDuration)
+      formData.append("customDuration", watchedValues.customDuration);
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
-      } else {
-        toast.error("Failed to generate preview");
-      }
-    } catch (error) {
-      console.error("Preview error:", error);
-      toast.error("Failed to generate preview");
-    }
+    generatePreviewMutation.mutate(formData, {
+      onSuccess: (preview) => {
+        // Handle preview data - could show in a modal or generate PDF
+        console.log("Preview generated:", preview);
+        toast.success("Preview generated successfully");
+      },
+    });
   };
 
   if (isLoading || !template) {

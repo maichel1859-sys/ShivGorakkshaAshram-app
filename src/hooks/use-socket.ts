@@ -2,17 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useAuthStore } from '@/store/auth-store';
+
 import { useQueueStore } from '@/store/queue-store';
 import { useNotificationStore } from '@/store/notification-store';
 import { QueueData, AppointmentData, RemedyData } from '@/types/socket';
 import { ClientToServerEvents, ServerToClientEvents } from '@/types/socket';
+import { useSession } from 'next-auth/react';
 
 type SocketType = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export function useSocket() {
   const socketRef = useRef<SocketType | null>(null);
-  const { user } = useAuthStore();
+  const { data: session } = useSession();
+  const user = session?.user;
   const { setEntries, addEntry, updateEntry } = useQueueStore();
   const { addNotification } = useNotificationStore();
 
@@ -21,7 +23,7 @@ export function useSocket() {
 
     // Initialize socket connection
     socketRef.current = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      path: '/api/socket',
+      path: '/socket.io',
       transports: ['websocket', 'polling'],
     });
 
@@ -31,11 +33,11 @@ export function useSocket() {
       console.log('Socket connected:', socket.id);
       
       // Join user-specific room for notifications
-      socket.emit('join-user', user.id);
+      socket.emit('join:user-room', { userId: user.id });
       
       // Join role-specific rooms if needed
       if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
-        socket.emit('join-admin');
+        socket.emit('join:admin-room');
       }
     });
 
@@ -44,32 +46,27 @@ export function useSocket() {
     });
 
     // Queue-related events
-    socket.on('queue-updated', (queueData) => {
-      console.log('Queue updated:', queueData);
+    socket.on('queue:updated', (data) => {
+      console.log('Queue updated:', data);
       // Transform QueueData to QueueEntry format
-      const transformedEntries = queueData.map((data: QueueData & { userName?: string; gurujiName?: string; appointmentId?: string; priority?: string; estimatedWaitTime?: number; notes?: string }) => ({
-        id: data.id,
-        userId: data.userId,
-        userName: data.userName || 'Unknown User',
-        gurujiId: data.gurujiId,
-        gurujiName: data.gurujiName || 'Unknown Guruji',
-        appointmentId: data.appointmentId,
-        status: (data.status as 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED') || 'WAITING',
-        priority: (data.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM',
-        position: data.position,
-        estimatedWaitTime: data.estimatedWaitTime,
-        checkedInAt: data.checkedInAt,
-        notes: data.notes
+      const transformedEntries = data.queueData.map((queueData: QueueData) => ({
+        id: queueData.id,
+        userId: queueData.userId,
+        userName: queueData.userName || 'Unknown User',
+        gurujiId: queueData.gurujiId,
+        gurujiName: queueData.gurujiName || 'Unknown Guruji',
+        appointmentId: queueData.appointmentId,
+        status: queueData.status,
+        priority: queueData.priority,
+        position: queueData.position,
+        estimatedWaitTime: queueData.estimatedWaitTime,
+        checkedInAt: queueData.checkedInAt,
+        notes: queueData.notes
       }));
       setEntries(transformedEntries);
     });
 
-    socket.on('patient-checked-in', (data) => {
-      console.log('Patient checked in:', data);
-      // Update queue if we're watching this guruji's queue
-    });
-
-    socket.on('checkin-confirmed', (data) => {
+    socket.on('checkin:success', (data) => {
       console.log('Check-in confirmed:', data);
       addNotification({
         id: `checkin-${Date.now()}`,
@@ -84,7 +81,7 @@ export function useSocket() {
     });
 
     // Consultation events
-    socket.on('consultation-ready', (data) => {
+    socket.on('consultation:ready', (data) => {
       console.log('Consultation ready:', data);
       addNotification({
         id: `consultation-ready-${Date.now()}`,
@@ -98,7 +95,7 @@ export function useSocket() {
       });
     });
 
-    socket.on('consultation-completed', (data) => {
+    socket.on('consultation:completed', (data) => {
       console.log('Consultation completed:', data);
       addNotification({
         id: `consultation-completed-${Date.now()}`,
@@ -112,7 +109,7 @@ export function useSocket() {
       });
     });
 
-    socket.on('your-turn-next', (data) => {
+    socket.on('consultation:next-patient', (data) => {
       console.log('Your turn next:', data);
       addNotification({
         id: `turn-next-${Date.now()}`,
@@ -127,8 +124,8 @@ export function useSocket() {
     });
 
     // Appointment events
-    socket.on('appointment-confirmed', (appointmentData) => {
-      console.log('Appointment confirmed:', appointmentData);
+    socket.on('appointment:confirmed', (data) => {
+      console.log('Appointment confirmed:', data);
       addNotification({
         id: `appointment-confirmed-${Date.now()}`,
         title: 'Appointment Confirmed',
@@ -137,13 +134,13 @@ export function useSocket() {
         priority: 'MEDIUM',
         isRead: false,
         createdAt: new Date().toISOString(),
-        data: appointmentData as unknown as Record<string, unknown>
+        data: data.appointment as unknown as Record<string, unknown>
       });
     });
 
     // Remedy events
-    socket.on('remedy-received', (remedyData) => {
-      console.log('Remedy received:', remedyData);
+    socket.on('remedy:prescribed', (data) => {
+      console.log('Remedy received:', data);
       addNotification({
         id: `remedy-received-${Date.now()}`,
         title: 'Remedy Prescribed',
@@ -152,12 +149,12 @@ export function useSocket() {
         priority: 'MEDIUM',
         isRead: false,
         createdAt: new Date().toISOString(),
-        data: remedyData as unknown as Record<string, unknown>
+        data: data.remedy as unknown as Record<string, unknown>
       });
     });
 
     // System announcements
-    socket.on('announcement', (data) => {
+    socket.on('system:announcement', (data) => {
       console.log('System announcement:', data);
       addNotification({
         id: `announcement-${Date.now()}`,
@@ -167,7 +164,7 @@ export function useSocket() {
         priority: data.type === 'urgent' ? 'HIGH' : 'MEDIUM',
         isRead: false,
         createdAt: new Date().toISOString(),
-        data: data
+        data: data as unknown as Record<string, unknown>
       });
     });
 
@@ -180,11 +177,11 @@ export function useSocket() {
 
   // Socket utility functions
   const joinQueue = (gurujiId: string) => {
-    socketRef.current?.emit('join-queue', gurujiId);
+    socketRef.current?.emit('join:queue-room', { gurujiId });
   };
 
   const leaveQueue = (gurujiId: string) => {
-    socketRef.current?.emit('leave-queue', gurujiId);
+    socketRef.current?.emit('leave:queue-room', { gurujiId });
   };
 
   const notifyPatientCheckin = (data: {
@@ -192,14 +189,14 @@ export function useSocket() {
     patientId: string;
     queuePosition: number;
   }) => {
-    socketRef.current?.emit('patient-checkin', data);
+    socketRef.current?.emit('queue:checkin', { userId: data.patientId, gurujiId: data.gurujiId });
   };
 
   const notifyConsultationStart = (data: {
     gurujiId: string;
     patientId: string;
   }) => {
-    socketRef.current?.emit('consultation-start', data);
+    socketRef.current?.emit('consultation:start', data);
   };
 
   const notifyConsultationEnd = (data: {
@@ -207,14 +204,14 @@ export function useSocket() {
     patientId: string;
     nextPatientId?: string;
   }) => {
-    socketRef.current?.emit('consultation-end', data);
+    socketRef.current?.emit('consultation:end', data);
   };
 
   const notifyAppointmentBooked = (data: {
     patientId: string;
     appointmentData: AppointmentData;
   }) => {
-    socketRef.current?.emit('appointment-booked', data);
+    socketRef.current?.emit('appointment:book', { userId: data.patientId, appointment: data.appointmentData });
   };
 
   const notifyRemedyPrescribed = (data: {
@@ -222,7 +219,7 @@ export function useSocket() {
     gurujiId: string;
     remedyData: RemedyData;
   }) => {
-    socketRef.current?.emit('remedy-prescribed', data);
+    socketRef.current?.emit('remedy:prescribe', { patientId: data.patientId, gurujiId: data.gurujiId, remedy: data.remedyData });
   };
 
   const sendSystemAnnouncement = (data: {
@@ -230,14 +227,14 @@ export function useSocket() {
     type: 'info' | 'warning' | 'urgent';
     targetRoles?: string[];
   }) => {
-    socketRef.current?.emit('system-announcement', data);
+    socketRef.current?.emit('system:broadcast', data);
   };
 
   const updateQueuePosition = (data: {
     gurujiId: string;
     queueData: QueueData[];
   }) => {
-    socketRef.current?.emit('update-queue-position', data);
+    socketRef.current?.emit('queue:update-positions', data);
   };
 
   return {

@@ -23,14 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Users,
-  Heart,
-  Check,
-  AlertTriangle,
-  ArrowRight,
-} from "lucide-react";
-import toast from "react-hot-toast";
+import { Users, Heart, Check, AlertTriangle, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
+import { registerFamilyContact } from "@/lib/actions/auth-actions";
 
 const familyContactSchema = z.object({
   elderlyPhone: z
@@ -99,21 +94,23 @@ export function FamilyContactForm({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/family-contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+      // Convert form data to FormData for Server Action
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(key, String(value));
+        }
       });
 
-      const result = await response.json();
+      const result = await registerFamilyContact(formData);
 
-      if (response.ok) {
+      if (result.success) {
         setIsSuccess(true);
         toast.success("Family contact registered successfully!");
         form.reset();
         onSuccess?.();
       } else {
-        throw new Error(result.message || "Failed to register family contact");
+        throw new Error(result.error || "Failed to register family contact");
       }
     } catch (error: unknown) {
       console.error("Family contact registration error:", error);
@@ -195,7 +192,9 @@ export function FamilyContactForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="elderlyName">Elderly Person&apos;s Name *</Label>
+                <Label htmlFor="elderlyName">
+                  Elderly Person&apos;s Name *
+                </Label>
                 <Input
                   id="elderlyName"
                   placeholder="Full name"
@@ -209,7 +208,9 @@ export function FamilyContactForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="elderlyPhone">Elderly Person&apos;s Phone *</Label>
+                <Label htmlFor="elderlyPhone">
+                  Elderly Person&apos;s Phone *
+                </Label>
                 <Input
                   id="elderlyPhone"
                   placeholder="+91 98765 43210"

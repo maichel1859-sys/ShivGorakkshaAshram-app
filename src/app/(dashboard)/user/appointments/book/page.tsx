@@ -1,19 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { DashboardLayout } from "@/components/dashboard/layout";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,432 +13,300 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar, Clock, User, AlertCircle } from "lucide-react";
 import {
-  Calendar as CalendarIcon,
-  AlertCircle,
-} from "lucide-react";
-import { format } from "date-fns";
-import toast from "react-hot-toast";
+  bookAppointment,
+  getAppointmentAvailability,
+} from "@/lib/actions/appointment-actions";
+import { getAvailableGurujis } from "@/lib/actions/user-actions";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
-const appointmentSchema = z.object({
-  gurujiId: z.string().min(1, "Please select a Guruji"),
-  date: z.string().min(1, "Please select a date"),
-  time: z.string().min(1, "Please select a time"),
-  reason: z.string().optional(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]),
-  isRecurring: z.boolean().default(false),
-  recurringPattern: z
-    .object({
-      frequency: z.enum(["daily", "weekly", "monthly"]).optional(),
-      interval: z.number().min(1).max(12).optional(),
-      endDate: z.string().optional(),
-    })
-    .optional(),
-});
 
-type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
-// Guruji data will be fetched from API
-interface GurujiData {
-  id: string;
-  name: string;
-  specialization?: string;
-  isActive: boolean;
+interface TimeSlot {
+  time: string;
+  available: boolean;
+  gurujiId?: string;
 }
 
-const timeSlots = [
-  "09:00",
-  "09:30",
-  "10:00",
-  "10:30",
-  "11:00",
-  "11:30",
-  "14:00",
-  "14:30",
-  "15:00",
-  "15:30",
-  "16:00",
-  "16:30",
-  "17:00",
-  "17:30",
-  "18:00",
-];
-
 export default function BookAppointmentPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showRecurring, setShowRecurring] = useState(false);
-  const [gurujis, setGurujis] = useState<GurujiData[]>([]);
-  const [loadingGurujis, setLoadingGurujis] = useState(true);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedGuruji, setSelectedGuruji] = useState("");
+  const [reason, setReason] = useState("");
+    const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [booking, setBooking] = useState(false);
   const router = useRouter();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<AppointmentFormData>({
-    resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      priority: "NORMAL",
-      isRecurring: false,
+  // Fetch available gurujis using TanStack Query with Server Action
+  const { data: gurujisData, isLoading: gurujisLoading } = useQuery({
+    queryKey: ["gurujis"],
+    queryFn: async () => {
+      const result = await getAvailableGurujis();
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch gurujis");
+      }
+      return result.gurujis;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const isRecurring = watch("isRecurring");
+  const gurujis = gurujisData || [];
 
-  // Fetch Gurujis on component mount
-  useEffect(() => {
-    const fetchGurujis = async () => {
-      try {
-        setLoadingGurujis(true);
-        const response = await fetch('/api/users?role=GURUJI&active=true');
-        if (!response.ok) {
-          throw new Error('Failed to fetch Gurujis');
-        }
-        const data = await response.json();
-        setGurujis(data.users || []);
-      } catch (error) {
-        console.error('Error fetching Gurujis:', error);
-        toast.error('Failed to load Gurujis. Please refresh the page.');
-      } finally {
-        setLoadingGurujis(false);
-      }
-    };
-
-    fetchGurujis();
-  }, []);
-
-  const onSubmit = async (data: AppointmentFormData) => {
-    setIsLoading(true);
+  const loadAvailability = useCallback(async () => {
+    if (!selectedDate) return;
 
     try {
-      const response = await fetch("/api/appointments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to book appointment");
+      const result = await getAppointmentAvailability({ date: selectedDate });
+      if (result.success && result.availability) {
+        setTimeSlots(result.availability);
       }
+    } catch (error) {
+      console.error("Failed to load availability:", error);
+    }
+  }, [selectedDate]);
 
-      toast.success("Appointment booked successfully!");
+  useEffect(() => {
+    if (selectedDate) {
+      loadAvailability();
+    }
+  }, [selectedDate, loadAvailability]);
+
+  const handleBookAppointment = async () => {
+    if (!selectedDate || !selectedTime || !selectedGuruji || !reason.trim()) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    setBooking(true);
+    try {
+      const formData = new FormData();
+      formData.append("date", selectedDate);
+      formData.append("time", selectedTime);
+      formData.append("gurujiId", selectedGuruji);
+      formData.append("reason", reason);
+
+      await bookAppointment(formData);
+      alert("Appointment booked successfully!");
       router.push("/user/appointments");
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to book appointment";
-      toast.error(errorMessage);
+    } catch (error) {
       console.error("Booking error:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to book appointment. Please try again.";
+      alert(errorMessage);
     } finally {
-      setIsLoading(false);
+      setBooking(false);
     }
   };
 
-  return (
-    <DashboardLayout title="Book Appointment" allowedRoles={["USER"]}>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Book New Appointment
-          </h2>
-          <p className="text-muted-foreground">
-            Schedule your consultation with our experienced Gurujis
-          </p>
-        </div>
+  const getAvailableGurujisList = () => {
+    return gurujis.filter((guruji) => guruji.isAvailable);
+  };
 
+  const getAvailableTimeSlots = () => {
+    return timeSlots.filter((slot) => slot.available);
+  };
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Book Appointment</h1>
+        <p className="text-muted-foreground">
+          Schedule your consultation with our experienced gurujis
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Booking Form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <CalendarIcon className="h-5 w-5" />
+              <Calendar className="h-5 w-5" />
               <span>Appointment Details</span>
             </CardTitle>
-            <CardDescription>
-              Fill in the details for your consultation
-            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Guruji Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="guruji">Select Guruji</Label>
-                <Select onValueChange={(value) => setValue("gurujiId", value)} disabled={loadingGurujis}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingGurujis ? "Loading Gurujis..." : "Choose your preferred Guruji"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gurujis.map((guruji) => (
-                      <SelectItem
-                        key={guruji.id}
-                        value={guruji.id}
-                        disabled={!guruji.isActive}
-                      >
-                        <div className="flex flex-col">
-                          <span
-                            className={
-                              !guruji.isActive ? "text-muted-foreground" : ""
-                            }
-                          >
-                            {guruji.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {guruji.specialization || 'Spiritual Guidance'}
-                            {!guruji.isActive && " - Currently unavailable"}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.gurujiId && (
-                  <p className="text-sm text-destructive">
-                    {errors.gurujiId.message}
-                  </p>
-                )}
-              </div>
+          <CardContent className="space-y-4">
+            {/* Date Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
 
-              {/* Date and Time */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">Preferred Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    min={format(new Date(), "yyyy-MM-dd")}
-                    {...register("date")}
-                  />
-                  {errors.date && (
-                    <p className="text-sm text-destructive">
-                      {errors.date.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="time">Preferred Time</Label>
-                  <Select onValueChange={(value) => setValue("time", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeSlots.map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.time && (
-                    <p className="text-sm text-destructive">
-                      {errors.time.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Priority */}
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority Level</Label>
-                <Select
-                  defaultValue="NORMAL"
-                  onValueChange={(value) =>
-                    setValue(
-                      "priority",
-                      value as "LOW" | "NORMAL" | "HIGH" | "URGENT"
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">
-                      Low - General consultation
-                    </SelectItem>
-                    <SelectItem value="NORMAL">
-                      Normal - Regular appointment
-                    </SelectItem>
-                    <SelectItem value="HIGH">
-                      High - Important matter
-                    </SelectItem>
-                    <SelectItem value="URGENT">
-                      Urgent - Immediate attention needed
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.priority && (
-                  <p className="text-sm text-destructive">
-                    {errors.priority.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Reason */}
-              <div className="space-y-2">
-                <Label htmlFor="reason">
-                  Reason for Consultation (Optional)
-                </Label>
-                <Textarea
-                  id="reason"
-                  placeholder="Briefly describe the purpose of your visit..."
-                  className="min-h-[100px]"
-                  {...register("reason")}
-                />
-                {errors.reason && (
-                  <p className="text-sm text-destructive">
-                    {errors.reason.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Recurring Appointment */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="recurring"
-                    checked={isRecurring}
-                    onCheckedChange={(checked) => {
-                      setValue("isRecurring", checked as boolean);
-                      setShowRecurring(checked as boolean);
-                    }}
-                  />
-                  <Label htmlFor="recurring" className="text-sm font-medium">
-                    Make this a recurring appointment
-                  </Label>
-                </div>
-
-                {showRecurring && (
-                  <Card className="p-4 border-dashed">
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>
-                          Set up recurring pattern for regular consultations
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="frequency">Frequency</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setValue(
-                                "recurringPattern.frequency",
-                                value as "weekly" | "monthly"
-                              )
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="weekly">Weekly</SelectItem>
-                              <SelectItem value="monthly">Monthly</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="interval">Every</Label>
-                          <Select
-                            onValueChange={(value) =>
-                              setValue(
-                                "recurringPattern.interval",
-                                parseInt(value)
-                              )
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Interval" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 6, 8, 12].map((num) => (
-                                <SelectItem key={num} value={num.toString()}>
-                                  {num} {num === 1 ? "time" : "times"}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="endDate">End Date</Label>
-                          <Input
-                            type="date"
-                            min={format(new Date(), "yyyy-MM-dd")}
-                            onChange={(e) =>
-                              setValue(
-                                "recurringPattern.endDate",
-                                e.target.value
-                              )
-                            }
-                          />
+            {/* Guruji Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="guruji">Select Guruji</Label>
+              <Select value={selectedGuruji} onValueChange={setSelectedGuruji}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a guruji" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableGurujisList().map((guruji) => (
+                    <SelectItem key={guruji.id} value={guruji.id}>
+                      <div className="flex items-center space-x-2">
+                        <User className="h-4 w-4" />
+                        <div>
+                          <div className="font-medium">{guruji.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {typeof guruji.specialization === "string"
+                              ? guruji.specialization
+                              : "General Consultation"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                )}
-              </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Submit Buttons */}
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={isLoading}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
-                      Booking...
-                    </>
-                  ) : (
-                    <>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      Book Appointment
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
+            {/* Time Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="time">Time</Label>
+              <Select value={selectedTime} onValueChange={setSelectedTime}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a time slot" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableTimeSlots().map((slot) => (
+                    <SelectItem key={slot.time} value={slot.time}>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <span>{slot.time}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Reason */}
+            <div className="space-y-2">
+              <Label htmlFor="reason">Reason for Visit</Label>
+              <Textarea
+                id="reason"
+                placeholder="Describe your symptoms or reason for consultation"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Book Button */}
+            <Button
+              onClick={handleBookAppointment}
+              disabled={
+                booking ||
+                !selectedDate ||
+                !selectedTime ||
+                !selectedGuruji ||
+                !reason.trim()
+              }
+              className="w-full"
+            >
+              {booking ? "Booking..." : "Book Appointment"}
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Information Card */}
+        {/* Available Gurujis */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-blue-500" />
-              <span>Important Information</span>
+              <User className="h-5 w-5" />
+              <span>Available Gurujis</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>• Please arrive 10 minutes before your scheduled appointment</p>
-            <p>
-              • You can reschedule or cancel up to 2 hours before the
-              appointment
-            </p>
-            <p>
-              • High priority appointments may be scheduled sooner based on
-              availability
-            </p>
-            <p>
-              • You will receive a confirmation email with QR code for check-in
-            </p>
-            <p>
-              • Recurring appointments can be modified or cancelled individually
-            </p>
+          <CardContent>
+            {gurujisLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="text-muted-foreground mt-2">Loading gurujis...</p>
+              </div>
+            ) : getAvailableGurujisList().length === 0 ? (
+              <div className="text-center py-8">
+                <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No gurujis available</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {getAvailableGurujisList().map((guruji) => (
+                  <div
+                    key={guruji.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      selectedGuruji === guruji.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => setSelectedGuruji(guruji.id)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{guruji.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {typeof guruji.specialization === "string"
+                            ? guruji.specialization
+                            : "General Consultation"}
+                        </p>
+                      </div>
+                      {selectedGuruji === guruji.id && (
+                        <div className="w-4 h-4 bg-primary rounded-full"></div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+
+      {/* Instructions */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Booking Instructions</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium mb-2">Before Your Appointment</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Arrive 10 minutes early</li>
+                <li>• Bring any relevant medical records</li>
+                <li>• Prepare a list of symptoms</li>
+                <li>• Wear comfortable clothing</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">What to Expect</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Consultation duration: 30-45 minutes</li>
+                <li>• Digital remedy prescription</li>
+                <li>• Follow-up appointment scheduling</li>
+                <li>• Health recommendations</li>
+              </ul>
+            </div>
+          </div>
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>Note:</strong> You can reschedule or cancel your
+              appointment up to 24 hours before the scheduled time. For urgent
+              changes, please contact the reception.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

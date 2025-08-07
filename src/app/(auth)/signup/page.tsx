@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
+import { registerUser } from "@/lib/actions/auth-actions";
 
 const signupSchema = z
   .object({
@@ -45,26 +46,21 @@ export default function SignUpPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          password: data.password,
-        }),
-      });
+      // Convert form data to FormData for Server Action
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("email", data.email);
+      formData.append("phone", data.phone || "");
+      formData.append("password", data.password);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Registration failed");
+      const result = await registerUser(formData);
+
+      if (result.success) {
+        toast.success("Account created successfully! Please sign in.");
+        router.push("/signin");
+      } else {
+        throw new Error(result.error || "Registration failed");
       }
-
-      toast.success("Account created successfully! Please sign in.");
-      router.push("/signin");
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error

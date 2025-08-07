@@ -60,8 +60,57 @@ export function AppointmentManager() {
           total: result.total || 0,
           hasMore: result.hasMore || false,
         };
-        setAppointmentsData(data);
-        setAppointments(result.appointments);
+        setAppointmentsData({
+          ...data,
+          appointments: result.appointments.map(apt => ({
+            ...apt,
+            date: apt.date.toISOString(),
+            startTime: apt.startTime.toISOString(),
+            endTime: apt.endTime?.toISOString(),
+            reason: apt.reason || undefined,
+            checkedInAt: apt.checkedInAt?.toISOString(),
+            guruji: apt.guruji ? {
+              ...apt.guruji,
+              name: apt.guruji.name || '',
+              email: apt.guruji.email || '',
+            } : { id: '', name: '', email: '' },
+            user: {
+              ...apt.user,
+              name: apt.user.name || '',
+              email: apt.user.email || '',
+              phone: apt.user.phone || '',
+            },
+            queueEntry: apt.queueEntry ? {
+              position: apt.queueEntry.position,
+              status: apt.queueEntry.status,
+              estimatedWait: apt.queueEntry.estimatedWait || 0,
+            } : undefined,
+          })),
+        });
+        setAppointments(result.appointments.map(apt => ({
+          ...apt,
+          date: apt.date.toISOString(),
+          startTime: apt.startTime.toISOString(),
+          endTime: apt.endTime?.toISOString(),
+          reason: apt.reason || undefined,
+          checkedInAt: apt.checkedInAt?.toISOString(),
+          guruji: apt.guruji ? {
+            ...apt.guruji,
+            name: apt.guruji.name || '',
+            email: apt.guruji.email || '',
+          } : { id: '', name: '', email: '' },
+          user: {
+            ...apt.user,
+            name: apt.user.name || '',
+            email: apt.user.email || '',
+            phone: apt.user.phone || '',
+          },
+          queueEntry: apt.queueEntry ? {
+            position: apt.queueEntry.position,
+            status: apt.queueEntry.status,
+            estimatedWait: apt.queueEntry.estimatedWait || 0,
+          } : undefined,
+        })));
       } else {
         setError(result.error || 'Failed to load appointments');
       }

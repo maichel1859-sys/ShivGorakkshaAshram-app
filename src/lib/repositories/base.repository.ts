@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database/prisma';
 
 // Base repository interface
 export interface IBaseRepository<T, CreateInput, UpdateInput, WhereInput = unknown> {

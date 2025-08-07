@@ -1,75 +1,45 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'USER' | 'COORDINATOR' | 'GURUJI' | 'ADMIN';
-  phone?: string;
-  isActive: boolean;
-}
-
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+// This store should only handle UI state related to authentication
+// User data and session state should come from NextAuth/useSession
+interface AuthUIState {
+  // UI state only - never store actual user data or session
+  showLoginModal: boolean;
+  showSignupModal: boolean;
+  isAuthenticating: boolean;
+  authError: string | null;
+  lastVisitedPage: string | null;
   
   // Actions
-  setUser: (user: User | null) => void;
-  setLoading: (loading: boolean) => void;
-  login: (user: User) => void;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  setShowLoginModal: (show: boolean) => void;
+  setShowSignupModal: (show: boolean) => void;
+  setAuthenticating: (authenticating: boolean) => void;
+  setAuthError: (error: string | null) => void;
+  setLastVisitedPage: (page: string) => void;
+  reset: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isAuthenticated: false,
-      isLoading: true,
+const initialState = {
+  showLoginModal: false,
+  showSignupModal: false,
+  isAuthenticating: false,
+  authError: null,
+  lastVisitedPage: null,
+};
 
-      setUser: (user) => 
-        set({ 
-          user, 
-          isAuthenticated: !!user,
-          isLoading: false 
-        }),
+export const useAuthUIStore = create<AuthUIState>((set) => ({
+  ...initialState,
 
-      setLoading: (loading) => 
-        set({ isLoading: loading }),
+  setShowLoginModal: (show) => set({ showLoginModal: show }),
+  setShowSignupModal: (show) => set({ showSignupModal: show }),
+  setAuthenticating: (authenticating) => set({ isAuthenticating: authenticating }),
+  setAuthError: (error) => set({ authError: error }),
+  setLastVisitedPage: (page) => set({ lastVisitedPage: page }),
+  reset: () => set(initialState),
+}));
 
-      login: (user) => 
-        set({ 
-          user, 
-          isAuthenticated: true,
-          isLoading: false 
-        }),
-
-      logout: () => 
-        set({ 
-          user: null, 
-          isAuthenticated: false,
-          isLoading: false 
-        }),
-
-      updateUser: (updates) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          set({ 
-            user: { ...currentUser, ...updates } 
-          });
-        }
-      },
-    }),
-    {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    }
-  )
-);
+// Selector hooks for better performance
+export const useShowLoginModal = () => useAuthUIStore((state) => state.showLoginModal);
+export const useShowSignupModal = () => useAuthUIStore((state) => state.showSignupModal);
+export const useIsAuthenticating = () => useAuthUIStore((state) => state.isAuthenticating);
+export const useAuthError = () => useAuthUIStore((state) => state.authError);

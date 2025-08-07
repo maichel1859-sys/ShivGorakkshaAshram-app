@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Shield, 
-  Database, 
-  Server, 
+import {
+  Shield,
+  Database,
+  Server,
   Activity,
   AlertTriangle,
   CheckCircle,
@@ -18,54 +24,27 @@ import {
   Settings,
   HardDrive,
   Cpu,
-  MemoryStick
+  MemoryStick,
 } from "lucide-react";
+import { useAdminSystemStatus } from "@/hooks/queries";
 
-interface SystemStatus {
-  status: "healthy" | "warning" | "critical";
-  uptime: string;
-  cpuUsage: number;
-  memoryUsage: number;
-  diskUsage: number;
-  activeConnections: number;
-  databaseStatus: "connected" | "disconnected" | "error";
-  lastBackup: string;
-  errors: string[];
-  warnings: string[];
-}
+
 
 export default function AdminSystemPage() {
-  const [systemStatus, setSystemStatus] = useState<SystemStatus>({
-    status: "healthy",
-    uptime: "5 days, 12 hours",
-    cpuUsage: 45,
-    memoryUsage: 62,
-    diskUsage: 78,
-    activeConnections: 23,
-    databaseStatus: "connected",
-    lastBackup: "2 hours ago",
-    errors: [],
-    warnings: ["High disk usage detected"],
-  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  // Use React Query for data fetching
+  const {
+    data: systemStatus,
+    isLoading,
+    error,
+    refetch,
+  } = useAdminSystemStatus();
 
-  useEffect(() => {
-    fetchSystemStatus();
-  }, []);
-
-  const fetchSystemStatus = async () => {
-    try {
-      const response = await fetch("/api/admin/system/status");
-      if (response.ok) {
-        const data = await response.json();
-        setSystemStatus(data);
-      }
-    } catch (error) {
-      console.error("Error fetching system status:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -94,13 +73,33 @@ export default function AdminSystemPage() {
     }
   };
 
-
-
   if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !systemStatus) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading system status
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+            <Button onClick={handleRefresh} className="mt-4">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -112,13 +111,17 @@ export default function AdminSystemPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">System Monitor</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              System Monitor
+            </h1>
             <p className="text-muted-foreground">
               Monitor system health and performance
             </p>
           </div>
-          <Button onClick={fetchSystemStatus}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <Button onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </div>
@@ -130,9 +133,7 @@ export default function AdminSystemPage() {
               <Shield className="h-5 w-5" />
               System Status
             </CardTitle>
-            <CardDescription>
-              Overall system health and uptime
-            </CardDescription>
+            <CardDescription>Overall system health and uptime</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -169,11 +170,15 @@ export default function AdminSystemPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Memory Usage
+              </CardTitle>
               <MemoryStick className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{systemStatus.memoryUsage}%</div>
+              <div className="text-2xl font-bold">
+                {systemStatus.memoryUsage}%
+              </div>
               <Progress value={systemStatus.memoryUsage} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
                 RAM utilization
@@ -187,7 +192,9 @@ export default function AdminSystemPage() {
               <HardDrive className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{systemStatus.diskUsage}%</div>
+              <div className="text-2xl font-bold">
+                {systemStatus.diskUsage}%
+              </div>
               <Progress value={systemStatus.diskUsage} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
                 Storage utilization
@@ -210,7 +217,11 @@ export default function AdminSystemPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Badge className={getDatabaseStatusColor(systemStatus.databaseStatus)}>
+                <Badge
+                  className={getDatabaseStatusColor(
+                    systemStatus.databaseStatus
+                  )}
+                >
                   {systemStatus.databaseStatus.toUpperCase()}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
@@ -241,12 +252,17 @@ export default function AdminSystemPage() {
               {systemStatus.errors.length === 0 ? (
                 <div className="text-center py-4">
                   <CheckCircle className="mx-auto h-8 w-8 text-green-500" />
-                  <p className="text-sm text-muted-foreground mt-2">No errors detected</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    No errors detected
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {systemStatus.errors.map((error, index) => (
-                    <div key={index} className="flex items-center space-x-2 text-sm text-red-600">
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 text-sm text-red-600"
+                    >
                       <XCircle className="h-4 w-4" />
                       <span>{error}</span>
                     </div>
@@ -271,12 +287,17 @@ export default function AdminSystemPage() {
               {systemStatus.warnings.length === 0 ? (
                 <div className="text-center py-4">
                   <CheckCircle className="mx-auto h-8 w-8 text-green-500" />
-                  <p className="text-sm text-muted-foreground mt-2">No warnings</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    No warnings
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {systemStatus.warnings.map((warning, index) => (
-                    <div key={index} className="flex items-center space-x-2 text-sm text-yellow-600">
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 text-sm text-yellow-600"
+                    >
                       <AlertTriangle className="h-4 w-4" />
                       <span>{warning}</span>
                     </div>
@@ -322,4 +343,4 @@ export default function AdminSystemPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

@@ -102,3 +102,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   setLastFetch: (timestamp) => set({ lastFetch: timestamp }),
 }));
+
+// Selector hooks for better performance
+export const useUnreadNotificationCount = () => useNotificationStore((state) => state.unreadCount);
+export const useNotificationLoading = () => useNotificationStore((state) => state.isLoading);

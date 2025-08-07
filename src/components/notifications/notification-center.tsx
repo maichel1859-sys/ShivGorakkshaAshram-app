@@ -1,309 +1,179 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useState } from "react";
+import { Bell, X, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Bell,
-  Check,
-  CheckCheck,
-  Trash2,
-  Calendar,
-  Heart,
-  Users,
-  Settings,
-  Clock,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { useNotificationStore } from "@/store/notification-store";
-import { useAppStore } from "@/store/app-store";
+  useNotifications,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+  useDeleteNotification,
+} from "@/hooks/queries";
+import { useRouter } from "next/navigation";
 
-interface NotificationCenterProps {
-  className?: string;
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+  data?: Record<string, unknown>;
 }
 
-export function NotificationCenter({ className }: NotificationCenterProps) {
-  const {
-    notifications,
-    unreadCount,
-    isLoading,
-    setLoading,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-    setNotifications,
-  } = useNotificationStore();
+interface NotificationCenterProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
 
-  const { network } = useAppStore();
+export function NotificationCenter({
+  isOpen,
+  onClose,
+}: NotificationCenterProps) {
+  const router = useRouter();
 
-  const fetchNotifications = useCallback(async () => {
-    if (!network.isOnline) return;
+  // React Query hooks
+  const { data, isLoading: loading } = useNotifications({ limit: 20 });
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+  const deleteNotificationMutation = useDeleteNotification();
 
-    setLoading(true);
-    try {
-      const response = await fetch("/api/notifications?limit=20");
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications);
-      }
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [network.isOnline, setNotifications, setLoading]);
+  const notifications = data?.notifications || [];
+  const unreadCount = data?.unreadCount || 0;
 
-  const handleMarkAsRead = async (notificationId: string) => {
-    // Optimistically update UI
-    markAsRead(notificationId);
-
-    if (!network.isOnline) return;
-
-    try {
-      await fetch(`/api/notifications/${notificationId}`, {
-        method: "PATCH",
-      });
-    } catch (error) {
-      console.error("Failed to mark notification as read:", error);
-      // TODO: Queue for retry when online
-    }
+  const handleMarkAsRead = (notificationId: string) => {
+    markAsReadMutation.mutate(notificationId);
   };
 
-  const handleMarkAllAsRead = async () => {
-    // Optimistically update UI
-    markAllAsRead();
-
-    if (!network.isOnline) return;
-
-    try {
-      await fetch("/api/notifications/mark-all-read", {
-        method: "POST",
-      });
-    } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
-      // TODO: Queue for retry when online
-    }
+  const handleMarkAllAsRead = () => {
+    markAllAsReadMutation.mutate();
   };
 
-  const handleDeleteNotification = async (notificationId: string) => {
-    // Optimistically update UI
-    removeNotification(notificationId);
-
-    if (!network.isOnline) return;
-
-    try {
-      await fetch(`/api/notifications/${notificationId}`, {
-        method: "DELETE",
-      });
-    } catch (error) {
-      console.error("Failed to delete notification:", error);
-      // TODO: Queue for retry when online
-    }
+  const handleDeleteNotification = (notificationId: string) => {
+    deleteNotificationMutation.mutate(notificationId);
   };
 
-  // Fetch notifications when dropdown opens
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  // Fetch notifications periodically when online
-  useEffect(() => {
-    if (!network.isOnline) return;
-
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [network.isOnline, fetchNotifications]);
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "appointment":
-        return <Calendar className="h-4 w-4" />;
-      case "remedy":
-        return <Heart className="h-4 w-4" />;
-      case "queue":
-        return <Users className="h-4 w-4" />;
-      case "system":
-        return <Settings className="h-4 w-4" />;
-      case "reminder":
-        return <Clock className="h-4 w-4" />;
-      default:
-        return <Bell className="h-4 w-4" />;
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.read) {
+      handleMarkAsRead(notification.id);
     }
+
+    // Handle navigation based on notification type
+    if (notification.data?.appointmentId) {
+      router.push(`/user/appointments/${notification.data.appointmentId}`);
+    } else if (notification.data?.remedyId) {
+      router.push(`/user/remedies/${notification.data.remedyId}`);
+    } else if (notification.data?.queueEntryId) {
+      router.push("/user/queue");
+    }
+
+    onClose();
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "HIGH":
-        return "text-red-600";
-      case "MEDIUM":
-        return "text-yellow-600";
-      case "LOW":
-        return "text-green-600";
-      default:
-        return "text-gray-600";
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "appointment":
-        return "bg-blue-100 text-blue-700";
-      case "remedy":
-        return "bg-green-100 text-green-700";
-      case "queue":
-        return "bg-purple-100 text-purple-700";
-      case "system":
-        return "bg-gray-100 text-gray-700";
-      case "reminder":
-        return "bg-orange-100 text-orange-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
+  if (!isOpen) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className={`relative ${className}`}>
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-            >
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Notifications</span>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
-              <CheckCheck className="h-4 w-4 mr-1" />
-              Mark all read
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-end p-4">
+      <Card className="w-96 max-h-[80vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg font-semibold">Notifications</CardTitle>
+          <div className="flex items-center space-x-2">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMarkAllAsRead}
+                className="text-xs"
+              >
+                Mark all read
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
             </Button>
-          )}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+          </div>
+        </CardHeader>
 
-        {!network.isOnline && (
-          <div className="p-2 text-center">
-            <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
-              Offline - showing cached notifications
-            </div>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="p-4 text-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No notifications</p>
-          </div>
-        ) : (
-          <ScrollArea className="h-96">
-            <div className="space-y-1">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 hover:bg-muted/50 transition-colors ${
-                    !notification.isRead ? "bg-muted/30" : ""
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div
-                      className={`mt-1 ${getPriorityColor(notification.priority)}`}
-                    >
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4
-                          className={`text-sm font-medium truncate ${
-                            !notification.isRead ? "font-semibold" : ""
-                          }`}
-                        >
-                          {notification.title}
-                        </h4>
-                        <div className="flex items-center space-x-1">
-                          <Badge
-                            className={`${getTypeColor(notification.type)} text-xs`}
-                          >
-                            {notification.type}
-                          </Badge>
-                          {!notification.isRead && (
-                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+        <CardContent className="flex-1 p-0">
+          <ScrollArea className="h-[60vh]">
+            {loading ? (
+              <div className="p-4 text-center text-muted-foreground">
+                Loading notifications...
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground">
+                No notifications
+              </div>
+            ) : (
+              <div className="space-y-1 p-2">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      notification.read
+                        ? "bg-background hover:bg-muted/50"
+                        : "bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/30"
+                    }`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="text-sm font-medium truncate">
+                            {notification.title}
+                          </h4>
+                          {!notification.read && (
+                            <Badge variant="secondary" className="text-xs">
+                              New
+                            </Badge>
                           )}
                         </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(
+                            notification.createdAt
+                          ).toLocaleDateString()}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(
-                            new Date(notification.createdAt),
-                            {
-                              addSuffix: true,
-                            }
-                          )}
-                        </span>
-                        <div className="flex space-x-1">
-                          {!notification.isRead && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMarkAsRead(notification.id)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Check className="h-3 w-3" />
-                            </Button>
-                          )}
+                      <div className="flex items-center space-x-1 ml-2">
+                        {!notification.read && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              handleDeleteNotification(notification.id)
-                            }
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRead(notification.id);
+                            }}
+                            className="h-6 w-6 p-0"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Check className="h-3 w-3" />
                           </Button>
-                        </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNotification(notification.id);
+                          }}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
-        )}
-
-        {notifications.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Button variant="ghost" className="w-full justify-center">
-                View All Notifications
-              </Button>
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

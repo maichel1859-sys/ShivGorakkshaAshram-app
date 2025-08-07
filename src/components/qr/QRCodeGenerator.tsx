@@ -261,12 +261,15 @@ export function QRCodeDisplay({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : qrCodeDataUrl ? (
-          <img
-            src={qrCodeDataUrl}
-            alt="QR Code"
-            className="border-2 border-gray-200 rounded-lg"
-            style={{ width: size, height: size }}
-          />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrCodeDataUrl}
+              alt="QR Code"
+              className="border-2 border-gray-200 rounded-lg"
+              style={{ width: size, height: size }}
+            />
+          </>
         ) : (
           <div
             className="bg-gray-100 rounded-lg flex items-center justify-center text-gray-500"

@@ -93,16 +93,32 @@ export const passwordConfirmationSchema = z.object({
   path: ["confirmPassword"],
 });
 
-export const userRegistrationSchema = userContactSchema.extend({
-  ...passwordConfirmationSchema.shape,
-  role: RoleEnum.default("USER"),
+export const userRegistrationSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  dateOfBirth: z.string().optional(),
+  address: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+  role: z.enum(["USER", "COORDINATOR", "GURUJI", "ADMIN"]).default("USER"),
   isActive: z.boolean().default(true),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
-export const userUpdateSchema = userContactSchema.extend({
-  role: RoleEnum.optional(),
+export const userUpdateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  dateOfBirth: z.string().optional(),
+  address: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  role: z.enum(["USER", "COORDINATOR", "GURUJI", "ADMIN"]).optional(),
   isActive: z.boolean().optional(),
-}).partial();
+});
 
 export const userLoginSchema = z.object({
   email: emailSchema,
@@ -344,14 +360,18 @@ export const dateRangeSchema = z.object({
 });
 
 export const searchFilterSchema = z.object({
-  search: z.string().max(100).optional(),
-  status: z.string().optional(),
+  search: z.string().optional(),
+  status: AppointmentStatusEnum.optional(),
   priority: PriorityEnum.optional(),
-  type: z.string().optional(),
+  type: RemedyTypeEnum.optional(),
   role: RoleEnum.optional(),
   isActive: z.boolean().optional(),
-  ...dateRangeSchema.shape,
-  ...paginationSchema.shape,
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
+  page: z.number().min(1).default(1),
+  limit: z.number().min(1).max(100).default(20),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
 // ========================================
@@ -460,3 +480,11 @@ export type SearchFilter = z.infer<typeof searchFilterSchema>;
 export type QRCheckin = z.infer<typeof qrCheckinSchema>;
 export type ManualCheckin = z.infer<typeof manualCheckinSchema>;
 export type AuditLog = z.infer<typeof auditLogSchema>;
+
+export const appointmentFilterSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  status: z.enum(['BOOKED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
+  gurujiId: z.string().optional(),
+  userId: z.string().optional(),
+});

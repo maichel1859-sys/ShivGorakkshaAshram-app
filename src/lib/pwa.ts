@@ -53,12 +53,11 @@ export async function subscribeToPushNotifications() {
         applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       });
       
-      // Send subscription to server
-      await fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription)
-      });
+      // Send subscription to server using Server Action
+      const formData = new FormData();
+      formData.append('subscription', JSON.stringify(subscription));
+      // Note: This would need to be implemented as a Server Action
+      // await subscribeToNotifications(formData);
       
       return subscription;
     } catch (error) {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/helpers';
 import { getOptimizedImageProps, DEFAULT_IMAGES } from '@/lib/image-optimization';
 
 interface OptimizedImageProps {

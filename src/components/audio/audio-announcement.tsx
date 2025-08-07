@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Volume2, VolumeX, Play, Pause } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
-import { useAuthStore } from "@/store/auth-store";
+import { useSession } from "next-auth/react";
+import { QueueData } from "@/types/socket";
 
 interface AudioAnnouncementProps {
   className?: string;
@@ -30,7 +31,7 @@ export function AudioAnnouncement({ className = "" }: AudioAnnouncementProps) {
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const queueRef = useRef<AnnouncementMessage[]>([]);
 
-  const { user } = useAuthStore();
+  const { data: session } = useSession();
   const { socket } = useSocket();
 
   useEffect(() => {
@@ -156,22 +157,29 @@ export function AudioAnnouncement({ className = "" }: AudioAnnouncementProps) {
     };
 
     // Listen for queue-specific announcements
-    const handleQueueUpdate = (queueData: unknown[]) => {
+    const handleQueueUpdate = (data: {
+      gurujiId: string;
+      queueData: QueueData[];
+    }) => {
       if (
-        user?.role === "USER" &&
-        Array.isArray(queueData) &&
-        queueData.length > 0
+        session?.user?.role === "USER" &&
+        Array.isArray(data.queueData) &&
+        data.queueData.length > 0
       ) {
-        const data = queueData[0] as { position?: number };
-        const announcement: AnnouncementMessage = {
-          id: `queue-${Date.now()}`,
-          message: `Your queue position has been updated. You are now number ${data.position} in line.`,
-          type: "queue",
-          priority: 2,
-          timestamp: new Date(),
-        };
+        const userEntry = data.queueData.find(
+          (entry) => entry.userId === session?.user?.id
+        );
+        if (userEntry) {
+          const announcement: AnnouncementMessage = {
+            id: `queue-${Date.now()}`,
+            message: `Your queue position has been updated. You are now number ${userEntry.position} in line.`,
+            type: "queue",
+            priority: 2,
+            timestamp: new Date(),
+          };
 
-        addToQueue(announcement);
+          addToQueue(announcement);
+        }
       }
     };
 
@@ -201,18 +209,18 @@ export function AudioAnnouncement({ className = "" }: AudioAnnouncementProps) {
       addToQueue(announcement);
     };
 
-    socket.on("announcement", handleAnnouncement);
-    socket.on("queue-updated", handleQueueUpdate);
-    socket.on("consultation-ready", handleConsultationReady);
-    socket.on("your-turn-next", handleNextInLine);
+    socket.on("system:announcement", handleAnnouncement);
+    socket.on("queue:updated", handleQueueUpdate);
+    socket.on("consultation:ready", handleConsultationReady);
+    socket.on("queue:position-changed", handleNextInLine);
 
     return () => {
-      socket.off("announcement", handleAnnouncement);
-      socket.off("queue-updated", handleQueueUpdate);
-      socket.off("consultation-ready", handleConsultationReady);
-      socket.off("your-turn-next", handleNextInLine);
+      socket.off("system:announcement", handleAnnouncement);
+      socket.off("queue:updated", handleQueueUpdate);
+      socket.off("consultation:ready", handleConsultationReady);
+      socket.off("queue:position-changed", handleNextInLine);
     };
-  }, [socket, isEnabled, user, addToQueue]);
+  }, [socket, isEnabled, session, addToQueue]);
 
   const toggleEnabled = () => {
     setIsEnabled(!isEnabled);

@@ -26,7 +26,9 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import toast from "react-hot-toast";
+import { useAppointmentAvailability } from "@/hooks/queries";
+import { toast } from "sonner";
+import { createAppointment } from "@/lib/actions/appointment-actions";
 
 // Validation schema
 const appointmentSchema = z.object({
@@ -46,9 +48,22 @@ interface AppointmentFormProps {
 
 // Available time slots for appointments
 const TIME_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "12:00", "12:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30"
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
 ];
 
 export function AppointmentForm({
@@ -56,7 +71,6 @@ export function AppointmentForm({
   isLoading = false,
 }: AppointmentFormProps) {
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
   const {
     register,
@@ -75,27 +89,18 @@ export function AppointmentForm({
   const watchedDate = watch("date");
   const watchedTime = watch("time");
 
-  // Fetch booked slots for selected date
-  useEffect(() => {
-    if (selectedDate) {
-      fetchBookedSlots(selectedDate);
-    }
-  }, [selectedDate]);
-
-  const fetchBookedSlots = async (date: string) => {
-    try {
-      const response = await fetch(`/api/appointments/availability?date=${date}`);
-      if (response.ok) {
-        const data = await response.json();
-        setBookedSlots(data.bookedSlots || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch booked slots:', error);
-    }
-  };
+  // Use React Query for availability data
+  const { data: availability, isLoading: isLoadingAvailability } =
+    useAppointmentAvailability(selectedDate);
 
   // Filter available time slots
-  const availableTimeSlots = TIME_SLOTS.filter(slot => !bookedSlots.includes(slot));
+  const availableTimeSlots = TIME_SLOTS.filter((slot) => {
+    if (!availability) return true;
+    const slotData = availability.find(
+      (item: { time: string; available: boolean }) => item.time === slot
+    );
+    return slotData?.available !== false;
+  });
 
   const handleFormSubmit = async (data: AppointmentFormData) => {
     try {
@@ -103,9 +108,8 @@ export function AppointmentForm({
       toast.success("Appointment booked successfully!");
       reset();
       setSelectedDate("");
-      setBookedSlots([]);
     } catch (error) {
-      console.error('Appointment booking error:', error);
+      console.error("Appointment booking error:", error);
       toast.error("Failed to book appointment. Please try again.");
     }
   };
@@ -193,7 +197,8 @@ export function AppointmentForm({
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      No available time slots for this date. Please select another date.
+                      No available time slots for this date. Please select
+                      another date.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -275,7 +280,6 @@ export function AppointmentForm({
                 rows={2}
               />
             </div>
-
 
             {/* Submit Button */}
             <Button

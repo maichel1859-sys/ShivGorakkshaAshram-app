@@ -1,22 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  UserCheck, 
-  Clock, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  UserCheck,
+  Clock,
+  User,
   Search,
   Download,
   Plus,
-  FileText,
-  Video,
-  Play
+  AlertTriangle,
 } from "lucide-react";
+import { useGurujiConsultations } from "@/hooks/queries/use-guruji";
 
 interface ConsultationSession {
   id: string;
@@ -25,41 +37,46 @@ interface ConsultationSession {
   gurujiId: string;
   startTime: string;
   endTime?: string;
-  status: string;
-  notes?: string;
-  recordings?: string[];
+  duration?: number | null;
+  symptoms?: string | null;
+  diagnosis?: string | null;
+  notes?: string | null;
+  recordings?: unknown;
+  createdAt: Date;
+  updatedAt: Date;
   patient: {
-    name: string;
-    email: string;
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
   };
   appointment: {
+    id: string;
     date: string;
     startTime: string;
-    reason?: string;
+    reason: string | null;
   };
 }
 
 export default function GurujiConsultationsPage() {
-  const [consultations, setConsultations] = useState<ConsultationSession[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    fetchConsultations();
-  }, []);
+  // Use React Query for data fetching
+  const {
+    data: consultations = [],
+    isLoading,
+    error,
+  } = useGurujiConsultations();
 
-  const fetchConsultations = async () => {
-    try {
-      const response = await fetch("/api/guruji/consultations");
-      if (response.ok) {
-        const data = await response.json();
-        setConsultations(data.consultations || []);
-      }
-    } catch (error) {
-      console.error("Error fetching consultations:", error);
-    } finally {
-      setIsLoading(false);
+  // Helper function to determine consultation status
+  const getConsultationStatus = (consultation: ConsultationSession): string => {
+    if (consultation.endTime) {
+      return "COMPLETED";
+    } else if (consultation.startTime) {
+      return "IN_PROGRESS";
+    } else {
+      return "SCHEDULED";
     }
   };
 
@@ -78,17 +95,30 @@ export default function GurujiConsultationsPage() {
     }
   };
 
-  const filteredConsultations = consultations.filter(consultation => {
-    const matchesSearch = consultation.patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         consultation.patient.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || consultation.status === statusFilter;
+  const filteredConsultations = consultations.filter((consultation) => {
+    const matchesSearch =
+      consultation.patient.name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      false ||
+      consultation.patient.email
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      false;
+    const consultationStatus = getConsultationStatus(consultation);
+    const matchesStatus =
+      statusFilter === "all" || consultationStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const activeConsultations = consultations.filter(c => c.status === "IN_PROGRESS").length;
-  const completedToday = consultations.filter(c => 
-    c.status === "COMPLETED" && 
-    new Date(c.endTime!).toDateString() === new Date().toDateString()
+  const activeConsultations = consultations.filter(
+    (c) => getConsultationStatus(c) === "IN_PROGRESS"
+  ).length;
+  const completedToday = consultations.filter(
+    (c) =>
+      getConsultationStatus(c) === "COMPLETED" &&
+      c.endTime &&
+      new Date(c.endTime).toDateString() === new Date().toDateString()
   ).length;
 
   if (isLoading) {
@@ -101,13 +131,33 @@ export default function GurujiConsultationsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading consultations
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Consultations</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              My Consultations
+            </h1>
             <p className="text-muted-foreground">
               Manage your consultation sessions
             </p>
@@ -122,7 +172,9 @@ export default function GurujiConsultationsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Consultations</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Consultations
+              </CardTitle>
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -134,7 +186,9 @@ export default function GurujiConsultationsPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Sessions
+              </CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -146,8 +200,10 @@ export default function GurujiConsultationsPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">
+                Completed Today
+              </CardTitle>
+              <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{completedToday}</div>
@@ -172,7 +228,7 @@ export default function GurujiConsultationsPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by patient name..."
+                    placeholder="Search by patient name or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -216,7 +272,9 @@ export default function GurujiConsultationsPage() {
               {filteredConsultations.length === 0 ? (
                 <div className="text-center py-8">
                   <UserCheck className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-2 text-sm font-semibold">No consultations</h3>
+                  <h3 className="mt-2 text-sm font-semibold">
+                    No consultations
+                  </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     No consultation sessions found matching your criteria.
                   </p>
@@ -233,9 +291,18 @@ export default function GurujiConsultationsPage() {
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold">{consultation.patient.name}</h3>
-                          <Badge className={getStatusColor(consultation.status)}>
-                            {consultation.status.replace("_", " ")}
+                          <h3 className="font-semibold">
+                            {consultation.patient.name}
+                          </h3>
+                          <Badge
+                            className={getStatusColor(
+                              getConsultationStatus(consultation)
+                            )}
+                          >
+                            {getConsultationStatus(consultation).replace(
+                              "_",
+                              " "
+                            )}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -244,31 +311,29 @@ export default function GurujiConsultationsPage() {
                         <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
                           <span className="flex items-center">
                             <Clock className="mr-1 h-3 w-3" />
-                            {new Date(consultation.startTime).toLocaleDateString()} at {new Date(consultation.startTime).toLocaleTimeString()}
+                            {new Date(
+                              consultation.startTime
+                            ).toLocaleDateString()}{" "}
+                            at{" "}
+                            {new Date(
+                              consultation.startTime
+                            ).toLocaleTimeString()}
                           </span>
-                          {consultation.recordings && consultation.recordings.length > 0 && (
+                          {consultation.appointment.reason && (
                             <span className="flex items-center">
-                              <Video className="mr-1 h-3 w-3" />
-                              {consultation.recordings.length} recording(s)
+                              <User className="mr-1 h-3 w-3" />
+                              {consultation.appointment.reason}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {consultation.status === "SCHEDULED" && (
-                        <Button size="sm">
-                          <Play className="mr-2 h-4 w-4" />
-                          Start
-                        </Button>
-                      )}
-                      {consultation.status === "IN_PROGRESS" && (
-                        <Button variant="outline" size="sm">
-                          Continue
-                        </Button>
-                      )}
                       <Button variant="outline" size="sm">
                         View
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Edit
                       </Button>
                     </div>
                   </div>
@@ -280,4 +345,4 @@ export default function GurujiConsultationsPage() {
       </div>
     </DashboardLayout>
   );
-} 
+}

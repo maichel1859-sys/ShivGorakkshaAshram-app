@@ -1,75 +1,46 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Copy, ExternalLink, RefreshCw } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-
-// Dynamically import SwaggerUI to avoid SSR issues
-const SwaggerUI = dynamic(() => import('swagger-ui-react'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-96">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-  ),
-});
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { useApiDocs } from "@/hooks/queries/use-admin";
 
 export default function APIDocsPage() {
   const { data: session, status } = useSession();
-  const [spec, setSpec] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: spec, isLoading, error, refetch } = useApiDocs();
 
   // Redirect if not admin
   useEffect(() => {
-    if (status === 'loading') return;
-    if (!session || session.user.role !== 'ADMIN') {
-      redirect('/auth/signin');
+    if (status === "loading") return;
+    if (!session || session.user.role !== "ADMIN") {
+      redirect("/auth/signin");
     }
   }, [session, status]);
-
-  // Fetch API specification
-  const fetchSpec = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/docs');
-      if (!response.ok) {
-        throw new Error('Failed to fetch API specification');
-      }
-      const specData = await response.json();
-      setSpec(specData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      toast.error('Failed to load API documentation');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSpec();
-  }, []);
 
   const copyApiUrl = () => {
     const baseUrl = window.location.origin;
     navigator.clipboard.writeText(`${baseUrl}/api/docs`);
-    toast.success('API documentation URL copied to clipboard');
+    toast.success("API documentation URL copied to clipboard");
   };
 
   const openSocketAdmin = () => {
     const baseUrl = window.location.origin;
     const socketAdminUrl = `${baseUrl}/admin/socket.io`;
-    window.open(socketAdminUrl, '_blank');
+    window.open(socketAdminUrl, "_blank");
   };
 
-  if (status === 'loading' || loading) {
+  if (status === "loading" || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -82,11 +53,16 @@ export default function APIDocsPage() {
       <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-red-600">Error Loading API Documentation</CardTitle>
-            <CardDescription>{error}</CardDescription>
+            <CardTitle className="text-red-600">
+              Error Loading API Documentation
+            </CardTitle>
+            <CardDescription>{error.message}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={fetchSpec} className="flex items-center gap-2">
+            <Button
+              onClick={() => refetch()}
+              className="flex items-center gap-2"
+            >
               <RefreshCw className="h-4 w-4" />
               Retry
             </Button>
@@ -169,22 +145,7 @@ export default function APIDocsPage() {
         <CardContent className="p-0">
           {spec && (
             <div className="swagger-ui-container">
-              <SwaggerUI
-                spec={spec}
-                requestInterceptor={(request) => {
-                  // Add session cookie to requests
-                  request.credentials = 'include';
-                  return request;
-                }}
-                responseInterceptor={(response) => {
-                  return response;
-                }}
-                docExpansion="list"
-                defaultModelsExpandDepth={2}
-                defaultModelExpandDepth={2}
-                filter={true}
-                tryItOutEnabled={true}
-              />
+              <div id="swagger-ui"></div>
             </div>
           )}
         </CardContent>
@@ -202,7 +163,9 @@ export default function APIDocsPage() {
             </p>
             <div className="space-y-1">
               <p className="text-sm font-medium">Session Cookie:</p>
-              <code className="text-xs bg-muted p-1 rounded">next-auth.session-token</code>
+              <code className="text-xs bg-muted p-1 rounded">
+                next-auth.session-token
+              </code>
             </div>
           </CardContent>
         </Card>
@@ -218,12 +181,67 @@ export default function APIDocsPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium">Current Environment:</p>
               <code className="text-xs bg-muted p-1 rounded break-all">
-                {window.location.origin}
+                {typeof window !== "undefined"
+                  ? window.location.origin
+                  : "Loading..."}
               </code>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Swagger UI Script */}
+      {spec && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Load Swagger UI CSS
+              const link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.type = 'text/css';
+              link.href = 'https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css';
+              document.head.appendChild(link);
+
+              // Load Swagger UI JS
+              const script = document.createElement('script');
+              script.src = 'https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js';
+              script.onload = function() {
+                window.ui = SwaggerUIBundle({
+                  url: '${window.location.origin}/api/docs',
+                  dom_id: '#swagger-ui',
+                  deepLinking: true,
+                  presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                  ],
+                  plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                  ],
+                  layout: "StandaloneLayout",
+                  requestInterceptor: function(request) {
+                    request.credentials = 'include';
+                    return request;
+                  },
+                  responseInterceptor: function(response) {
+                    return response;
+                  },
+                  docExpansion: "list",
+                  defaultModelsExpandDepth: 2,
+                  defaultModelExpandDepth: 2,
+                  filter: true,
+                  tryItOutEnabled: true
+                });
+              };
+              document.head.appendChild(script);
+
+              // Load Swagger UI Standalone Preset
+              const standaloneScript = document.createElement('script');
+              standaloneScript.src = 'https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js';
+              document.head.appendChild(standaloneScript);
+            `,
+          }}
+        />
+      )}
 
       <style jsx global>{`
         .swagger-ui-container .swagger-ui {

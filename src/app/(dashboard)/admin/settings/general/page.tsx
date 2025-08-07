@@ -1,29 +1,41 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Save, 
-  RefreshCw, 
-  Clock, 
-  Globe, 
+import {
+  Save,
+  RefreshCw,
+  Clock,
+  Globe,
   Bell,
   Database,
-  ArrowLeft
+  ArrowLeft,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useSystemSettings, useUpdateSystemSettings } from "@/hooks/queries";
 
 const settingsSchema = z.object({
   siteName: z.string().min(1, "Site name is required"),
@@ -34,15 +46,27 @@ const settingsSchema = z.object({
   language: z.string().min(1, "Language is required"),
   dateFormat: z.string().min(1, "Date format is required"),
   timeFormat: z.string().min(1, "Time format is required"),
-  appointmentSlotDuration: z.number().min(15, "Minimum 15 minutes").max(180, "Maximum 3 hours"),
-  maxAdvanceBookingDays: z.number().min(1, "Minimum 1 day").max(365, "Maximum 365 days"),
+  appointmentSlotDuration: z
+    .number()
+    .min(15, "Minimum 15 minutes")
+    .max(180, "Maximum 3 hours"),
+  maxAdvanceBookingDays: z
+    .number()
+    .min(1, "Minimum 1 day")
+    .max(365, "Maximum 365 days"),
   allowCancellation: z.boolean(),
-  cancellationDeadlineHours: z.number().min(0, "Cannot be negative").max(168, "Maximum 1 week"),
+  cancellationDeadlineHours: z
+    .number()
+    .min(0, "Cannot be negative")
+    .max(168, "Maximum 1 week"),
   enableNotifications: z.boolean(),
   enableSmsNotifications: z.boolean(),
   enableEmailNotifications: z.boolean(),
   autoBackupEnabled: z.boolean(),
-  backupFrequencyHours: z.number().min(1, "Minimum 1 hour").max(168, "Maximum 1 week"),
+  backupFrequencyHours: z
+    .number()
+    .min(1, "Minimum 1 hour")
+    .max(168, "Maximum 1 week"),
   maintenanceMode: z.boolean(),
   maintenanceMessage: z.string().optional(),
 });
@@ -52,14 +76,21 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 interface SystemSetting {
   key: string;
   value: string;
-  category: string;
-  description?: string;
+  category: string | null;
+  description?: string | null;
 }
 
 export default function GeneralSettingsPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
+
+  // Use React Query for data fetching
+  const {
+    data: settings = [],
+    isLoading,
+    error,
+    refetch,
+  } = useSystemSettings();
+  const updateSettingsMutation = useUpdateSystemSettings();
 
   const {
     register,
@@ -92,70 +123,48 @@ export default function GeneralSettingsPage() {
 
   const watchedValues = watch();
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      const response = await fetch("/api/admin/settings");
-      if (response.ok) {
-        const data = await response.json();
-        const settings = data.settings;
-        
-        // Convert settings array to form data
-        const formData: Partial<SettingsFormData> = {};
-        
-        settings.forEach((setting: SystemSetting) => {
-          const key = setting.key as keyof SettingsFormData;
-          let value: string | boolean | number = setting.value;
-          
-          // Convert string values to appropriate types
-          if (typeof value === 'string') {
-            if (value === 'true') value = true;
-            else if (value === 'false') value = false;
-            else if (!isNaN(Number(value)) && value !== '') value = Number(value);
-          }
-          
-          (formData as Record<string, string | boolean | number>)[key] = value;
-        });
-        
-        reset(formData);
-      } else {
-        toast.error("Failed to load settings");
-      }
-    } catch (error) {
-      console.error("Failed to fetch settings:", error);
-      toast.error("Failed to load settings");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [reset]);
+  // Convert settings array to form data
+  const convertSettingsToFormData = useCallback((settings: SystemSetting[]) => {
+    const formData: Partial<SettingsFormData> = {};
 
+    settings.forEach((setting) => {
+      const key = setting.key as keyof SettingsFormData;
+      let value: string | boolean | number = setting.value;
+
+      // Convert string values to appropriate types
+      if (typeof value === "string") {
+        if (value === "true") value = true;
+        else if (value === "false") value = false;
+        else if (!isNaN(Number(value)) && value !== "") value = Number(value);
+      }
+
+      (formData as Record<string, string | boolean | number>)[key] = value;
+    });
+
+    return formData;
+  }, []);
+
+  // Update form when settings are loaded
   useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+    if (settings.length > 0) {
+      const formData = convertSettingsToFormData(settings);
+      reset(formData);
+    }
+  }, [settings, reset, convertSettingsToFormData]);
 
   const onSubmit = async (data: SettingsFormData) => {
-    setIsSaving(true);
-    
-    try {
-      const response = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+    const formData = new FormData();
 
-      if (response.ok) {
-        toast.success("Settings updated successfully");
-        fetchSettings(); // Refresh to get updated values
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update settings");
-      }
-    } catch (error: unknown) {
-      console.error("Settings update error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update settings";
-      toast.error(errorMessage);
-    } finally {
-      setIsSaving(false);
-    }
+    // Add all form data to FormData object
+    Object.entries(data).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+
+    updateSettingsMutation.mutate(formData, {
+      onSuccess: () => {
+        refetch(); // Refresh settings after update
+      },
+    });
   };
 
   if (isLoading) {
@@ -163,6 +172,28 @@ export default function GeneralSettingsPage() {
       <DashboardLayout title="General Settings" allowedRoles={["ADMIN"]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout title="General Settings" allowedRoles={["ADMIN"]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <RefreshCw className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-semibold text-red-600">
+              Error loading settings
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred"}
+            </p>
+            <Button onClick={() => refetch()} className="mt-4">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -178,8 +209,12 @@ export default function GeneralSettingsPage() {
             Back
           </Button>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">General Settings</h2>
-            <p className="text-muted-foreground">Configure system-wide settings and preferences</p>
+            <h2 className="text-2xl font-bold tracking-tight">
+              General Settings
+            </h2>
+            <p className="text-muted-foreground">
+              Configure system-wide settings and preferences
+            </p>
           </div>
         </div>
 
@@ -205,10 +240,12 @@ export default function GeneralSettingsPage() {
                     placeholder="Ashram Management System"
                   />
                   {errors.siteName && (
-                    <p className="text-sm text-destructive">{errors.siteName.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.siteName.message}
+                    </p>
                   )}
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="contactEmail">Contact Email</Label>
                   <Input
@@ -218,7 +255,9 @@ export default function GeneralSettingsPage() {
                     placeholder="admin@ashram.com"
                   />
                   {errors.contactEmail && (
-                    <p className="text-sm text-destructive">{errors.contactEmail.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.contactEmail.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -232,22 +271,34 @@ export default function GeneralSettingsPage() {
                     placeholder="+91 12345 67890"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
                   <Select
                     value={watchedValues.timezone}
-                    onValueChange={(value) => setValue("timezone", value, { shouldDirty: true })}
+                    onValueChange={(value) =>
+                      setValue("timezone", value, { shouldDirty: true })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
-                      <SelectItem value="Asia/Dubai">Asia/Dubai (GST)</SelectItem>
-                      <SelectItem value="Europe/London">Europe/London (GMT)</SelectItem>
-                      <SelectItem value="America/New_York">America/New_York (EST)</SelectItem>
-                      <SelectItem value="America/Los_Angeles">America/Los_Angeles (PST)</SelectItem>
+                      <SelectItem value="Asia/Kolkata">
+                        Asia/Kolkata (IST)
+                      </SelectItem>
+                      <SelectItem value="Asia/Dubai">
+                        Asia/Dubai (GST)
+                      </SelectItem>
+                      <SelectItem value="Europe/London">
+                        Europe/London (GMT)
+                      </SelectItem>
+                      <SelectItem value="America/New_York">
+                        America/New_York (EST)
+                      </SelectItem>
+                      <SelectItem value="America/Los_Angeles">
+                        America/Los_Angeles (PST)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -272,9 +323,7 @@ export default function GeneralSettingsPage() {
                 <Globe className="h-5 w-5" />
                 <span>Localization</span>
               </CardTitle>
-              <CardDescription>
-                Language and format preferences
-              </CardDescription>
+              <CardDescription>Language and format preferences</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -282,7 +331,9 @@ export default function GeneralSettingsPage() {
                   <Label htmlFor="language">Language</Label>
                   <Select
                     value={watchedValues.language}
-                    onValueChange={(value) => setValue("language", value, { shouldDirty: true })}
+                    onValueChange={(value) =>
+                      setValue("language", value, { shouldDirty: true })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -300,7 +351,9 @@ export default function GeneralSettingsPage() {
                   <Label htmlFor="dateFormat">Date Format</Label>
                   <Select
                     value={watchedValues.dateFormat}
-                    onValueChange={(value) => setValue("dateFormat", value, { shouldDirty: true })}
+                    onValueChange={(value) =>
+                      setValue("dateFormat", value, { shouldDirty: true })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -317,7 +370,9 @@ export default function GeneralSettingsPage() {
                   <Label htmlFor="timeFormat">Time Format</Label>
                   <Select
                     value={watchedValues.timeFormat}
-                    onValueChange={(value) => setValue("timeFormat", value, { shouldDirty: true })}
+                    onValueChange={(value) =>
+                      setValue("timeFormat", value, { shouldDirty: true })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -346,31 +401,43 @@ export default function GeneralSettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="appointmentSlotDuration">Slot Duration (minutes)</Label>
+                  <Label htmlFor="appointmentSlotDuration">
+                    Slot Duration (minutes)
+                  </Label>
                   <Input
                     id="appointmentSlotDuration"
                     type="number"
                     min="15"
                     max="180"
                     step="15"
-                    {...register("appointmentSlotDuration", { valueAsNumber: true })}
+                    {...register("appointmentSlotDuration", {
+                      valueAsNumber: true,
+                    })}
                   />
                   {errors.appointmentSlotDuration && (
-                    <p className="text-sm text-destructive">{errors.appointmentSlotDuration.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.appointmentSlotDuration.message}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="maxAdvanceBookingDays">Max Advance Booking (days)</Label>
+                  <Label htmlFor="maxAdvanceBookingDays">
+                    Max Advance Booking (days)
+                  </Label>
                   <Input
                     id="maxAdvanceBookingDays"
                     type="number"
                     min="1"
                     max="365"
-                    {...register("maxAdvanceBookingDays", { valueAsNumber: true })}
+                    {...register("maxAdvanceBookingDays", {
+                      valueAsNumber: true,
+                    })}
                   />
                   {errors.maxAdvanceBookingDays && (
-                    <p className="text-sm text-destructive">{errors.maxAdvanceBookingDays.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.maxAdvanceBookingDays.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -380,7 +447,9 @@ export default function GeneralSettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="allowCancellation">Allow Cancellations</Label>
+                    <Label htmlFor="allowCancellation">
+                      Allow Cancellations
+                    </Label>
                     <p className="text-sm text-muted-foreground">
                       Allow users to cancel their appointments
                     </p>
@@ -388,25 +457,35 @@ export default function GeneralSettingsPage() {
                   <Switch
                     id="allowCancellation"
                     checked={watchedValues.allowCancellation}
-                    onCheckedChange={(checked) => setValue("allowCancellation", checked, { shouldDirty: true })}
+                    onCheckedChange={(checked) =>
+                      setValue("allowCancellation", checked, {
+                        shouldDirty: true,
+                      })
+                    }
                   />
                 </div>
 
                 {watchedValues.allowCancellation && (
                   <div className="space-y-2">
-                    <Label htmlFor="cancellationDeadlineHours">Cancellation Deadline (hours)</Label>
+                    <Label htmlFor="cancellationDeadlineHours">
+                      Cancellation Deadline (hours)
+                    </Label>
                     <Input
                       id="cancellationDeadlineHours"
                       type="number"
                       min="0"
                       max="168"
-                      {...register("cancellationDeadlineHours", { valueAsNumber: true })}
+                      {...register("cancellationDeadlineHours", {
+                        valueAsNumber: true,
+                      })}
                     />
                     <p className="text-xs text-muted-foreground">
                       How many hours before appointment can users cancel
                     </p>
                     {errors.cancellationDeadlineHours && (
-                      <p className="text-sm text-destructive">{errors.cancellationDeadlineHours.message}</p>
+                      <p className="text-sm text-destructive">
+                        {errors.cancellationDeadlineHours.message}
+                      </p>
                     )}
                   </div>
                 )}
@@ -421,14 +500,14 @@ export default function GeneralSettingsPage() {
                 <Bell className="h-5 w-5" />
                 <span>Notification Settings</span>
               </CardTitle>
-              <CardDescription>
-                Configure system notifications
-              </CardDescription>
+              <CardDescription>Configure system notifications</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="enableNotifications">Enable Notifications</Label>
+                  <Label htmlFor="enableNotifications">
+                    Enable Notifications
+                  </Label>
                   <p className="text-sm text-muted-foreground">
                     Master switch for all notifications
                   </p>
@@ -436,7 +515,11 @@ export default function GeneralSettingsPage() {
                 <Switch
                   id="enableNotifications"
                   checked={watchedValues.enableNotifications}
-                  onCheckedChange={(checked) => setValue("enableNotifications", checked, { shouldDirty: true })}
+                  onCheckedChange={(checked) =>
+                    setValue("enableNotifications", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                 />
               </div>
 
@@ -446,7 +529,9 @@ export default function GeneralSettingsPage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label htmlFor="enableEmailNotifications">Email Notifications</Label>
+                        <Label htmlFor="enableEmailNotifications">
+                          Email Notifications
+                        </Label>
                         <p className="text-sm text-muted-foreground">
                           Send notifications via email
                         </p>
@@ -454,13 +539,19 @@ export default function GeneralSettingsPage() {
                       <Switch
                         id="enableEmailNotifications"
                         checked={watchedValues.enableEmailNotifications}
-                        onCheckedChange={(checked) => setValue("enableEmailNotifications", checked, { shouldDirty: true })}
+                        onCheckedChange={(checked) =>
+                          setValue("enableEmailNotifications", checked, {
+                            shouldDirty: true,
+                          })
+                        }
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label htmlFor="enableSmsNotifications">SMS Notifications</Label>
+                        <Label htmlFor="enableSmsNotifications">
+                          SMS Notifications
+                        </Label>
                         <p className="text-sm text-muted-foreground">
                           Send notifications via SMS
                         </p>
@@ -468,7 +559,11 @@ export default function GeneralSettingsPage() {
                       <Switch
                         id="enableSmsNotifications"
                         checked={watchedValues.enableSmsNotifications}
-                        onCheckedChange={(checked) => setValue("enableSmsNotifications", checked, { shouldDirty: true })}
+                        onCheckedChange={(checked) =>
+                          setValue("enableSmsNotifications", checked, {
+                            shouldDirty: true,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -499,22 +594,32 @@ export default function GeneralSettingsPage() {
                 <Switch
                   id="autoBackupEnabled"
                   checked={watchedValues.autoBackupEnabled}
-                  onCheckedChange={(checked) => setValue("autoBackupEnabled", checked, { shouldDirty: true })}
+                  onCheckedChange={(checked) =>
+                    setValue("autoBackupEnabled", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                 />
               </div>
 
               {watchedValues.autoBackupEnabled && (
                 <div className="space-y-2">
-                  <Label htmlFor="backupFrequencyHours">Backup Frequency (hours)</Label>
+                  <Label htmlFor="backupFrequencyHours">
+                    Backup Frequency (hours)
+                  </Label>
                   <Input
                     id="backupFrequencyHours"
                     type="number"
                     min="1"
                     max="168"
-                    {...register("backupFrequencyHours", { valueAsNumber: true })}
+                    {...register("backupFrequencyHours", {
+                      valueAsNumber: true,
+                    })}
                   />
                   {errors.backupFrequencyHours && (
-                    <p className="text-sm text-destructive">{errors.backupFrequencyHours.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.backupFrequencyHours.message}
+                    </p>
                   )}
                 </div>
               )}
@@ -531,13 +636,17 @@ export default function GeneralSettingsPage() {
                 <Switch
                   id="maintenanceMode"
                   checked={watchedValues.maintenanceMode}
-                  onCheckedChange={(checked) => setValue("maintenanceMode", checked, { shouldDirty: true })}
+                  onCheckedChange={(checked) =>
+                    setValue("maintenanceMode", checked, { shouldDirty: true })
+                  }
                 />
               </div>
 
               {watchedValues.maintenanceMode && (
                 <div className="space-y-2">
-                  <Label htmlFor="maintenanceMessage">Maintenance Message</Label>
+                  <Label htmlFor="maintenanceMessage">
+                    Maintenance Message
+                  </Label>
                   <Textarea
                     id="maintenanceMessage"
                     {...register("maintenanceMessage")}
@@ -554,17 +663,17 @@ export default function GeneralSettingsPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => fetchSettings()}
-              disabled={isSaving}
+              onClick={() => refetch()}
+              disabled={updateSettingsMutation.isPending}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               Reset
             </Button>
             <Button
               type="submit"
-              disabled={!isDirty || isSaving}
+              disabled={!isDirty || updateSettingsMutation.isPending}
             >
-              {isSaving ? (
+              {updateSettingsMutation.isPending ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
                   Saving...
