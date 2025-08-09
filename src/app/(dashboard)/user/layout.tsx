@@ -1,8 +1,13 @@
-import { Metadata } from 'next';
+import { Metadata } from "next";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/core/auth";
+import { DashboardLayout } from "@/components/dashboard/layout";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  title: 'User Dashboard',
-  description: 'User dashboard for Shivgoraksha Ashram Management System',
+  title: "User Dashboard",
+  description: "User dashboard for Shivgoraksha Ashram Management System",
 };
 
 interface UserLayoutProps {
@@ -11,31 +16,30 @@ interface UserLayoutProps {
   notifications: React.ReactNode;
 }
 
-export default function UserLayout({
+export default async function UserLayout({
   children,
   modal,
   notifications,
 }: UserLayoutProps) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    redirect("/signin");
+  }
+
+  if (session.user.role !== "USER") {
+    redirect("/");
+  }
+
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage your appointments and notifications
-          </p>
-        </div>
-      </div>
+    <DashboardLayout title="User Dashboard" allowedRoles={["USER"]}>
+      <Suspense fallback={<div>Loading user dashboard...</div>}>
+        {children}
+      </Suspense>
 
-      {/* Notifications */}
-      {notifications}
-
-      {/* Main Content */}
-      {children}
-
-      {/* Modal Overlay */}
-      {modal}
-    </div>
+      {/* Parallel routes */}
+      <Suspense fallback={null}>{modal}</Suspense>
+      <Suspense fallback={null}>{notifications}</Suspense>
+    </DashboardLayout>
   );
 }

@@ -1,41 +1,13 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
-import { z } from 'zod';
+
 
 // Schemas
-const systemSettingsSchema = z.object({
-  businessHours: z.object({
-    start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
-    end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
-  }),
-  appointmentDuration: z.number().min(15).max(120),
-  maxAppointmentsPerDay: z.number().min(1).max(100),
-  enableNotifications: z.boolean(),
-  enableSMS: z.boolean(),
-  enableEmail: z.boolean(),
-  maintenanceMode: z.boolean(),
-  allowWalkIns: z.boolean(),
-  autoConfirmAppointments: z.boolean(),
-});
 
-const userSettingsSchema = z.object({
-  language: z.enum(['en', 'hi', 'mr']).default('en'),
-  theme: z.enum(['light', 'dark', 'system']).default('system'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    sms: z.boolean().default(true),
-    push: z.boolean().default(true),
-  }),
-  privacy: z.object({
-    shareProfile: z.boolean().default(false),
-    allowContact: z.boolean().default(true),
-    showStatus: z.boolean().default(true),
-  }),
-});
 
 // Get system settings
 export async function getSystemSettings() {
@@ -129,7 +101,7 @@ export async function getUserSettings() {
 }
 
 // Update user settings
-export async function updateUserSettings(formData: FormData) {
+export async function updateUserSettings() {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -177,7 +149,7 @@ export async function getNotificationSettings() {
 }
 
 // Update notification settings
-export async function updateNotificationSettings(formData: FormData) {
+export async function updateNotificationSettings() {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -225,7 +197,7 @@ export async function getPrivacySettings() {
 }
 
 // Update privacy settings
-export async function updatePrivacySettings(formData: FormData) {
+export async function updatePrivacySettings() {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {

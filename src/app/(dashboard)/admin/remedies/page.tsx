@@ -33,6 +33,7 @@ import {
   Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { prisma } from "@/lib/database/prisma";
 
 interface RemedyTemplate {
   id: string;
@@ -67,61 +68,52 @@ export default function AdminRemediesPage() {
 
   const fetchData = async () => {
     try {
-      // Mock data for now
-      const mockTemplates: RemedyTemplate[] = [
-        {
-          id: "1",
-          name: "Ayurvedic Immunity Boost",
-          type: "AYURVEDIC",
-          category: "Immunity",
-          description: "Traditional ayurvedic formula to boost immunity",
-          isActive: true,
-          createdAt: "2024-01-15",
-          usageCount: 45,
+      // Fetch real data from database
+      const templates = await prisma.remedyTemplate.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: {
+            select: { remedyDocuments: true },
+          },
         },
-        {
-          id: "2",
-          name: "Homeopathic Stress Relief",
-          type: "HOMEOPATHIC",
-          category: "Mental Health",
-          description: "Homeopathic remedy for stress and anxiety",
-          isActive: true,
-          createdAt: "2024-01-10",
-          usageCount: 32,
-        },
-        {
-          id: "3",
-          name: "Spiritual Cleansing",
-          type: "SPIRITUAL",
-          category: "Wellness",
-          description: "Spiritual practices for inner peace",
-          isActive: false,
-          createdAt: "2024-01-05",
-          usageCount: 18,
-        },
-      ];
+      });
 
-      const mockPrescriptions: Prescription[] = [
-        {
-          id: "1",
-          templateName: "Ayurvedic Immunity Boost",
-          patientName: "John Doe",
-          gurujiName: "Dr. Sharma",
-          status: "ACTIVE",
-          createdAt: "2024-01-20",
+      const prescriptions = await prisma.remedyDocument.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          template: true,
+          user: true,
+          consultationSession: {
+            include: {
+              guruji: true,
+            },
+          },
         },
-        {
-          id: "2",
-          templateName: "Homeopathic Stress Relief",
-          patientName: "Jane Smith",
-          gurujiName: "Dr. Patel",
-          status: "COMPLETED",
-          createdAt: "2024-01-18",
-        },
-      ];
+        take: 10,
+      });
 
-      setTemplates(mockTemplates);
-      setPrescriptions(mockPrescriptions);
+      const formattedTemplates = templates.map((template) => ({
+        id: template.id,
+        name: template.name,
+        type: template.type,
+        category: template.category,
+        description: template.description || "",
+        isActive: template.isActive,
+        createdAt: template.createdAt.toISOString().split("T")[0],
+        usageCount: template._count.remedyDocuments,
+      }));
+
+      const formattedPrescriptions = prescriptions.map((prescription) => ({
+        id: prescription.id,
+        templateName: prescription.template.name,
+        patientName: prescription.user.name || "Unknown",
+        gurujiName: prescription.consultationSession.guruji.name || "Unknown",
+        status: "ACTIVE", // RemedyDocument doesn't have status, using default
+        createdAt: prescription.createdAt.toISOString().split("T")[0],
+      }));
+
+      setTemplates(formattedTemplates);
+      setPrescriptions(formattedPrescriptions);
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast.error("Failed to load remedies data");

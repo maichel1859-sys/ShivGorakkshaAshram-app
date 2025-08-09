@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Server as NetServer } from 'http';
 import { Server as ServerIO } from 'socket.io';
 import { io as ClientIO, Socket as ClientSocket } from 'socket.io-client';
@@ -36,7 +36,12 @@ export class SocketServerManager {
         methods: ["GET", "POST"],
         credentials: true
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      allowEIO3: true,
+      pingTimeout: 60000,
+      pingInterval: 25000,
+      upgradeTimeout: 10000,
+      maxHttpBufferSize: 1e6
     });
 
     this.setupServerMiddleware();
@@ -49,14 +54,34 @@ export class SocketServerManager {
     if (!this.io) return;
 
     this.io.use((socket, next) => {
-      const authData = socket.handshake.auth as SocketAuthData;
-      
-      if (!authData.userId || !authData.role) {
-        return next(new Error('Authentication required'));
-      }
+      try {
+        const authData = socket.handshake.auth as SocketAuthData;
+        
+        // For development, allow connections without auth
+        if (process.env.NODE_ENV === 'development') {
+          if (!authData.userId || !authData.role) {
+            console.warn('Socket connection without auth in development mode');
+            socket.data = {
+              userId: 'dev-user',
+              role: 'USER',
+              token: 'dev-token'
+            } as SocketAuthData;
+          } else {
+            socket.data = authData;
+          }
+        } else {
+          // Production authentication
+          if (!authData.userId || !authData.role) {
+            return next(new Error('Authentication required'));
+          }
+          socket.data = authData;
+        }
 
-      socket.data = authData;
-      next();
+        next();
+      } catch (error) {
+        console.error('Socket middleware error:', error);
+        next(new Error('Authentication failed'));
+      }
     });
   }
 
@@ -396,7 +421,8 @@ export class SocketClientManager {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private authData: SocketAuthData | null = null;
-  private listeners: Map<string, Set<(data: unknown) => void>> = new Map();
+  private listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+  private connectionPromise: Promise<ClientSocketType> | null = null;
 
   private static instance: SocketClientManager;
 
@@ -409,68 +435,117 @@ export class SocketClientManager {
     return SocketClientManager.instance;
   }
 
-  connect(authData: SocketAuthData): ClientSocketType {
+  async connect(authData: SocketAuthData): Promise<ClientSocketType> {
+    // If already connected with same user, return existing socket
     if (this.socket?.connected && this.authData?.userId === authData.userId) {
       return this.socket;
     }
 
+    // If connection is in progress, wait for it
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    // Disconnect existing socket if different user
     if (this.socket && this.authData?.userId !== authData.userId) {
       this.disconnect();
     }
 
     this.authData = authData;
     
-    this.socket = ClientIO(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      path: '/socket.io',
-      auth: {
-        userId: authData.userId,
-        role: authData.role,
-        token: authData.token
-      },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: this.reconnectDelay,
-      timeout: 20000
-    });
+    // Create connection promise
+    this.connectionPromise = this.createConnection();
+    
+    try {
+      const socket = await this.connectionPromise;
+      this.connectionPromise = null;
+      return socket;
+    } catch (error) {
+      this.connectionPromise = null;
+      throw error;
+    }
+  }
 
-    this.setupClientEventListeners();
-    return this.socket;
+  private createConnection(): Promise<ClientSocketType> {
+    return new Promise((resolve, reject) => {
+      if (!this.authData) {
+        reject(new Error('Authentication data required'));
+        return;
+      }
+
+      const serverUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      
+      this.socket = ClientIO(serverUrl, {
+        path: '/socket.io',
+        auth: {
+          userId: this.authData.userId,
+          role: this.authData.role,
+          token: this.authData.token
+        },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: this.reconnectDelay,
+        timeout: 20000,
+        forceNew: true
+      });
+
+      const socket = this.socket;
+
+      // Connection event handlers
+      socket.on('connect', () => {
+        console.log('Socket connected:', socket.id);
+        this.reconnectAttempts = 0;
+        
+        // Join user room
+        this.joinUserRoom(this.authData!.userId);
+        
+        // Join admin room if applicable
+        if (this.authData!.role === 'ADMIN' || this.authData!.role === 'COORDINATOR') {
+          this.joinAdminRoom();
+        }
+
+        resolve(socket);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        this.reconnectAttempts++;
+        
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+          console.error('Max reconnection attempts reached');
+          reject(error);
+        }
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        if (reason === 'io server disconnect') {
+          // Server disconnected, try to reconnect
+          socket.connect();
+        }
+      });
+
+      // Setup other event listeners
+      this.setupClientEventListeners();
+    });
   }
 
   private setupClientEventListeners() {
     if (!this.socket || !this.authData) return;
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket?.id);
+    (this.socket as any).on('reconnect', (attemptNumber: number) => {
+      console.log('Socket reconnected after', attemptNumber, 'attempts');
       this.reconnectAttempts = 0;
       
+      // Rejoin rooms after reconnection
       this.joinUserRoom(this.authData!.userId);
-      
       if (this.authData!.role === 'ADMIN' || this.authData!.role === 'COORDINATOR') {
         this.joinAdminRoom();
       }
     });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      this.reconnectAttempts++;
-      
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnection attempts reached');
-      }
-    });
-
-    this.socket.on('reconnect', (attemptNumber: any) => {
-      console.log('Socket reconnected after', attemptNumber, 'attempts');
-      this.reconnectAttempts = 0;
-    });
-
-    this.socket.on('reconnect_error', (error: any) => {
+    (this.socket as any).on('reconnect_error', (error: unknown) => {
       console.error('Socket reconnection error:', error);
     });
   }
@@ -557,7 +632,7 @@ export class SocketClientManager {
       if (!this.listeners.has(event)) {
         this.listeners.set(event, new Set());
       }
-      this.listeners.get(event)!.add(callback);
+      this.listeners.get(event)!.add(callback as any);
     }
   }
 
@@ -568,7 +643,7 @@ export class SocketClientManager {
     if (this.socket) {
       if (callback) {
         this.socket.off(event, callback as any);
-        this.listeners.get(event)?.delete(callback);
+        this.listeners.get(event)?.delete(callback as any);
       } else {
         this.socket.off(event);
         this.listeners.delete(event);
@@ -590,6 +665,7 @@ export class SocketClientManager {
       this.socket = null;
       this.authData = null;
       this.reconnectAttempts = 0;
+      this.connectionPromise = null;
     }
   }
 

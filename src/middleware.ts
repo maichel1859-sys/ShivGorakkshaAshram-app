@@ -97,6 +97,7 @@ export default withAuth(
       '/auth',
       '/signin',
       '/signup',
+      '/error',
       '/api/health',
       '/api/docs',
       '/api/metrics',
@@ -115,7 +116,7 @@ export default withAuth(
 
     // Require authentication for all other routes
     if (!token) {
-      return NextResponse.redirect(new URL('/auth/signin', req.url))
+      return NextResponse.redirect(new URL('/signin', req.url))
     }
 
     const userRole = token.role as Role
@@ -185,6 +186,7 @@ export default withAuth(
           '/auth',
           '/signin',
           '/signup',
+          '/error',
           '/api/health',
           '/api/docs',
           '/api/metrics',

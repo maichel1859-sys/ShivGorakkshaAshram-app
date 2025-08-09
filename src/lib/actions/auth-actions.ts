@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
@@ -68,7 +68,6 @@ export async function sendPhoneOTP(formData: FormData) {
 
     // Generate OTP
     const otp = generateOTP(6);
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Store OTP in database (you'll need to create an OTP table)
     // For now, we'll use a simple in-memory store
@@ -383,7 +382,7 @@ export async function updateFamilyContact(contactId: string, formData: FormData)
       notes: formData.get('notes'),
     });
 
-    const cleanPhoneNumber = cleanPhone(data.familyContactId); // Assuming familyContactId is the phone number for now
+
 
     // Verify ownership
     const existingContact = await prisma.familyContact.findUnique({

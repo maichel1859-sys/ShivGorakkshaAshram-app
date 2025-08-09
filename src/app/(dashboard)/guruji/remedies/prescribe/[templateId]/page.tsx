@@ -39,18 +39,7 @@ import {
 } from "@/hooks/queries";
 import { toast } from "sonner";
 
-interface RemedyTemplate {
-  id: string;
-  name: string;
-  type: string;
-  category: string;
-  description: string | null;
-  instructions: string;
-  dosage: string | null;
-  duration: string | null;
-  language: string;
-  tags: string[];
-}
+
 
 interface Patient {
   id: string;

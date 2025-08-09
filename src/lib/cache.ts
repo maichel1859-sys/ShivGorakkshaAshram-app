@@ -46,7 +46,7 @@ class MemoryCache {
       return null;
     }
     
-    return entry.value;
+    return entry.value as T;
   }
 
   delete(key: string): boolean {
@@ -418,7 +418,7 @@ export const rateLimitCache = {
     const windowStart = now - (windowSeconds * 1000);
     
     // Get existing requests
-    const requests: number[] = memoryCache.get(`rate_limit:${key}`) || [];
+    const requests: number[] = memoryCache.get<number[]>(`rate_limit:${key}`) || [];
     
     // Filter requests within window
     const recentRequests = requests.filter(time => time > windowStart);
@@ -435,7 +435,7 @@ export const rateLimitCache = {
     const now = Date.now();
     const windowStart = now - (windowSeconds * 1000);
     
-    const requests: number[] = memoryCache.get(`rate_limit:${key}`) || [];
+    const requests: number[] = memoryCache.get<number[]>(`rate_limit:${key}`) || [];
     const recentRequests = requests.filter(time => time > windowStart);
     recentRequests.push(now);
     
@@ -455,7 +455,7 @@ export const sessionCache = {
   },
 
   get: <T = unknown>(sessionId: string): T | null => {
-    return memoryCache.get(`session:${sessionId}`);
+    return memoryCache.get<T>(`session:${sessionId}`);
   },
 
   delete: (sessionId: string) => {
@@ -463,7 +463,7 @@ export const sessionCache = {
   },
 
   extend: (sessionId: string, ttlSeconds: number = 1800) => {
-    const data = memoryCache.get(`session:${sessionId}`);
+    const data = memoryCache.get<unknown>(`session:${sessionId}`);
     if (data) {
       memoryCache.set(`session:${sessionId}`, data, ttlSeconds, ['session']);
     }
@@ -473,7 +473,7 @@ export const sessionCache = {
 // Socket connection cache
 export const socketCache = {
   addConnection: (userId: string, socketId: string) => {
-    const connections: string[] = memoryCache.get(`socket_connections:${userId}`) || [];
+    const connections: string[] = memoryCache.get<string[]>(`socket_connections:${userId}`) || [];
     if (!connections.includes(socketId)) {
       connections.push(socketId);
       memoryCache.set(`socket_connections:${userId}`, connections, CACHE_TIMES.hour);
@@ -481,7 +481,7 @@ export const socketCache = {
   },
 
   removeConnection: (userId: string, socketId: string) => {
-    const connections: string[] = memoryCache.get(`socket_connections:${userId}`) || [];
+    const connections: string[] = memoryCache.get<string[]>(`socket_connections:${userId}`) || [];
     const updated = connections.filter(id => id !== socketId);
     if (updated.length > 0) {
       memoryCache.set(`socket_connections:${userId}`, updated, CACHE_TIMES.hour);
@@ -491,12 +491,12 @@ export const socketCache = {
   },
 
   getConnections: (userId: string): string[] => {
-    return memoryCache.get(`socket_connections:${userId}`) || [];
+    return memoryCache.get<string[]>(`socket_connections:${userId}`) || [];
   },
 
   isUserOnline: (userId: string): boolean => {
-    const connections = memoryCache.get(`socket_connections:${userId}`);
-    return connections && connections.length > 0;
+    const connections = memoryCache.get<string[]>(`socket_connections:${userId}`);
+    return Boolean(connections && connections.length > 0);
   },
 };
 

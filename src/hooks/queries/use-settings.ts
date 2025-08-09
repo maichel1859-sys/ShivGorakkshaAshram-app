@@ -13,8 +13,8 @@ export function useUpdateUserSettings() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (formData: FormData) => {
-      const result = await updateUserSettings(formData);
+    mutationFn: async () => {
+      const result = await updateUserSettings();
       if (!result.success) {
         throw new Error(result.error || 'Failed to update settings');
       }

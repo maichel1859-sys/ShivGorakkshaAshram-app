@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -21,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Save, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 
 interface UserSettings {
   language: "en" | "hi" | "mr";
@@ -47,8 +46,8 @@ export function UserSettingsForm({ initialSettings }: UserSettingsFormProps) {
   const updateSettingsMutation = useUpdateUserSettings();
   const isLoading = updateSettingsMutation.isPending;
 
-  async function handleSubmit(formData: FormData) {
-    updateSettingsMutation.mutate(formData);
+  async function handleSubmit() {
+    updateSettingsMutation.mutate();
   }
 
   return (
@@ -70,7 +69,10 @@ export function UserSettingsForm({ initialSettings }: UserSettingsFormProps) {
                   name="language"
                   value={settings.language}
                   onValueChange={(value) =>
-                    setSettings({ ...settings, language: value as "en" | "hi" | "mr" })
+                    setSettings({
+                      ...settings,
+                      language: value as "en" | "hi" | "mr",
+                    })
                   }
                   disabled={isLoading}
                 >
@@ -91,7 +93,10 @@ export function UserSettingsForm({ initialSettings }: UserSettingsFormProps) {
                   name="theme"
                   value={settings.theme}
                   onValueChange={(value) =>
-                    setSettings({ ...settings, theme: value as "light" | "dark" | "system" })
+                    setSettings({
+                      ...settings,
+                      theme: value as "light" | "dark" | "system",
+                    })
                   }
                   disabled={isLoading}
                 >

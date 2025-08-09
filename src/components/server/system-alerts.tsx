@@ -1,5 +1,5 @@
 import { getSystemAlerts } from "@/lib/actions/dashboard-actions";
-import { AlertTriangle, AlertCircle, Info, CheckCircle } from "lucide-react";
+import { AlertTriangle, AlertCircle, CheckCircle } from "lucide-react";
 
 interface SystemError {
   id: string;

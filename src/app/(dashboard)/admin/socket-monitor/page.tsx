@@ -1,22 +1,28 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Activity, 
-  ExternalLink, 
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Activity,
+  ExternalLink,
   Monitor,
   AlertCircle,
   Wifi,
   Server,
   Users,
-  MessageSquare
-} from 'lucide-react';
-import { useSocket } from '@/hooks/use-socket';
+  MessageSquare,
+} from "lucide-react";
+import { useSocket } from "@/hooks/use-socket";
 
 export default function SocketMonitorPage() {
   const { data: session, status } = useSession();
@@ -24,23 +30,23 @@ export default function SocketMonitorPage() {
 
   // Redirect if not admin
   useEffect(() => {
-    if (status === 'loading') return;
-    if (!session || session.user.role !== 'ADMIN') {
-      redirect('/auth/signin');
+    if (status === "loading") return;
+    if (!session || session.user.role !== "ADMIN") {
+      redirect("/signin");
     }
   }, [session, status]);
 
   const openSocketAdmin = () => {
     const baseUrl = window.location.origin;
     const socketAdminUrl = `${baseUrl}/admin/socket.io`;
-    window.open(socketAdminUrl, '_blank', 'width=1400,height=900');
+    window.open(socketAdminUrl, "_blank", "width=1400,height=900");
   };
 
   const openAPIDocsInNewTab = () => {
-    window.open('/admin/api-docs', '_blank');
+    window.open("/admin/api-docs", "_blank");
   };
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -59,9 +65,12 @@ export default function SocketMonitorPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={isConnected ? "default" : "destructive"} className="flex items-center gap-1">
+          <Badge
+            variant={isConnected ? "default" : "destructive"}
+            className="flex items-center gap-1"
+          >
             <Wifi className="h-3 w-3" />
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected ? "Connected" : "Disconnected"}
           </Badge>
         </div>
       </div>
@@ -74,13 +83,15 @@ export default function SocketMonitorPage() {
           </div>
           <CardTitle className="text-2xl">Socket.IO Admin Interface</CardTitle>
           <CardDescription className="text-lg">
-            Use the built-in Socket.IO Admin UI for comprehensive WebSocket monitoring
+            Use the built-in Socket.IO Admin UI for comprehensive WebSocket
+            monitoring
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
           <p className="text-muted-foreground">
-            The Socket.IO Admin UI provides real-time monitoring, debugging tools, and connection management 
-            for all WebSocket connections in the Shivgoraksha Ashram Management System.
+            The Socket.IO Admin UI provides real-time monitoring, debugging
+            tools, and connection management for all WebSocket connections in
+            the Shivgoraksha Ashram Management System.
           </p>
           <Button
             onClick={openSocketAdmin}
@@ -104,7 +115,8 @@ export default function SocketMonitorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Monitor all active WebSocket connections, user sessions, and connection health in real-time.
+              Monitor all active WebSocket connections, user sessions, and
+              connection health in real-time.
             </p>
           </CardContent>
         </Card>
@@ -118,7 +130,8 @@ export default function SocketMonitorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Debug Socket.IO events, inspect message payloads, and track real-time communication.
+              Debug Socket.IO events, inspect message payloads, and track
+              real-time communication.
             </p>
           </CardContent>
         </Card>
@@ -132,7 +145,8 @@ export default function SocketMonitorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Manage Socket.IO rooms, monitor room memberships, and control message broadcasting.
+              Manage Socket.IO rooms, monitor room memberships, and control
+              message broadcasting.
             </p>
           </CardContent>
         </Card>
@@ -178,7 +192,7 @@ export default function SocketMonitorPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm">WebSocket Status:</span>
               <Badge variant={isConnected ? "default" : "destructive"}>
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected ? "Connected" : "Disconnected"}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
@@ -199,10 +213,13 @@ export default function SocketMonitorPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-muted-foreground space-y-2">
-              <p className="font-medium text-foreground">About Socket.IO Admin Interface</p>
+              <p className="font-medium text-foreground">
+                About Socket.IO Admin Interface
+              </p>
               <p>
-                The Socket.IO Admin UI is a built-in web-based interface that provides comprehensive monitoring 
-                and debugging capabilities for WebSocket connections. It offers real-time insights into:
+                The Socket.IO Admin UI is a built-in web-based interface that
+                provides comprehensive monitoring and debugging capabilities for
+                WebSocket connections. It offers real-time insights into:
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
                 <li>Active connections and their details</li>
@@ -212,7 +229,10 @@ export default function SocketMonitorPage() {
                 <li>Message broadcasting and room management</li>
               </ul>
               <p className="mt-2">
-                Access the admin interface at <code className="bg-muted px-1 py-0.5 rounded text-xs">/admin/socket.io</code> 
+                Access the admin interface at{" "}
+                <code className="bg-muted px-1 py-0.5 rounded text-xs">
+                  /admin/socket.io
+                </code>
                 for detailed WebSocket monitoring and management capabilities.
               </p>
             </div>

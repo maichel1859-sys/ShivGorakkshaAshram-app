@@ -1,4 +1,5 @@
 import { User, Role } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { BaseService, ServiceResponse, ServiceError, ServiceErrorCode } from './base.service';
 import { UserRepository } from '@/lib/repositories/user.repository';
 import { 

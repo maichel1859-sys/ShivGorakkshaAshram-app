@@ -1,6 +1,5 @@
 "use client";
 
-import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,8 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -18,282 +15,193 @@ import {
   Clock,
   Heart,
   Plus,
-  QrCode,
-  FileText,
-  CheckCircle,
   AlertCircle,
+  Activity,
 } from "lucide-react";
+import { useUserDashboard, useNotifications } from "@/hooks/queries";
 
 export default function UserDashboard() {
   const { data: session } = useSession();
+  const { data: dashboardData, isLoading, error } = useUserDashboard();
+  const { data: notificationsData } = useNotifications({ limit: 5 });
 
-  return (
-    <DashboardLayout title="My Dashboard" allowedRoles={["USER"]}>
+  if (isLoading) {
+    return (
       <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">
-              Welcome back, {session?.user.name?.split(" ")[0]}!
-            </h2>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
             <p className="text-muted-foreground">
-              Here&apos;s what&apos;s happening with your appointments today.
+              Failed to load dashboard data
             </p>
           </div>
-          <Button asChild>
-            <Link href="/user/appointments/book">
-              <Plus className="mr-2 h-4 w-4" />
-              Book Appointment
-            </Link>
-          </Button>
         </div>
+      </div>
+    );
+  }
 
-        {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Next Appointment
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">Today</div>
-              <p className="text-xs text-muted-foreground">
-                2:30 PM with Guruji Ravi
-              </p>
-            </CardContent>
-          </Card>
+  const appointmentCount = dashboardData?.stats?.appointmentCount || 0;
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Queue Position
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">3rd</div>
-              <p className="text-xs text-muted-foreground">
-                ~15 mins estimated wait
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pending Remedies
-              </CardTitle>
-              <Heart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">2</div>
-              <p className="text-xs text-muted-foreground">
-                Ready for download
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Consultations
-              </CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
+  return (
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Welcome back, {session?.user.name?.split(" ")[0]}!
+          </h2>
+          <p className="text-muted-foreground">
+            Here&apos;s what&apos;s happening with your appointments today.
+          </p>
         </div>
+        <Button asChild>
+          <Link href="/user/appointments/book">
+            <Plus className="mr-2 h-4 w-4" />
+            Book Appointment
+          </Link>
+        </Button>
+      </div>
 
-        {/* Quick Actions */}
+      {/* Quick Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Common tasks you might want to perform
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Next Appointment
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Button variant="outline" className="h-auto p-4" asChild>
-              <Link
-                href="/user/appointments/book"
-                className="flex flex-col items-center space-y-2"
-              >
-                <Calendar className="h-6 w-6" />
-                <span>Book Appointment</span>
-              </Link>
-            </Button>
-
-            <Button variant="outline" className="h-auto p-4" asChild>
-              <Link
-                href="/user/checkin"
-                className="flex flex-col items-center space-y-2"
-              >
-                <QrCode className="h-6 w-6" />
-                <span>Check In</span>
-              </Link>
-            </Button>
-
-            <Button variant="outline" className="h-auto p-4" asChild>
-              <Link
-                href="/user/queue"
-                className="flex flex-col items-center space-y-2"
-              >
-                <Clock className="h-6 w-6" />
-                <span>View Queue</span>
-              </Link>
-            </Button>
-
-            <Button variant="outline" className="h-auto p-4" asChild>
-              <Link
-                href="/user/remedies"
-                className="flex flex-col items-center space-y-2"
-              >
-                <Heart className="h-6 w-6" />
-                <span>My Remedies</span>
-              </Link>
-            </Button>
+          <CardContent>
+            <div className="text-2xl font-bold">No upcoming</div>
+            <p className="text-xs text-muted-foreground">
+              Book your next appointment
+            </p>
           </CardContent>
         </Card>
 
-        {/* Recent Activity & Upcoming */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Upcoming Appointments */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Appointments</CardTitle>
-              <CardDescription>Your scheduled consultations</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Calendar className="h-4 w-4" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Consultation with Guruji Ravi
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Today at 2:30 PM
-                  </p>
-                </div>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center space-x-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
-                  <Calendar className="h-4 w-4" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Follow-up with Guruji Priya
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Tomorrow at 10:00 AM
-                  </p>
-                </div>
-                <AlertCircle className="h-4 w-4 text-yellow-500" />
-              </div>
-
-              <Separator />
-
-              <Button variant="ghost" className="w-full" asChild>
-                <Link href="/user/appointments">View All Appointments</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Recent Remedies */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Remedies</CardTitle>
-              <CardDescription>Your latest prescribed remedies</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-green-600">
-                  <Heart className="h-4 w-4" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Meditation & Breathing Exercises
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Ready for download
-                  </p>
-                </div>
-                <Button size="sm" variant="outline">
-                  Download
-                </Button>
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center space-x-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                  <Heart className="h-4 w-4" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    Herbal Tea Preparation
-                  </p>
-                  <p className="text-sm text-muted-foreground">2 days ago</p>
-                </div>
-                <Button size="sm" variant="outline">
-                  View
-                </Button>
-              </div>
-
-              <Separator />
-
-              <Button variant="ghost" className="w-full" asChild>
-                <Link href="/user/remedies">View All Remedies</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Progress Tracking */}
         <Card>
-          <CardHeader>
-            <CardTitle>Your Spiritual Journey Progress</CardTitle>
-            <CardDescription>
-              Track your progress with personalized insights
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Queue Position
+            </CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Meditation Practice</span>
-                <span>75%</span>
-              </div>
-              <Progress value={75} />
-            </div>
+          <CardContent>
+            <div className="text-2xl font-bold">-</div>
+            <p className="text-xs text-muted-foreground">Not in queue</p>
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Remedy Adherence</span>
-                <span>90%</span>
-              </div>
-              <Progress value={90} />
-            </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Pending Remedies
+            </CardTitle>
+            <Heart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Ready for download</p>
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Regular Consultations</span>
-                <span>60%</span>
-              </div>
-              <Progress value={60} />
-            </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Appointments
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{appointmentCount}</div>
+            <p className="text-xs text-muted-foreground">0 completed</p>
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+
+      {/* Upcoming Appointments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Upcoming Appointments
+            </CardTitle>
+            <CardDescription>Your next few appointments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground">
+              No upcoming appointments
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Notifications</CardTitle>
+            <CardDescription>Latest updates and reminders</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {notificationsData?.notifications &&
+            notificationsData.notifications.length > 0 ? (
+              <div className="space-y-3">
+                {notificationsData.notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">{n.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {n.message}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(n.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground">
+                No recent notifications
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Access frequently used features</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Button variant="outline" asChild>
+            <Link href="/user/appointments/book">Book Appointment</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/user/queue">My Queue</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/user/remedies">My Remedies</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/user/qr">QR Scanner</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

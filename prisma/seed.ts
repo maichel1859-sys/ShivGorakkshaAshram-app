@@ -55,27 +55,37 @@ async function main() {
     }
   });
 
-  // Create 1 Guruji User
-  const guruji = await prisma.user.create({
-    data: {
-      name: 'Guruji Ravi Kumar',
-      email: 'ravi.kumar@ashram.com',
-      password: hashedPassword,
-      role: 'GURUJI',
-      isActive: true,
-      phone: '+91-9876543220',
-      dateOfBirth: new Date('1965-03-20'),
-      address: 'Ashram Spiritual Wing, Block A',
-      preferences: {
-        specialization: 'Meditation & Spiritual Guidance'
-      },
-      emergencyContact: JSON.stringify({
-        name: 'Sita Kumar',
-        phone: '+91-9876543221',
-        relationship: 'Spouse'
-      })
-    }
-  });
+  // Create 3 Guruji Users
+  const gurujis = [];
+  const gurujiNames = [
+    'Guruji Ravi Kumar',
+    'Guruji Priya Sharma', 
+    'Guruji Amit Patel'
+  ];
+  
+  for (let i = 0; i < gurujiNames.length; i++) {
+    const guruji = await prisma.user.create({
+      data: {
+        name: gurujiNames[i],
+        email: gurujiNames[i].toLowerCase().replace(/\s+/g, '.') + '@ashram.com',
+        password: hashedPassword,
+        role: 'GURUJI',
+        isActive: true,
+        phone: `+91-98765432${20 + i}`,
+        dateOfBirth: new Date(1965 + i, 3 + i, 20 + i),
+        address: `Ashram Spiritual Wing, Block ${String.fromCharCode(65 + i)}`,
+        preferences: {
+          specialization: ['Meditation & Spiritual Guidance', 'Ayurvedic Healing', 'Yoga Therapy'][i]
+        },
+        emergencyContact: JSON.stringify({
+          name: `Emergency Contact ${i + 1}`,
+          phone: `+91-98765432${21 + i}`,
+          relationship: 'Spouse'
+        })
+      }
+    });
+    gurujis.push(guruji);
+  }
 
   // Create 1 Coordinator User
   const coordinator = await prisma.user.create({
@@ -96,8 +106,8 @@ async function main() {
     }
   });
 
-  // Create 50+ Regular Users
-  console.log('👥 Creating 50+ regular users...');
+  // Create 100+ Regular Users
+  console.log('👥 Creating 100+ regular users...');
   const users = [];
   const userNames = [
     'Amit Patel', 'Swati Sharma', 'Rajesh Kumar', 'Deepika Singh', 'Arjun Reddy',
@@ -122,7 +132,14 @@ async function main() {
     'Brahma Das', 'Saraswati Devi', 'Ganga Devi', 'Yamuna Devi', 'Kaveri Devi',
     'Narmada Devi', 'Godavari Devi', 'Krishna Devi', 'Radha Prasad', 'Hanuman Prasad',
     'Sita Prasad', 'Ram Das', 'Lakshmi Das', 'Ganesh Das', 'Durga Prasad',
-    'Shiva Das', 'Parvati Prasad', 'Vishnu Prasad', 'Brahma Prasad', 'Saraswati Prasad'
+    'Shiva Das', 'Parvati Prasad', 'Vishnu Prasad', 'Brahma Prasad', 'Saraswati Prasad',
+    'Lakshmi Devi', 'Ganesh Prasad', 'Radha Rani', 'Hanuman Das', 'Sita Devi',
+    'Ram Chandra', 'Krishna Das', 'Durga Devi', 'Shiva Prasad', 'Parvati Devi',
+    'Vishnu Das', 'Lakshmi Prasad', 'Brahma Das', 'Saraswati Devi', 'Ganga Devi',
+    'Yamuna Devi', 'Kaveri Devi', 'Narmada Devi', 'Godavari Devi', 'Krishna Devi',
+    'Radha Prasad', 'Hanuman Prasad', 'Sita Prasad', 'Ram Das', 'Lakshmi Das',
+    'Ganesh Das', 'Durga Prasad', 'Shiva Das', 'Parvati Prasad', 'Vishnu Prasad',
+    'Brahma Prasad', 'Saraswati Prasad', 'Lakshmi Devi', 'Ganesh Prasad', 'Radha Rani'
   ];
 
   const cities = [
@@ -177,41 +194,42 @@ async function main() {
   // Create sample appointments for the next few days
   const appointments = [];
 
-  // Create appointments for today and next 7 days
-  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+  // Create appointments for today and next 14 days
+  for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
     const appointmentDate = new Date();
     appointmentDate.setDate(appointmentDate.getDate() + dayOffset);
     
-    // Create 5-8 appointments per day
-    const appointmentsPerDay = Math.floor(Math.random() * 4) + 5; // 5-8 appointments
+    // Create 8-15 appointments per day
+    const appointmentsPerDay = Math.floor(Math.random() * 8) + 8; // 8-15 appointments
     
     for (let i = 0; i < appointmentsPerDay; i++) {
       const selectedUser = users[Math.floor(Math.random() * users.length)];
+      const selectedGuruji = gurujis[Math.floor(Math.random() * gurujis.length)];
       
-      // Random time between 9 AM and 5 PM
-      const hour = Math.floor(Math.random() * 8) + 9; // 9-16 (9 AM to 4 PM)
+      // Random time between 9 AM and 6 PM
+      const hour = Math.floor(Math.random() * 9) + 9; // 9-17 (9 AM to 5 PM)
       const minute = Math.random() > 0.5 ? 0 : 30; // Either :00 or :30
       
       const startTime = new Date(appointmentDate);
       startTime.setHours(hour, minute, 0, 0);
       
       const endTime = new Date(startTime);
-      endTime.setMinutes(endTime.getMinutes() + 30); // 30-minute appointments
+      endTime.setMinutes(endTime.getMinutes() + 45); // 45-minute appointments
       
-      const priorities: Priority[] = ['LOW', 'NORMAL', 'HIGH'];
-      const statuses: AppointmentStatus[] = dayOffset === 0 ? ['BOOKED', 'CONFIRMED'] : ['BOOKED'];
+      const priorities: Priority[] = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
+      const statuses: AppointmentStatus[] = dayOffset === 0 ? ['BOOKED', 'CONFIRMED', 'IN_PROGRESS'] : ['BOOKED', 'CONFIRMED'];
       
       const appointment = await prisma.appointment.create({
         data: {
           userId: selectedUser.id,
-          gurujiId: guruji.id,
+          gurujiId: selectedGuruji.id,
           date: appointmentDate,
           startTime: startTime,
           endTime: endTime,
-          reason: `Spiritual consultation and guidance session with ${guruji.name}`,
+          reason: `Spiritual consultation and guidance session with ${selectedGuruji.name}`,
           priority: priorities[Math.floor(Math.random() * priorities.length)],
           status: statuses[Math.floor(Math.random() * statuses.length)],
-          qrCode: `data:image/png;base64,${Buffer.from(`qr-${selectedUser.id}-${guruji.id}-${Date.now()}-${Math.random()}`).toString('base64')}`, // Unique QR code
+          qrCode: `data:image/png;base64,${Buffer.from(`qr-${selectedUser.id}-${selectedGuruji.id}-${Date.now()}-${Math.random()}`).toString('base64')}`, // Unique QR code
         }
       });
       appointments.push(appointment);
@@ -221,7 +239,7 @@ async function main() {
   console.log('🏥 Creating consultation records...');
   
   // Create some completed consultations for historical data
-  const completedAppointments = appointments.slice(0, Math.floor(appointments.length / 3));
+  const completedAppointments = appointments.slice(0, Math.floor(appointments.length / 2));
   
   for (const appointment of completedAppointments) {
     await prisma.consultationSession.create({
@@ -232,7 +250,7 @@ async function main() {
         diagnosis: 'Spiritual consultation completed successfully',
         notes: 'Patient showed good progress in spiritual journey. Continue with daily meditation. Treatment: Meditation practices and spiritual guidance provided.',
         endTime: new Date(),
-        duration: 30, // 30 minutes session
+        duration: 45, // 45 minutes session
       }
     });
 
@@ -243,9 +261,35 @@ async function main() {
     });
   }
 
+  console.log('📋 Creating queue entries...');
+  
+  // Create queue entries for today's appointments
+  const todayAppointments = appointments.filter(apt => {
+    const today = new Date();
+    const aptDate = new Date(apt.date);
+    return aptDate.toDateString() === today.toDateString();
+  });
+
+  for (let i = 0; i < todayAppointments.length; i++) {
+    const appointment = todayAppointments[i];
+    await prisma.queueEntry.create({
+      data: {
+        appointmentId: appointment.id,
+        userId: appointment.userId,
+        gurujiId: appointment.gurujiId!,
+        position: i + 1,
+        status: i === 0 ? 'IN_PROGRESS' : 'WAITING',
+        estimatedWait: (i + 1) * 15, // 15 minutes per position
+        checkedInAt: new Date(),
+        notes: `Queue entry for ${appointment.reason}`,
+        priority: appointment.priority,
+      }
+    });
+  }
+
   console.log('💊 Creating remedy templates...');
   
-  // Create remedy templates for the Guruji
+  // Create remedy templates for the Gurujis
   const remedyTemplates = [
     {
       name: 'Daily Meditation Practice',
@@ -320,6 +364,24 @@ Each session: 20 minutes, twice daily
       type: RemedyType.SPIRITUAL,
       category: 'Energy Healing',
       duration: '7 days intensive program'
+    },
+    {
+      name: 'Stress Relief Breathing',
+      description: 'Simple breathing technique for immediate stress relief',
+      instructions: `
+4-7-8 Breathing Technique:
+1. Sit comfortably with back straight
+2. Place tongue on roof of mouth
+3. Inhale through nose for 4 counts
+4. Hold breath for 7 counts
+5. Exhale through mouth for 8 counts
+6. Repeat 4 times
+
+Practice 3 times daily
+      `.trim(),
+      type: RemedyType.LIFESTYLE,
+      category: 'Breathing',
+      duration: '5 minutes, 3 times daily'
     }
   ];
 
@@ -332,25 +394,152 @@ Each session: 20 minutes, twice daily
   console.log('🔔 Creating sample notifications...');
   
   // Create notifications for users about their appointments
-  const todayAppointments = appointments.filter(apt => {
-    const today = new Date();
-    const aptDate = new Date(apt.date);
-    return aptDate.toDateString() === today.toDateString();
-  });
+  const notificationTypes = [
+    {
+      title: 'Appointment Reminder',
+      message: (gurujiName: string, time: string) => `Your appointment with ${gurujiName} is today at ${time}`,
+      type: 'appointment'
+    },
+    {
+      title: 'Queue Update',
+      message: (position: number) => `Your queue position is now ${position}. Estimated wait: ${position * 15} minutes`,
+      type: 'queue'
+    },
+    {
+      title: 'Remedy Ready',
+      message: (remedyName: string) => `Your ${remedyName} remedy is ready for download`,
+      type: 'remedy'
+    },
+    {
+      title: 'Consultation Complete',
+      message: (gurujiName: string) => `Your consultation with ${gurujiName} has been completed. Check your remedies section.`,
+      type: 'consultation'
+    }
+  ];
 
+  // Create notifications for today's appointments
   for (const appointment of todayAppointments) {
+    const guruji = gurujis.find(g => g.id === appointment.gurujiId);
+    const time = appointment.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
     await prisma.notification.create({
       data: {
         userId: appointment.userId,
         title: 'Appointment Reminder',
-        message: `Your appointment with ${guruji.name} is today at ${appointment.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+        message: `Your appointment with ${guruji?.name} is today at ${time}`,
         type: 'appointment',
         data: {
           appointmentId: appointment.id,
-          gurujiName: guruji.name,
+          gurujiName: guruji?.name,
           time: appointment.startTime.toISOString()
         }
       }
+    });
+  }
+
+  // Create queue notifications
+  for (let i = 0; i < Math.min(10, todayAppointments.length); i++) {
+    const appointment = todayAppointments[i];
+    await prisma.notification.create({
+      data: {
+        userId: appointment.userId,
+        title: 'Queue Update',
+        message: `Your queue position is now ${i + 1}. Estimated wait: ${(i + 1) * 15} minutes`,
+        type: 'queue',
+        data: {
+          queueEntryId: `queue-${i + 1}`,
+          position: i + 1,
+          estimatedWait: (i + 1) * 15
+        }
+      }
+    });
+  }
+
+  // Create remedy notifications
+  for (let i = 0; i < Math.min(5, users.length); i++) {
+    const user = users[i];
+    const remedyTemplate = remedyTemplates[i % remedyTemplates.length];
+    
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        title: 'Remedy Ready',
+        message: `Your ${remedyTemplate.name} remedy is ready for download`,
+        type: 'remedy',
+        data: {
+          remedyId: `remedy-${i + 1}`,
+          remedyName: remedyTemplate.name,
+          templateId: `template-${i + 1}`
+        }
+      }
+    });
+  }
+
+  console.log('⚙️ Creating system settings...');
+  
+  // Create system settings
+  const systemSettings = [
+    {
+      key: 'appointment_duration',
+      value: '45',
+      type: 'number',
+      category: 'appointments',
+      description: 'Default appointment duration in minutes'
+    },
+    {
+      key: 'queue_timeout',
+      value: '30',
+      type: 'number',
+      category: 'queue',
+      description: 'Queue entry timeout in minutes'
+    },
+    {
+      key: 'max_appointments_per_day',
+      value: '20',
+      type: 'number',
+      category: 'appointments',
+      description: 'Maximum appointments per day per guruji'
+    },
+    {
+      key: 'notification_retention_days',
+      value: '30',
+      type: 'number',
+      category: 'notifications',
+      description: 'Number of days to retain notifications'
+    },
+    {
+      key: 'maintenance_mode',
+      value: 'false',
+      type: 'boolean',
+      category: 'system',
+      description: 'System maintenance mode'
+    },
+    {
+      key: 'ashram_name',
+      value: 'Shivgoraksha Ashram',
+      type: 'string',
+      category: 'general',
+      description: 'Ashram name for display'
+    },
+    {
+      key: 'contact_email',
+      value: 'contact@ashram.com',
+      type: 'string',
+      category: 'general',
+      description: 'Primary contact email'
+    },
+    {
+      key: 'contact_phone',
+      value: '+91-9876543210',
+      type: 'string',
+      category: 'general',
+      description: 'Primary contact phone'
+    }
+  ];
+
+  for (const setting of systemSettings) {
+    await prisma.systemSetting.create({
+      data: setting
     });
   }
 
@@ -366,31 +555,37 @@ Each session: 20 minutes, twice daily
       newData: {
         message: 'Database seeded successfully',
         timestamp: new Date().toISOString(),
-        usersCreated: users.length + 3, // +3 for admin, coordinator, and guruji
+        usersCreated: users.length + 4, // +4 for admin, coordinator, and 3 gurujis
         appointmentsCreated: appointments.length,
-        remedyTemplatesCreated: remedyTemplates.length
+        remedyTemplatesCreated: remedyTemplates.length,
+        queueEntriesCreated: todayAppointments.length,
+        notificationsCreated: todayAppointments.length + Math.min(10, todayAppointments.length) + Math.min(5, users.length)
       }
     }
   });
 
   console.log('✅ Database seeding completed successfully!');
   console.log('\n📈 Summary:');
-  console.log(`👤 Users created: ${users.length + 3}`);
+  console.log(`👤 Users created: ${users.length + 4}`);
   console.log(`   - Admin: 1`);
   console.log(`   - Coordinator: 1`);
-  console.log(`   - Guruji: 1`);
+  console.log(`   - Gurujis: ${gurujis.length}`);
   console.log(`   - Regular Users: ${users.length}`);
   console.log(`📅 Appointments created: ${appointments.length}`);
+  console.log(`📋 Queue entries created: ${todayAppointments.length}`);
   console.log(`💊 Remedy templates created: ${remedyTemplates.length}`);
-  console.log(`🔔 Notifications created: ${todayAppointments.length}`);
+  console.log(`🔔 Notifications created: ${todayAppointments.length + Math.min(10, todayAppointments.length) + Math.min(5, users.length)}`);
+  console.log(`⚙️ System settings created: ${systemSettings.length}`);
   
   console.log('\n🔑 Default Login Credentials:');
   console.log('Admin: admin@ashram.com / password123');
   console.log('Coordinator: coordinator@ashram.com / password123');
-  console.log('Guruji: ravi.kumar@ashram.com / password123');
-  console.log('User (Amit): amit.patel@example.com / password123');
-  console.log('User (Swati): swati.sharma@example.com / password123');
-  console.log('... and 48+ more users with pattern: firstname.lastname@example.com / password123');
+  console.log('Guruji 1: guruji.ravi.kumar@ashram.com / password123');
+  console.log('Guruji 2: guruji.priya.sharma@ashram.com / password123');
+  console.log('Guruji 3: guruji.amit.patel@ashram.com / password123');
+  console.log('User (Amit): amit.patel1@example.com / password123');
+  console.log('User (Swati): swati.sharma1@example.com / password123');
+  console.log('... and 98+ more users with pattern: firstname.lastname@example.com / password123');
   console.log('\n🚀 You can now run: npm run dev');
 }
 

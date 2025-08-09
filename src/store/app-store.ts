@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 interface AppUIState {
   // UI State Only
   sidebarCollapsed: boolean;
@@ -15,7 +20,7 @@ interface AppUIState {
   // PWA State
   pwaState: {
     canInstall: boolean;
-    installPrompt: Event | null;
+    installPrompt: BeforeInstallPromptEvent | null;
     isInstalled: boolean;
   };
   

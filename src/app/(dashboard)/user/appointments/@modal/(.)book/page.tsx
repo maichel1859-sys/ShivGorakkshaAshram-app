@@ -15,7 +15,7 @@ export default function BookAppointmentModal() {
           <DialogTitle>Book New Appointment</DialogTitle>
         </DialogHeader>
         <Suspense fallback={<div>Loading...</div>}>
-          <AppointmentForm onSubmit={async () => {}} />
+          <AppointmentForm />
         </Suspense>
       </DialogContent>
     </Dialog>

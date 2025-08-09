@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
@@ -33,6 +33,7 @@ export function useOfflineSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
   const [offlineData, setOfflineData] = useState<OfflineData | null>(null);
+  const syncPendingActionsRef = useRef<(() => Promise<void>) | null>(null);
 
   // Check online status
   useEffect(() => {
@@ -41,7 +42,7 @@ export function useOfflineSync() {
       setIsOnline(online);
 
       if (online && pendingActions.length > 0) {
-        syncPendingActions();
+        syncPendingActionsRef.current?.();
       }
     };
 
@@ -198,6 +199,9 @@ export function useOfflineSync() {
       toast.dismiss("offline-sync");
     }
   }, [isOnline, pendingActions, isSyncing, savePendingActions]);
+
+  // Assign to ref for stable reference
+  syncPendingActionsRef.current = syncPendingActions;
 
   // Sync specific action types using Server Actions
   const syncAppointmentAction = async (

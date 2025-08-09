@@ -22,8 +22,6 @@ import { getAvailableGurujis } from "@/lib/actions/user-actions";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
-
-
 interface TimeSlot {
   time: string;
   available: boolean;
@@ -35,7 +33,7 @@ export default function BookAppointmentPage() {
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedGuruji, setSelectedGuruji] = useState("");
   const [reason, setReason] = useState("");
-    const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [booking, setBooking] = useState(false);
   const router = useRouter();
 

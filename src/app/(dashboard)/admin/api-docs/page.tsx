@@ -24,7 +24,7 @@ export default function APIDocsPage() {
   useEffect(() => {
     if (status === "loading") return;
     if (!session || session.user.role !== "ADMIN") {
-      redirect("/auth/signin");
+      redirect("/signin");
     }
   }, [session, status]);
 

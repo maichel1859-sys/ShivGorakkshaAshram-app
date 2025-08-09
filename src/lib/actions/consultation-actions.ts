@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+
 
 // Schemas
 const createConsultationSchema = z.object({

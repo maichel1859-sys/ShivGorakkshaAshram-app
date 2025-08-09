@@ -20,88 +20,206 @@ import {
   BarChart3,
   Activity,
   FileText,
+  Database,
+  Monitor,
+  Bell,
+  Zap,
 } from "lucide-react";
-import { Role } from "@prisma/client";
+import { Badge } from "@/components/ui/badge";
+
+// Avoid importing Prisma types on the client; define app roles locally
+type AppRole = "ADMIN" | "USER" | "COORDINATOR" | "GURUJI";
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: Role[];
+  roles: AppRole[];
+  badge?: string;
 }
 
 const navItems: NavItem[] = [
+  // Main Admin routes
   {
     title: "Dashboard",
-    href: "/dashboard",
+    href: "/admin",
     icon: Home,
-    roles: ["USER", "COORDINATOR", "GURUJI", "ADMIN"],
-  },
-  {
-    title: "Appointments",
-    href: "/appointments",
-    icon: Calendar,
-    roles: ["USER", "COORDINATOR", "GURUJI", "ADMIN"],
-  },
-  {
-    title: "Queue",
-    href: "/queue",
-    icon: Clock,
-    roles: ["USER", "COORDINATOR", "GURUJI", "ADMIN"],
-  },
-  {
-    title: "Check-in",
-    href: "/checkin",
-    icon: QrCode,
-    roles: ["USER", "COORDINATOR"],
-  },
-  {
-    title: "Consultations",
-    href: "/consultations",
-    icon: UserCheck,
-    roles: ["GURUJI", "COORDINATOR", "ADMIN"],
-  },
-  {
-    title: "Remedies",
-    href: "/remedies",
-    icon: Heart,
-    roles: ["GURUJI", "COORDINATOR", "ADMIN"],
+    roles: ["ADMIN"],
   },
   {
     title: "Users",
-    href: "/users",
+    href: "/admin/users",
     icon: Users,
-    roles: ["COORDINATOR", "ADMIN"],
+    roles: ["ADMIN"],
+    badge: "155",
+  },
+  {
+    title: "Appointments",
+    href: "/admin/appointments",
+    icon: Calendar,
+    roles: ["ADMIN"],
+    badge: "158",
+  },
+  {
+    title: "Queue",
+    href: "/admin/queue",
+    icon: Clock,
+    roles: ["ADMIN"],
+    badge: "13",
+  },
+  {
+    title: "Consultations",
+    href: "/admin/consultations",
+    icon: UserCheck,
+    roles: ["ADMIN"],
+  },
+  {
+    title: "Remedies",
+    href: "/admin/remedies",
+    icon: Heart,
+    roles: ["ADMIN"],
   },
   {
     title: "Reports",
-    href: "/reports",
+    href: "/admin/reports",
     icon: BarChart3,
-    roles: ["COORDINATOR", "ADMIN"],
+    roles: ["ADMIN"],
   },
+
+  // System & Technical
   {
     title: "System",
-    href: "/system",
+    href: "/admin/system",
     icon: Shield,
     roles: ["ADMIN"],
   },
   {
     title: "API Docs",
-    href: "/api-docs",
+    href: "/admin/api-docs",
     icon: FileText,
     roles: ["ADMIN"],
   },
   {
     title: "Socket Monitor",
-    href: "/socket-monitor",
+    href: "/admin/socket-monitor",
     icon: Activity,
     roles: ["ADMIN"],
   },
   {
+    title: "Database",
+    href: "/admin/database",
+    icon: Database,
+    roles: ["ADMIN"],
+  },
+  {
+    title: "Monitoring",
+    href: "/admin/monitoring",
+    icon: Monitor,
+    roles: ["ADMIN"],
+  },
+
+  // Settings & Configuration
+  {
     title: "Settings",
-    href: "/settings",
+    href: "/admin/settings",
     icon: Settings,
-    roles: ["USER", "COORDINATOR", "GURUJI", "ADMIN"],
+    roles: ["ADMIN"],
+  },
+  {
+    title: "Notifications",
+    href: "/admin/notifications",
+    icon: Bell,
+    roles: ["ADMIN"],
+  },
+  {
+    title: "Performance",
+    href: "/admin/performance",
+    icon: Zap,
+    roles: ["ADMIN"],
+  },
+
+  // User routes
+  {
+    title: "Dashboard",
+    href: "/user",
+    icon: Home,
+    roles: ["USER"],
+  },
+  {
+    title: "Appointments",
+    href: "/user/appointments",
+    icon: Calendar,
+    roles: ["USER"],
+  },
+  {
+    title: "Book Appointment",
+    href: "/user/appointments/book",
+    icon: Calendar,
+    roles: ["USER"],
+  },
+  {
+    title: "My Queue",
+    href: "/user/queue",
+    icon: Clock,
+    roles: ["USER"],
+  },
+  {
+    title: "My Remedies",
+    href: "/user/remedies",
+    icon: Heart,
+    roles: ["USER"],
+  },
+  {
+    title: "QR Scanner",
+    href: "/user/qr-scanner",
+    icon: QrCode,
+    roles: ["USER"],
+  },
+
+  // Coordinator routes
+  {
+    title: "Dashboard",
+    href: "/coordinator",
+    icon: Home,
+    roles: ["COORDINATOR"],
+  },
+  {
+    title: "Queue Management",
+    href: "/coordinator/queue",
+    icon: Clock,
+    roles: ["COORDINATOR"],
+  },
+  {
+    title: "Appointments",
+    href: "/coordinator/appointments",
+    icon: Calendar,
+    roles: ["COORDINATOR"],
+  },
+
+  // Guruji routes
+  {
+    title: "Dashboard",
+    href: "/guruji",
+    icon: Home,
+    roles: ["GURUJI"],
+  },
+  {
+    title: "My Appointments",
+    href: "/guruji/appointments",
+    icon: Calendar,
+    roles: ["GURUJI"],
+  },
+  {
+    title: "My Queue",
+    href: "/guruji/queue",
+    icon: Clock,
+    roles: ["GURUJI"],
+  },
+  {
+    title: "Remedies",
+    href: "/guruji/remedies",
+    icon: Heart,
+    roles: ["GURUJI"],
   },
 ];
 
@@ -109,79 +227,189 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
   const { data: session } = useSession();
   const pathname = usePathname();
 
-  if (!session?.user) return null;
-
-  const userRole = session.user.role;
-  const filteredNavItems = navItems.filter((item) =>
-    item.roles.includes(userRole)
-  );
-
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
   };
 
-  return (
-    <div className={cn("pb-12", className)}>
-      <div className="space-y-4 py-4">
-        <div className="px-3 py-2">
-          <div className="flex items-center space-x-2 mb-4">
-            <Heart className="h-6 w-6 text-primary" />
-            <h2 className="text-lg font-semibold tracking-tight">Ashram MS</h2>
-          </div>
-          <div className="space-y-1">
-            {filteredNavItems.map((item) => {
-              const navPath =
-                item.href === "/dashboard"
-                  ? `/${userRole.toLowerCase()}`
-                  : `/${userRole.toLowerCase()}${item.href}`;
-              const isActive = pathname && pathname.startsWith(navPath);
+  if (!session?.user) {
+    return null;
+  }
 
-              return (
-                <Button
-                  key={item.href}
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start",
-                    isActive && "bg-muted font-medium"
-                  )}
-                  asChild
-                >
-                  <Link
-                    href={
-                      item.href === "/dashboard"
-                        ? `/${userRole.toLowerCase()}`
-                        : `/${userRole.toLowerCase()}${item.href}`
-                    }
-                  >
-                    <item.icon className="mr-2 h-4 w-4" />
-                    {item.title}
-                  </Link>
-                </Button>
-              );
-            })}
+  const userRole = session.user.role as AppRole;
+  const filteredNavItems = navItems.filter((item) =>
+    item.roles.includes(userRole)
+  );
+
+  // Group items by category for better organization
+  const mainItems = filteredNavItems.filter(
+    (item) =>
+      !item.title.includes("System") &&
+      !item.title.includes("API") &&
+      !item.title.includes("Socket") &&
+      !item.title.includes("Database") &&
+      !item.title.includes("Monitoring") &&
+      !item.title.includes("Settings") &&
+      !item.title.includes("Notifications") &&
+      !item.title.includes("Performance")
+  );
+
+  const systemItems = filteredNavItems.filter(
+    (item) =>
+      item.title.includes("System") ||
+      item.title.includes("API") ||
+      item.title.includes("Socket") ||
+      item.title.includes("Database") ||
+      item.title.includes("Monitoring")
+  );
+
+  const configItems = filteredNavItems.filter(
+    (item) =>
+      item.title.includes("Settings") ||
+      item.title.includes("Notifications") ||
+      item.title.includes("Performance")
+  );
+
+  return (
+    <div
+      className={cn(
+        "flex h-full w-64 flex-col bg-background border-r",
+        className
+      )}
+    >
+      {/* Logo/Brand */}
+      <div className="flex h-16 items-center border-b px-6">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <Heart className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg">Ashram MS</h1>
+            <p className="text-xs text-muted-foreground">Management System</p>
           </div>
         </div>
-        <Separator />
-        <div className="px-3 py-2">
-          <div className="space-y-2">
-            <div className="px-3 py-2 text-sm">
-              <div className="font-medium">{session.user.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {session.user.email}
+      </div>
+
+      {/* Navigation */}
+      <div className="flex-1 overflow-auto py-4">
+        <nav className="space-y-1 px-3">
+          {/* Main Navigation */}
+          {mainItems.length > 0 && (
+            <>
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                  Main
+                </h3>
+                {mainItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <Button
+                        variant={isActive ? "secondary" : "ghost"}
+                        className={cn(
+                          "w-full justify-start gap-3 h-10",
+                          isActive && "bg-secondary text-secondary-foreground"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span className="flex-1 text-left">{item.title}</span>
+                        {item.badge && (
+                          <span className="ml-auto bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Button>
+                    </Link>
+                  );
+                })}
               </div>
-              <div className="text-xs text-muted-foreground capitalize">
-                {userRole.toLowerCase()}
+            </>
+          )}
+
+          {/* System & Technical */}
+          {systemItems.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                  System & Technical
+                </h3>
+                {systemItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <Button
+                        variant={isActive ? "secondary" : "ghost"}
+                        className={cn(
+                          "w-full justify-start gap-3 h-10",
+                          isActive && "bg-secondary text-secondary-foreground"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span className="flex-1 text-left">{item.title}</span>
+                      </Button>
+                    </Link>
+                  );
+                })}
               </div>
-            </div>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+            </>
+          )}
+
+          {/* Configuration */}
+          {configItems.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <div className="mb-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+                  Configuration
+                </h3>
+                {configItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <Button
+                        variant={isActive ? "secondary" : "ghost"}
+                        className={cn(
+                          "w-full justify-start gap-3 h-10",
+                          isActive && "bg-secondary text-secondary-foreground"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span className="flex-1 text-left">{item.title}</span>
+                      </Button>
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </nav>
+      </div>
+
+      {/* User Profile */}
+      <div className="border-t p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+            <Users className="h-4 w-4 text-primary" />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {session.user.name || "User"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {session.user.email}
+            </p>
+            <Badge variant="outline" className="text-xs mt-1">
+              {session.user.role}
+            </Badge>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="h-8 w-8 p-0"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>

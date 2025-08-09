@@ -105,7 +105,7 @@ export function useDeleteUser() {
       }
       return result;
     },
-    onSuccess: (_, variables) => {
+          onSuccess: () => {
       // Invalidate users list
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
     },

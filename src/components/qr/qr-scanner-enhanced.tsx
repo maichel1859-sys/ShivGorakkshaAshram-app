@@ -75,7 +75,7 @@ export function QRScannerEnhanced({
       try {
         await navigator.mediaDevices.getUserMedia({ video: true });
         setHasPermission(true);
-      } catch (_err) {
+      } catch {
         setHasPermission(false);
         setError("Camera permission denied. Please enable camera access.");
         return;

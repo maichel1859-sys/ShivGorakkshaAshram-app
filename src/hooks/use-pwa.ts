@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 interface PWAState {
   isInstalled: boolean;
   canInstall: boolean;
-  deferredPrompt: Event | null;
+  deferredPrompt: BeforeInstallPromptEvent | null;
 }
 
 export function usePWA() {
@@ -23,7 +28,7 @@ export function usePWA() {
     };
 
     // Handle beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
       setPWAState(prev => ({
         ...prev,
@@ -46,11 +51,11 @@ export function usePWA() {
     checkIfInstalled();
 
     // Add event listeners
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);

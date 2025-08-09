@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "./query-provider";
+import { LoadingProvider } from "./loading-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { useAppStore } from "@/store/app-store";
 import { useOfflineSync, useNetworkStatus, usePWA } from "@/hooks";
@@ -61,10 +62,12 @@ export function AppProviders({ children }: AppProvidersProps) {
             enableSystem
             disableTransitionOnChange
           >
-            <AppInitializer>
-              {children}
-              <Toaster position="top-right" richColors />
-            </AppInitializer>
+            <LoadingProvider>
+              <AppInitializer>
+                {children}
+                <Toaster position="top-right" richColors />
+              </AppInitializer>
+            </LoadingProvider>
           </ThemeProvider>
         </SessionProvider>
       </QueryProvider>

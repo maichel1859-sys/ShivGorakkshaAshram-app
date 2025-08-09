@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,6 @@ import {
   useUpdateRemedyTemplate,
   useDeleteRemedyTemplate,
 } from "@/hooks/queries";
-import { toast } from "sonner";
 
 interface RemedyTemplate {
   id: string;
@@ -115,8 +114,11 @@ export default function RemediesPage() {
   const isSubmitting =
     createTemplateMutation.isPending || updateTemplateMutation.isPending;
 
-  const templates = templatesData?.templates || [];
-  const filteredTemplates = useCallback(() => {
+  const templates = useMemo(
+    () => templatesData?.templates || [],
+    [templatesData?.templates]
+  );
+  const filteredTemplates = useMemo(() => {
     let filtered = templates;
 
     if (searchTerm) {
@@ -522,7 +524,7 @@ export default function RemediesPage() {
 
         {/* Templates Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates().map((template: RemedyTemplate) => (
+          {filteredTemplates.map((template: RemedyTemplate) => (
             <Card
               key={template.id}
               className="hover:shadow-md transition-shadow"

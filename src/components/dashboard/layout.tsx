@@ -13,10 +13,10 @@ interface DashboardLayoutProps {
   allowedRoles?: Role[];
 }
 
-export function DashboardLayout({ 
-  children, 
-  title, 
-  allowedRoles = ["USER", "COORDINATOR", "GURUJI", "ADMIN"] 
+export function DashboardLayout({
+  children,
+  title,
+  allowedRoles = ["USER", "COORDINATOR", "GURUJI", "ADMIN"],
 }: DashboardLayoutProps) {
   const { data: session, status } = useSession();
 
@@ -37,19 +37,20 @@ export function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Sidebar for desktop */}
-      <aside className="hidden lg:block w-64 border-r bg-background">
+      <aside className="hidden lg:block w-64 border-r bg-background flex-shrink-0">
         <Sidebar />
       </aside>
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Fixed Header */}
         <Header title={title} />
-        
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-muted/10">
-          <div className="container max-w-7xl mx-auto py-6 px-4 lg:px-8">
+
+        {/* Scrollable Page content */}
+        <main className="flex-1 overflow-y-auto bg-muted/10 scroll-smooth">
+          <div className="container max-w-7xl mx-auto py-6 px-4 lg:px-8 min-h-full">
             {children}
           </div>
         </main>

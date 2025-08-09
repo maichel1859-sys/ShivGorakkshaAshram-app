@@ -23,7 +23,7 @@ async function requireAdminAccess() {
 
 // Get admin dashboard statistics
 export async function getAdminDashboardStats() {
-  const session = await requireAdminAccess();
+  await requireAdminAccess();
 
   try {
     // Get total counts
@@ -261,7 +261,7 @@ export async function getGurujiDashboard() {
 
 // Get system alerts
 export async function getSystemAlerts() {
-  const session = await requireAdminAccess();
+  await requireAdminAccess();
 
   try {
     const [recentErrors, failedLogins, systemHealth] = await Promise.all([
@@ -309,10 +309,10 @@ export async function getUsageReports(options?: {
   dateTo?: string;
   type?: 'summary' | 'detailed' | 'performance' | 'trends';
 }) {
-  const session = await requireAdminAccess();
+  await requireAdminAccess();
 
   try {
-    const { dateFrom, dateTo, type = 'summary' } = options || {};
+    const { dateFrom, dateTo } = options || {};
     
     // Parse dates
     const fromDate = dateFrom ? new Date(dateFrom) : subDays(new Date(), 30);
@@ -398,47 +398,125 @@ export async function getUsageReports(options?: {
       })
     ]);
 
-    // Calculate growth percentages (simplified)
-    const userGrowth = 12; // Mock data
-    const appointmentGrowth = 8; // Mock data
-    const remedyGrowth = 15; // Mock data
+    // Calculate growth percentages from real data
+    const userGrowth = newUsers > 0 ? Math.round((newUsers / totalUsers) * 100) : 0;
+    const appointmentGrowth = completedAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0;
+    const remedyGrowth = totalRemedies > 0 ? Math.round((totalRemedies / totalAppointments) * 100) : 0;
 
-    // Calculate average wait time (simplified)
-    const averageWaitTime = 25; // Mock data
+    // Calculate average wait time from real queue data
+    const queueEntries = await prisma.queueEntry.findMany({
+      where: {
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: {
+        checkedInAt: true,
+        startedAt: true,
+      },
+    });
 
-    // System uptime (mock data)
+    const waitTimes = queueEntries
+      .filter(entry => entry.checkedInAt && entry.startedAt)
+      .map(entry => {
+        const checkIn = new Date(entry.checkedInAt!);
+        const start = new Date(entry.startedAt!);
+        return Math.round((start.getTime() - checkIn.getTime()) / (1000 * 60)); // minutes
+      });
+
+    const averageWaitTime = waitTimes.length > 0 
+      ? Math.round(waitTimes.reduce((sum, time) => sum + time, 0) / waitTimes.length)
+      : 0;
+
+    // System uptime calculation (simplified - in production, track actual uptime)
     const systemUptime = 99.9;
 
-    // User type stats (mock data)
+    // User type stats from real data
     const userTypeStats = [
-      { type: 'Regular Users', count: Math.floor(totalUsers * 0.7), percentage: 70, growth: 5 },
-      { type: 'Premium Users', count: Math.floor(totalUsers * 0.2), percentage: 20, growth: 15 },
-      { type: 'Gurujis', count: Math.floor(totalUsers * 0.1), percentage: 10, growth: 0 },
+      { 
+        type: 'Regular Users', 
+        count: await prisma.user.count({ where: { role: 'USER' } }), 
+        percentage: Math.round((await prisma.user.count({ where: { role: 'USER' } }) / totalUsers) * 100), 
+        growth: userGrowth 
+      },
+      { 
+        type: 'Gurujis', 
+        count: await prisma.user.count({ where: { role: 'GURUJI' } }), 
+        percentage: Math.round((await prisma.user.count({ where: { role: 'GURUJI' } }) / totalUsers) * 100), 
+        growth: 0 
+      },
+      { 
+        type: 'Coordinators', 
+        count: await prisma.user.count({ where: { role: 'COORDINATOR' } }), 
+        percentage: Math.round((await prisma.user.count({ where: { role: 'COORDINATOR' } }) / totalUsers) * 100), 
+        growth: 0 
+      },
     ];
 
-    // Daily usage data (mock data)
+    // Daily usage data from real appointments
     const dailyUsage = [];
     const currentDate = new Date(fromDate);
     while (currentDate <= toDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const dayAppointments = await prisma.appointment.count({
+        where: {
+          date: {
+            gte: new Date(dateStr),
+            lt: new Date(new Date(dateStr).getTime() + 24 * 60 * 60 * 1000),
+          },
+        },
+      });
+      
+      const dayRemedies = await prisma.remedyDocument.count({
+        where: {
+          createdAt: {
+            gte: new Date(dateStr),
+            lt: new Date(new Date(dateStr).getTime() + 24 * 60 * 60 * 1000),
+          },
+        },
+      });
+
       dailyUsage.push({
-        date: currentDate.toISOString().split('T')[0],
-        users: Math.floor(Math.random() * 50) + 10,
-        appointments: Math.floor(Math.random() * 20) + 5,
-        remedies: Math.floor(Math.random() * 10) + 2,
-        avgWaitTime: Math.floor(Math.random() * 30) + 15,
+        date: dateStr,
+        users: Math.floor(Math.random() * 10) + 5, // Simplified - could track daily active users
+        appointments: dayAppointments,
+        remedies: dayRemedies,
+        avgWaitTime: averageWaitTime,
       });
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Format guruji performance
-    const formattedGurujiPerformance = gurujiPerformance.map(guruji => ({
-      id: guruji.id,
-      name: guruji.name || 'Unknown',
-      totalConsultations: guruji._count.gurujiAppointments,
-      averageRating: 4.5, // Mock data
-      averageSessionTime: 45, // Mock data
-      totalRemediesPrescribed: Math.floor(Math.random() * 50) + 10, // Mock data
-    }));
+    // Format guruji performance with real data
+    const formattedGurujiPerformance = await Promise.all(
+      gurujiPerformance.map(async (guruji) => {
+        const remediesPrescribed = await prisma.remedyDocument.count({
+          where: { 
+            consultationSession: {
+              gurujiId: guruji.id 
+            }
+          },
+        });
+
+        const consultations = await prisma.consultationSession.findMany({
+          where: { gurujiId: guruji.id },
+          select: { duration: true },
+        });
+
+        const avgSessionTime = consultations.length > 0
+          ? Math.round(consultations.reduce((sum, session) => sum + (session.duration || 0), 0) / consultations.length)
+          : 45;
+
+        return {
+          id: guruji.id,
+          name: guruji.name || 'Unknown',
+          totalConsultations: guruji._count.gurujiAppointments,
+          averageRating: 4.5, // Would need rating system
+          averageSessionTime: avgSessionTime,
+          totalRemediesPrescribed: remediesPrescribed,
+        };
+      })
+    );
 
     return {
       success: true,
@@ -472,9 +550,9 @@ export async function exportUsageReport(options?: {
   dateTo?: string;
   type?: 'summary' | 'detailed' | 'performance' | 'trends';
 }) {
-  const session = await requireAdminAccess();
+  await requireAdminAccess();
   try {
-    const { dateFrom, dateTo, type = 'summary' } = options || {};
+    const { dateFrom, dateTo } = options || {};
     const fromDate = dateFrom ? new Date(dateFrom) : subDays(new Date(), 30);
     const toDate = dateTo ? new Date(dateTo) : new Date();
 
@@ -495,151 +573,7 @@ export async function exportUsageReport(options?: {
   }
 }
 
-// Helper functions for usage reports
-async function getAppointmentUsage(startDate: Date, endDate: Date) {
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      status: true,
-      createdAt: true,
-      date: true,
-    },
-  });
 
-  const dailyStats = new Map();
-  
-  appointments.forEach(appointment => {
-    const date = appointment.createdAt.toISOString().split('T')[0];
-    if (!dailyStats.has(date)) {
-      dailyStats.set(date, { total: 0, completed: 0, cancelled: 0 });
-    }
-    
-    const stats = dailyStats.get(date);
-    stats.total++;
-    
-    if (appointment.status === 'COMPLETED') {
-      stats.completed++;
-    } else if (appointment.status === 'CANCELLED') {
-      stats.cancelled++;
-    }
-  });
-
-  return {
-    total: appointments.length,
-    completed: appointments.filter(a => a.status === 'COMPLETED').length,
-    cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
-    dailyStats: Array.from(dailyStats.entries()).map(([date, stats]) => ({
-      date,
-      ...stats,
-    })),
-  };
-}
-
-async function getConsultationStats(startDate: Date, endDate: Date) {
-  const consultations = await prisma.consultationSession.findMany({
-    where: {
-      startTime: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      id: true,
-      startTime: true,
-      endTime: true,
-      notes: true,
-      symptoms: true,
-      diagnosis: true,
-      duration: true,
-      patient: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-        },
-      },
-      appointment: {
-        select: {
-          id: true,
-          reason: true,
-        },
-      },
-    },
-  });
-
-  const consultationStats = {
-    total: consultations.length,
-    completed: consultations.filter(c => c.endTime !== null).length,
-    inProgress: consultations.filter(c => c.endTime === null).length,
-    averageDuration: consultations.length > 0 
-      ? consultations.reduce((acc, c) => acc + (c.duration || 0), 0) / consultations.length 
-      : 0,
-  };
-
-  return consultationStats;
-}
-
-async function getRemedyUsage(startDate: Date, endDate: Date) {
-  const remedies = await prisma.remedyDocument.findMany({
-    where: {
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      template: true,
-      consultationSession: {
-        include: {
-          guruji: true,
-        },
-      },
-    },
-  });
-
-  const remedyStats = {
-    total: remedies.length,
-    active: remedies.filter(r => r.deliveredAt === null).length,
-    completed: remedies.filter(r => r.deliveredAt !== null).length,
-    byType: remedies.reduce((acc, remedy) => {
-      const type = remedy.template.type;
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>),
-  };
-
-  return remedyStats;
-}
-
-async function getUserUsage(startDate: Date, endDate: Date) {
-  const users = await prisma.user.findMany({
-    where: {
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      role: true,
-      createdAt: true,
-      isActive: true,
-    },
-  });
-
-  return {
-    total: users.length,
-    active: users.filter(u => u.isActive).length,
-    byRole: users.reduce((acc, user) => {
-      acc[user.role] = (acc[user.role] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>),
-  };
-}
 
 function getActivityType(action: string): 'user' | 'appointment' | 'remedy' | 'system' {
   if (action.includes('USER') || action.includes('LOGIN')) {
@@ -654,19 +588,15 @@ function getActivityType(action: string): 'user' | 'appointment' | 'remedy' | 's
 
 // Get system status for admin monitoring
 export async function getSystemStatus() {
-  const session = await requireAdminAccess();
+  await requireAdminAccess();
 
   try {
     // Get basic system metrics
     const [
-      totalUsers,
-      totalAppointments,
       activeQueues,
       databaseConnections,
       recentErrors
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.appointment.count(),
       prisma.queueEntry.count({
         where: {
           status: {
@@ -766,7 +696,7 @@ export async function getSystemStatus() {
 
 // Get system settings
 export async function getSystemSettings() {
-  const session = await requireAdminAccess();
+  await requireAdminAccess();
 
   try {
     const settings = await prisma.systemSetting.findMany({

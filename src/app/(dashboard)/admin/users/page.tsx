@@ -27,7 +27,7 @@ async function UserListServer({
 
   const options = {
     search: search || undefined,
-    role: role ? (role as Role) : undefined,
+    role: role || undefined,
     active: active === "true" ? true : active === "false" ? false : undefined,
     limit: 50,
     offset: 0,
@@ -35,11 +35,13 @@ async function UserListServer({
 
   const result = await getUsers(options);
 
-  if (!result) {
+  if (!result.success) {
     return (
       <Alert>
         <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>Failed to load users</AlertDescription>
+        <AlertDescription>
+          Failed to load users: {result.error}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -85,7 +87,7 @@ async function UserListServer({
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All roles</SelectItem>
+                <SelectItem value="all">All roles</SelectItem>
                 <SelectItem value="USER">User</SelectItem>
                 <SelectItem value="COORDINATOR">Coordinator</SelectItem>
                 <SelectItem value="GURUJI">Guruji</SelectItem>
@@ -97,7 +99,7 @@ async function UserListServer({
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="true">Active</SelectItem>
                 <SelectItem value="false">Inactive</SelectItem>
               </SelectContent>

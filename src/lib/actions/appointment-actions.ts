@@ -1,14 +1,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import { AppointmentStatus } from '@prisma/client';
 import QRCode from 'qrcode';
-import { appointmentBookingSchema } from '@/lib/validation/unified-schemas';
+
 
 const appointmentSchema = z.object({
   gurujiId: z.string().min(1).optional(),

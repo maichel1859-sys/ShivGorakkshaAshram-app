@@ -94,6 +94,11 @@ export {
 } from './settings-actions';
 
 export {
+  // Auth actions
+  getFamilyContacts,
+} from './auth-actions';
+
+export {
   // Dashboard actions
   getAdminDashboardStats,
   getCoordinatorDashboard,

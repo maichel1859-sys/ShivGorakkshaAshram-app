@@ -20,7 +20,7 @@ export const notificationKeys = {
 // Hook for fetching user notifications
 export function useNotifications(options?: { limit?: number; offset?: number }) {
   return useQuery({
-    queryKey: notificationKeys.list(options),
+    queryKey: notificationKeys.list(options || {}),
     queryFn: async () => {
       const result = await getUserNotifications(options);
       if (!result.success) {

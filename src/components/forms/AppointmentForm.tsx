@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,8 +27,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useAppointmentAvailability } from "@/hooks/queries";
-import { toast } from "sonner";
 import { createAppointment } from "@/lib/actions/appointment-actions";
+import { toast } from "sonner";
 
 // Validation schema
 const appointmentSchema = z.object({
@@ -42,7 +42,7 @@ const appointmentSchema = z.object({
 type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
 interface AppointmentFormProps {
-  onSubmit: (data: AppointmentFormData) => Promise<void>;
+  onSuccess?: () => void;
   isLoading?: boolean;
 }
 
@@ -67,7 +67,7 @@ const TIME_SLOTS = [
 ];
 
 export function AppointmentForm({
-  onSubmit,
+  onSuccess,
   isLoading = false,
 }: AppointmentFormProps) {
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -90,8 +90,7 @@ export function AppointmentForm({
   const watchedTime = watch("time");
 
   // Use React Query for availability data
-  const { data: availability, isLoading: isLoadingAvailability } =
-    useAppointmentAvailability(selectedDate);
+  const { data: availability } = useAppointmentAvailability(selectedDate);
 
   // Filter available time slots
   const availableTimeSlots = TIME_SLOTS.filter((slot) => {
@@ -104,10 +103,22 @@ export function AppointmentForm({
 
   const handleFormSubmit = async (data: AppointmentFormData) => {
     try {
-      await onSubmit(data);
-      toast.success("Appointment booked successfully!");
-      reset();
-      setSelectedDate("");
+      // Convert data to FormData for Server Action
+      const formData = new FormData();
+      formData.append("date", data.date);
+      formData.append("time", data.time);
+      formData.append("reason", data.reason);
+      formData.append("priority", data.priority);
+      if (data.notes) formData.append("notes", data.notes);
+
+      const result = await createAppointment(formData);
+
+      if (result.success) {
+        toast.success("Appointment booked successfully!");
+        reset();
+        setSelectedDate("");
+        onSuccess?.();
+      }
     } catch (error) {
       console.error("Appointment booking error:", error);
       toast.error("Failed to book appointment. Please try again.");

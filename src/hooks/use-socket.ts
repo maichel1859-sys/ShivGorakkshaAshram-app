@@ -1,49 +1,79 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Socket } from 'socket.io-client';
 
 import { useQueueStore } from '@/store/queue-store';
 import { useNotificationStore } from '@/store/notification-store';
 import { QueueData, AppointmentData, RemedyData } from '@/types/socket';
 import { ClientToServerEvents, ServerToClientEvents } from '@/types/socket';
 import { useSession } from 'next-auth/react';
+import { socketClientManager } from '@/lib/communication/socket-manager';
 
 type SocketType = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export function useSocket() {
   const socketRef = useRef<SocketType | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const { data: session } = useSession();
   const user = session?.user;
   const { setEntries, addEntry, updateEntry } = useQueueStore();
   const { addNotification } = useNotificationStore();
 
-  useEffect(() => {
+  // Connect to socket
+  const connectSocket = useCallback(async () => {
     if (!user) return;
 
-    // Initialize socket connection
-    socketRef.current = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-    });
+    try {
+      setConnectionError(null);
+      
+      const authData = {
+        userId: user.id,
+        role: user.role,
+        token: 'dev-token' // In production, get from session properly
+      };
+
+      const socket = await socketClientManager.connect(authData);
+      socketRef.current = socket;
+      setIsConnected(true);
+      
+      console.log('Socket connected successfully:', socket.id);
+    } catch (error) {
+      console.error('Socket connection failed:', error);
+      setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+      setIsConnected(false);
+    }
+  }, [user, session]);
+
+  // Disconnect socket
+  const disconnectSocket = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setIsConnected(false);
+    }
+    socketClientManager.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      disconnectSocket();
+      return;
+    }
+
+    connectSocket();
+
+    return () => {
+      disconnectSocket();
+    };
+  }, [user, connectSocket, disconnectSocket]);
+
+  // Setup event listeners
+  useEffect(() => {
+    if (!socketRef.current || !user) return;
 
     const socket = socketRef.current;
-
-    socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
-      
-      // Join user-specific room for notifications
-      socket.emit('join:user-room', { userId: user.id });
-      
-      // Join role-specific rooms if needed
-      if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
-        socket.emit('join:admin-room');
-      }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-    });
 
     // Queue-related events
     socket.on('queue:updated', (data) => {
@@ -168,77 +198,103 @@ export function useSocket() {
       });
     });
 
+    // Connection status events
+    socket.on('connect', () => {
+      setIsConnected(true);
+      setConnectionError(null);
+    });
+
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      setIsConnected(false);
+      setConnectionError(error.message);
+    });
+
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      socket.off('queue:updated');
+      socket.off('checkin:success');
+      socket.off('consultation:ready');
+      socket.off('consultation:completed');
+      socket.off('consultation:next-patient');
+      socket.off('appointment:confirmed');
+      socket.off('remedy:prescribed');
+      socket.off('system:announcement');
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
     };
   }, [user, setEntries, addEntry, updateEntry, addNotification]);
 
   // Socket utility functions
-  const joinQueue = (gurujiId: string) => {
-    socketRef.current?.emit('join:queue-room', { gurujiId });
-  };
+  const joinQueue = useCallback((gurujiId: string) => {
+    socketClientManager.joinQueueRoom(gurujiId);
+  }, []);
 
-  const leaveQueue = (gurujiId: string) => {
-    socketRef.current?.emit('leave:queue-room', { gurujiId });
-  };
+  const leaveQueue = useCallback((gurujiId: string) => {
+    socketClientManager.leaveQueueRoom(gurujiId);
+  }, []);
 
-  const notifyPatientCheckin = (data: {
+  const notifyPatientCheckin = useCallback((data: {
     gurujiId: string;
     patientId: string;
     queuePosition: number;
   }) => {
-    socketRef.current?.emit('queue:checkin', { userId: data.patientId, gurujiId: data.gurujiId });
-  };
+    socketClientManager.checkIn({ userId: data.patientId, gurujiId: data.gurujiId });
+  }, []);
 
-  const notifyConsultationStart = (data: {
+  const notifyConsultationStart = useCallback((data: {
     gurujiId: string;
     patientId: string;
   }) => {
-    socketRef.current?.emit('consultation:start', data);
-  };
+    socketClientManager.startConsultation(data);
+  }, []);
 
-  const notifyConsultationEnd = (data: {
+  const notifyConsultationEnd = useCallback((data: {
     gurujiId: string;
     patientId: string;
     nextPatientId?: string;
   }) => {
-    socketRef.current?.emit('consultation:end', data);
-  };
+    socketClientManager.endConsultation(data);
+  }, []);
 
-  const notifyAppointmentBooked = (data: {
+  const notifyAppointmentBooked = useCallback((data: {
     patientId: string;
     appointmentData: AppointmentData;
   }) => {
-    socketRef.current?.emit('appointment:book', { userId: data.patientId, appointment: data.appointmentData });
-  };
+    socketClientManager.bookAppointment({ userId: data.patientId, appointment: data.appointmentData });
+  }, []);
 
-  const notifyRemedyPrescribed = (data: {
+  const notifyRemedyPrescribed = useCallback((data: {
     patientId: string;
     gurujiId: string;
     remedyData: RemedyData;
   }) => {
-    socketRef.current?.emit('remedy:prescribe', { patientId: data.patientId, gurujiId: data.gurujiId, remedy: data.remedyData });
-  };
+    socketClientManager.prescribeRemedy({ patientId: data.patientId, gurujiId: data.gurujiId, remedy: data.remedyData });
+  }, []);
 
-  const sendSystemAnnouncement = (data: {
+  const sendSystemAnnouncement = useCallback((data: {
     message: string;
     type: 'info' | 'warning' | 'urgent';
     targetRoles?: string[];
   }) => {
-    socketRef.current?.emit('system:broadcast', data);
-  };
+    socketClientManager.getSocket()?.emit('system:broadcast', data);
+  }, []);
 
-  const updateQueuePosition = (data: {
+  const updateQueuePosition = useCallback((data: {
     gurujiId: string;
     queueData: QueueData[];
   }) => {
-    socketRef.current?.emit('queue:update-positions', data);
-  };
+    socketClientManager.updateQueuePositions(data);
+  }, []);
 
   return {
     socket: socketRef.current,
+    isConnected,
+    connectionError,
     joinQueue,
     leaveQueue,
     notifyPatientCheckin,
@@ -248,6 +304,7 @@ export function useSocket() {
     notifyRemedyPrescribed,
     sendSystemAnnouncement,
     updateQueuePosition,
-    isConnected: socketRef.current?.connected ?? false,
+    connectSocket,
+    disconnectSocket,
   };
 }

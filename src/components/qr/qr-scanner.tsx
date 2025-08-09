@@ -52,22 +52,8 @@ export function QRScanner({
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // For demo purposes only - simulate QR detection after 3 seconds
-        if (!mockScanTimer) {
-          mockScanTimer = setTimeout(() => {
-            if (scanningActive && isScanning) {
-              const mockQRData = JSON.stringify({
-                appointmentId: "mock-appointment-id",
-                userId: "mock-user-id",
-                timestamp: Date.now(),
-                type: 'checkin'
-              });
-              onScan(mockQRData);
-              setIsScanning(false);
-              scanningActive = false;
-            }
-          }, 3000);
-        }
+        // Real QR code detection would go here
+        // For now, we'll just continue scanning without mock data
       }
 
       if (scanningActive && isScanning) {
@@ -116,7 +102,11 @@ export function QRScanner({
           const cleanup = startScanning();
           // Store cleanup function for later use
           if (videoRef.current) {
-            (videoRef.current as HTMLVideoElement & { _scanCleanup?: () => void })._scanCleanup = cleanup;
+            (
+              videoRef.current as HTMLVideoElement & {
+                _scanCleanup?: () => void;
+              }
+            )._scanCleanup = cleanup;
           }
         });
       }
@@ -134,12 +124,14 @@ export function QRScanner({
 
   const stopCamera = useCallback(() => {
     // Cleanup scanning function
-    const videoElement = videoRef.current as HTMLVideoElement & { _scanCleanup?: () => void };
+    const videoElement = videoRef.current as HTMLVideoElement & {
+      _scanCleanup?: () => void;
+    };
     if (videoElement && videoElement._scanCleanup) {
       videoElement._scanCleanup();
       videoElement._scanCleanup = undefined;
     }
-    
+
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
@@ -249,20 +241,12 @@ export function QRScanner({
         {/* Controls */}
         <div className="flex space-x-2">
           {!isScanning ? (
-            <Button
-              size="sm"
-              onClick={startCamera}
-              disabled={!hasPermission}
-            >
+            <Button size="sm" onClick={startCamera} disabled={!hasPermission}>
               <Camera className="mr-2 h-4 w-4" />
               Start Camera
             </Button>
           ) : (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={stopCamera}
-            >
+            <Button variant="destructive" size="sm" onClick={stopCamera}>
               <CameraOff className="mr-2 h-4 w-4" />
               Stop Camera
             </Button>

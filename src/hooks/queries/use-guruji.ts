@@ -23,7 +23,7 @@ export function useGurujiQueue() {
       }
       
       // Transform the data to match the expected format
-      const queuePatients = result.queueEntries
+      const queuePatients = (result.queueEntries || [])
         .filter(entry => entry.status === 'WAITING')
         .map(entry => ({
           id: entry.id,
@@ -38,38 +38,46 @@ export function useGurujiQueue() {
             user: {
               id: entry.user.id,
               name: entry.user.name || 'Unknown',
-              age: null, // Would need to calculate from dateOfBirth if available
+              age: entry.user.dateOfBirth 
+                ? Math.floor((new Date().getTime() - new Date(entry.user.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+                : null,
             },
           },
           checkedInAt: entry.checkedInAt,
         }));
 
-      const currentPatient = result.queueEntries
+      const currentPatient = (result.queueEntries || [])
         .find(entry => entry.status === 'IN_PROGRESS')
-        ? {
-            id: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.id,
-            position: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.position,
-            estimatedWait: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.estimatedWait || 15,
-            status: 'IN_PROGRESS' as const,
-            appointment: {
-              id: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.appointmentId,
-              reason: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.notes || '',
-              priority: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.priority,
-              startTime: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.checkedInAt,
-              user: {
-                id: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.user.id,
-                name: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.user.name || 'Unknown',
-                age: null,
-              },
+        ? (() => {
+            const inProgressEntry = (result.queueEntries || []).find(entry => entry.status === 'IN_PROGRESS')!;
+            return {
+              id: inProgressEntry.id,
+              position: inProgressEntry.position,
+              estimatedWait: inProgressEntry.estimatedWait || 15,
+              status: 'IN_PROGRESS' as const,
+              appointment: {
+                id: inProgressEntry.appointmentId,
+                reason: inProgressEntry.notes || '',
+                priority: inProgressEntry.priority,
+                startTime: inProgressEntry.checkedInAt,
+                user: {
+                  id: inProgressEntry.user.id,
+                  name: inProgressEntry.user.name || 'Unknown',
+                  age: inProgressEntry.user.dateOfBirth 
+                    ? Math.floor((new Date().getTime() - new Date(inProgressEntry.user.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+                    : null,
+                },
             },
-            checkedInAt: result.queueEntries.find(entry => entry.status === 'IN_PROGRESS')!.checkedInAt,
-          }
+            checkedInAt: inProgressEntry.checkedInAt,
+          };
+        })()
         : null;
 
       // Calculate stats
-      const todayTotal = result.queueEntries.length;
-      const todayCompleted = result.queueEntries.filter(entry => entry.status === 'COMPLETED').length;
-      const currentWaiting = result.queueEntries.filter(entry => entry.status === 'WAITING').length;
+      const queueEntries = result.queueEntries || [];
+      const todayTotal = queueEntries.length;
+      const todayCompleted = queueEntries.filter(entry => entry.status === 'COMPLETED').length;
+      const currentWaiting = queueEntries.filter(entry => entry.status === 'WAITING').length;
       const averageConsultationTime = 15; // Default 15 minutes
 
       const stats = {

@@ -431,6 +431,7 @@ export async function getGurujiQueueEntries() {
             id: true,
             name: true,
             phone: true,
+            dateOfBirth: true,
           },
         },
       },

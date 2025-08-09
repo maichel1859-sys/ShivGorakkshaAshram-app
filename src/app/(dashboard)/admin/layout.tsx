@@ -2,10 +2,14 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/core/auth";
+import { DashboardLayout } from "@/components/dashboard/layout";
 
 export default async function AdminLayout({
   children,
   modal,
+  stats,
+  alerts,
+  recent,
 }: {
   children: React.ReactNode;
   modal: React.ReactNode;
@@ -16,24 +20,24 @@ export default async function AdminLayout({
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    redirect("/auth/signin");
+    redirect("/signin");
   }
 
   if (session.user.role !== "ADMIN") {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Main content */}
-      <div className="container mx-auto py-6">
-        <Suspense fallback={<div>Loading admin dashboard...</div>}>
-          {children}
-        </Suspense>
-      </div>
+    <DashboardLayout title="Admin Dashboard" allowedRoles={["ADMIN"]}>
+      <Suspense fallback={<div>Loading admin dashboard...</div>}>
+        {children}
+      </Suspense>
 
-      {/* Parallel route for modals */}
+      {/* Parallel routes */}
       <Suspense fallback={null}>{modal}</Suspense>
-    </div>
+      <Suspense fallback={null}>{stats}</Suspense>
+      <Suspense fallback={null}>{alerts}</Suspense>
+      <Suspense fallback={null}>{recent}</Suspense>
+    </DashboardLayout>
   );
 }

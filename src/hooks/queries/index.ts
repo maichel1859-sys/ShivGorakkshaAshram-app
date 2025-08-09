@@ -23,4 +23,7 @@ export * from './use-coordinator';
 export * from './use-admin';
 
 // Remedy hooks
-export * from './use-remedies'; 
+export * from './use-remedies';
+
+// User dashboard hooks
+export * from './use-user'; 

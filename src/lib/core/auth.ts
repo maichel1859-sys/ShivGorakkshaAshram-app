@@ -181,4 +181,41 @@ declare module "next-auth/jwt" {
 }
 
 // Helper function to get server session
-export const auth = () => getServerSession(authOptions) 
+export const auth = () => getServerSession(authOptions)
+
+// Helper function to ensure authentication in Server Actions
+export async function requireAuth() {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user?.id) {
+    throw new Error('Authentication required')
+  }
+  
+  return session
+}
+
+// Helper function to require specific role
+export async function requireRole(allowedRoles: Role[]) {
+  const session = await requireAuth()
+  
+  if (!allowedRoles.includes(session.user.role)) {
+    throw new Error('Insufficient permissions')
+  }
+  
+  return session
+}
+
+// Helper function to require admin access
+export async function requireAdminAccess() {
+  return requireRole(['ADMIN'])
+}
+
+// Helper function to require guruji access
+export async function requireGurujiAccess() {
+  return requireRole(['ADMIN', 'GURUJI'])
+}
+
+// Helper function to require coordinator access
+export async function requireCoordinatorAccess() {
+  return requireRole(['ADMIN', 'COORDINATOR'])
+} 
