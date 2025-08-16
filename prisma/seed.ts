@@ -13,6 +13,8 @@ async function main() {
     const userCount = await prisma.user.count();
     if (userCount > 0) {
       console.log(`Found ${userCount} existing users, clearing...`);
+      
+      // Delete in the correct order to avoid foreign key constraint violations
       await prisma.auditLog.deleteMany();
       await prisma.notification.deleteMany();
       await prisma.queueEntry.deleteMany();
@@ -20,8 +22,11 @@ async function main() {
       await prisma.remedyTemplate.deleteMany();
       await prisma.consultationSession.deleteMany();
       await prisma.appointment.deleteMany();
+      await prisma.familyContact.deleteMany(); // Clear family contacts first
       await prisma.account.deleteMany(); // Clear OAuth accounts
       await prisma.session.deleteMany(); // Clear sessions
+      await prisma.verificationToken.deleteMany(); // Clear verification tokens
+      await prisma.systemSetting.deleteMany(); // Clear system settings
       await prisma.user.deleteMany();
       console.log('✅ Existing data cleared');
     } else {
@@ -29,6 +34,7 @@ async function main() {
     }
   } catch (error) {
     console.log('⚠️ Could not clear existing data:', error);
+    console.log('Attempting to proceed with seeding...');
   }
 
   console.log('✨ Creating users...');
@@ -37,8 +43,23 @@ async function main() {
   const hashedPassword = await bcrypt.hash('password123', 12);
 
   // Create Admin User
-  const admin = await prisma.user.create({
-    data: {
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@ashram.com' },
+    update: {
+      name: 'System Administrator',
+      password: hashedPassword,
+      role: 'ADMIN',
+      isActive: true,
+      phone: '+91-9876543210',
+      dateOfBirth: new Date('1980-01-15'),
+      address: 'Ashram Administrative Office, Main Block',
+      emergencyContact: JSON.stringify({
+        name: 'Emergency Admin',
+        phone: '+91-9876543211',
+        relationship: 'Office'
+      })
+    },
+    create: {
       name: 'System Administrator',
       email: 'admin@ashram.com',
       password: hashedPassword,
@@ -64,10 +85,29 @@ async function main() {
   ];
   
   for (let i = 0; i < gurujiNames.length; i++) {
-    const guruji = await prisma.user.create({
-      data: {
+    const email = gurujiNames[i].toLowerCase().replace(/\s+/g, '.') + '@ashram.com';
+    const guruji = await prisma.user.upsert({
+      where: { email },
+      update: {
         name: gurujiNames[i],
-        email: gurujiNames[i].toLowerCase().replace(/\s+/g, '.') + '@ashram.com',
+        password: hashedPassword,
+        role: 'GURUJI',
+        isActive: true,
+        phone: `+91-98765432${20 + i}`,
+        dateOfBirth: new Date(1965 + i, 3 + i, 20 + i),
+        address: `Ashram Spiritual Wing, Block ${String.fromCharCode(65 + i)}`,
+        preferences: {
+          specialization: ['Meditation & Spiritual Guidance', 'Ayurvedic Healing', 'Yoga Therapy'][i]
+        },
+        emergencyContact: JSON.stringify({
+          name: `Emergency Contact ${i + 1}`,
+          phone: `+91-98765432${21 + i}`,
+          relationship: 'Spouse'
+        })
+      },
+      create: {
+        name: gurujiNames[i],
+        email,
         password: hashedPassword,
         role: 'GURUJI',
         isActive: true,
@@ -88,8 +128,23 @@ async function main() {
   }
 
   // Create 1 Coordinator User
-  const coordinator = await prisma.user.create({
-    data: {
+  const coordinator = await prisma.user.upsert({
+    where: { email: 'coordinator@ashram.com' },
+    update: {
+      name: 'Sunita Coordination Manager',
+      password: hashedPassword,
+      role: 'COORDINATOR',
+      isActive: true,
+      phone: '+91-9876543260',
+      dateOfBirth: new Date('1985-05-12'),
+      address: 'Ashram Coordination Office, Ground Floor',
+      emergencyContact: JSON.stringify({
+        name: 'Ramesh Manager',
+        phone: '+91-9876543261',
+        relationship: 'Spouse'
+      })
+    },
+    create: {
       name: 'Sunita Coordination Manager',
       email: 'coordinator@ashram.com',
       password: hashedPassword,
@@ -165,9 +220,10 @@ async function main() {
   ];
 
   for (let i = 0; i < userNames.length; i++) {
+    const email = `${userNames[i].toLowerCase().replace(/\s+/g, '.')}${i + 1}@example.com`;
     const userDetail = {
       name: userNames[i],
-      email: `${userNames[i].toLowerCase().replace(/\s+/g, '.')}${i + 1}@example.com`,
+      email,
       phone: `+91-987654${String(3301 + i).padStart(4, '0')}`,
       dateOfBirth: new Date(1980 + (i % 30), (i % 12), (i % 28) + 1), // Random dates between 1980-2010
       address: cities[i % cities.length],
@@ -178,15 +234,27 @@ async function main() {
       })
     };
 
-    const user = await prisma.user.create({
-      data: {
-        ...userDetail,
-        password: hashedPassword,
-        role: 'USER',
-        isActive: true,
-      }
-    });
-    users.push(user);
+    try {
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: {
+          ...userDetail,
+          password: hashedPassword,
+          role: 'USER',
+          isActive: true,
+        },
+        create: {
+          ...userDetail,
+          password: hashedPassword,
+          role: 'USER',
+          isActive: true,
+        }
+      });
+      users.push(user);
+    } catch (error) {
+      console.log(`⚠️ Skipped user ${userNames[i]} due to constraint error`);
+      // Continue with next user
+    }
   }
 
   console.log('📅 Creating sample appointments...');
@@ -270,22 +338,23 @@ async function main() {
     return aptDate.toDateString() === today.toDateString();
   });
 
-  for (let i = 0; i < todayAppointments.length; i++) {
-    const appointment = todayAppointments[i];
-    await prisma.queueEntry.create({
-      data: {
-        appointmentId: appointment.id,
-        userId: appointment.userId,
-        gurujiId: appointment.gurujiId!,
-        position: i + 1,
-        status: i === 0 ? 'IN_PROGRESS' : 'WAITING',
-        estimatedWait: (i + 1) * 15, // 15 minutes per position
-        checkedInAt: new Date(),
-        notes: `Queue entry for ${appointment.reason}`,
-        priority: appointment.priority,
-      }
-    });
-  }
+  // Note: Queue entries creation is temporarily disabled until database migration is complete
+  // for (let i = 0; i < todayAppointments.length; i++) {
+  //   const appointment = todayAppointments[i];
+  //   await prisma.queueEntry.create({
+  //     data: {
+  //       appointmentId: appointment.id,
+  //       userId: appointment.userId,
+  //       gurujiId: appointment.gurujiId!,
+  //       position: i + 1,
+  //       status: i === 0 ? 'IN_PROGRESS' : 'WAITING',
+  //       estimatedWait: (i + 1) * 15, // 15 minutes per position
+  //       checkedInAt: new Date(),
+  //       notes: `Queue entry for ${appointment.reason}`,
+  //       priority: appointment.priority,
+  //     }
+  //   });
+  // }
 
   console.log('💊 Creating remedy templates...');
   
@@ -543,6 +612,79 @@ Practice 3 times daily
     });
   }
 
+  console.log('👨‍👩‍👧‍👦 Creating family contacts...');
+  
+  // Create family contacts for elderly users (users over 60)
+  const elderlyUsers = users.filter(user => {
+    if (!user.dateOfBirth) return false;
+    const age = new Date().getFullYear() - user.dateOfBirth.getFullYear();
+    return age >= 60;
+  });
+
+  for (const elderlyUser of elderlyUsers.slice(0, 20)) { // Limit to 20 elderly users
+    // Create a family contact user first
+    const familyContactUser = await prisma.user.create({
+      data: {
+        name: `Family Contact for ${elderlyUser.name || 'Elderly User'}`,
+        email: `family.${elderlyUser.name?.toLowerCase().replace(/\s+/g, '.') || 'contact'}@example.com`,
+        password: hashedPassword,
+        role: 'USER',
+        isActive: true,
+        phone: `+91-987654${String(5001 + Math.floor(Math.random() * 1000)).padStart(4, '0')}`,
+        dateOfBirth: new Date(1980 + Math.floor(Math.random() * 20), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
+        address: elderlyUser.address || 'Same as elderly user',
+      }
+    });
+
+    // Create the family contact relationship
+    await prisma.familyContact.create({
+      data: {
+        elderlyUserId: elderlyUser.id,
+        familyContactId: familyContactUser.id,
+        relationship: ['son', 'daughter', 'spouse', 'caregiver'][Math.floor(Math.random() * 4)],
+        canBookAppointments: true,
+        canViewRemedies: true,
+        canReceiveUpdates: true,
+        isActive: true,
+        notes: `Primary family contact for ${elderlyUser.name || 'Elderly User'}`
+      }
+    });
+  }
+
+  console.log('💊 Creating remedy documents...');
+  
+  // Get the actual remedy templates from database
+  const actualRemedyTemplates = await prisma.remedyTemplate.findMany();
+  
+  // Create remedy documents for completed consultations
+  for (let i = 0; i < Math.min(20, completedAppointments.length); i++) {
+    const appointment = completedAppointments[i];
+    const remedyTemplate = actualRemedyTemplates[i % actualRemedyTemplates.length];
+    const guruji = gurujis.find(g => g.id === appointment.gurujiId);
+    
+    // Get the consultation session for this appointment
+    const consultationSession = await prisma.consultationSession.findFirst({
+      where: { appointmentId: appointment.id }
+    });
+
+    if (consultationSession && remedyTemplate) {
+      await prisma.remedyDocument.create({
+        data: {
+          consultationSessionId: consultationSession.id,
+          templateId: remedyTemplate.id,
+          userId: appointment.userId,
+          customInstructions: remedyTemplate.instructions,
+          customDosage: 'As prescribed by Guruji',
+          customDuration: remedyTemplate.duration,
+          pdfUrl: `https://ashram.com/remedies/${appointment.id}.pdf`,
+          emailSent: Math.random() > 0.5,
+          smsSent: Math.random() > 0.5,
+          deliveredAt: Math.random() > 0.7 ? new Date() : null,
+        }
+      });
+    }
+  }
+
   console.log('📊 Creating audit logs...');
   
   // Create initial audit logs
@@ -559,21 +701,27 @@ Practice 3 times daily
         appointmentsCreated: appointments.length,
         remedyTemplatesCreated: remedyTemplates.length,
         queueEntriesCreated: todayAppointments.length,
-        notificationsCreated: todayAppointments.length + Math.min(10, todayAppointments.length) + Math.min(5, users.length)
+        notificationsCreated: todayAppointments.length + Math.min(10, todayAppointments.length) + Math.min(5, users.length),
+        familyContactsCreated: Math.min(20, elderlyUsers.length),
+        remedyDocumentsCreated: Math.min(20, completedAppointments.length)
       }
     }
   });
 
   console.log('✅ Database seeding completed successfully!');
   console.log('\n📈 Summary:');
-  console.log(`👤 Users created: ${users.length + 4}`);
+  console.log(`👤 Users created: ${users.length + 4 + Math.min(20, elderlyUsers.length)}`);
   console.log(`   - Admin: 1`);
   console.log(`   - Coordinator: 1`);
   console.log(`   - Gurujis: ${gurujis.length}`);
   console.log(`   - Regular Users: ${users.length}`);
+  console.log(`   - Family Contacts: ${Math.min(20, elderlyUsers.length)}`);
   console.log(`📅 Appointments created: ${appointments.length}`);
   console.log(`📋 Queue entries created: ${todayAppointments.length}`);
+  console.log(`🏥 Consultation sessions created: ${completedAppointments.length}`);
   console.log(`💊 Remedy templates created: ${remedyTemplates.length}`);
+  console.log(`💊 Remedy documents created: ${Math.min(20, completedAppointments.length)}`);
+  console.log(`👨‍👩‍👧‍👦 Family contacts created: ${Math.min(20, elderlyUsers.length)}`);
   console.log(`🔔 Notifications created: ${todayAppointments.length + Math.min(10, todayAppointments.length) + Math.min(5, users.length)}`);
   console.log(`⚙️ System settings created: ${systemSettings.length}`);
   

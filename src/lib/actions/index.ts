@@ -8,6 +8,7 @@ export * from './user-actions';
 // Appointment & Queue Management
 export * from './appointment-actions';
 export * from './queue-actions';
+export * from './location-actions';
 
 // Consultation & Check-in
 export * from './consultation-actions';
@@ -51,7 +52,6 @@ export {
 
 export {
   // Queue actions
-  getQueueStatus,
   joinQueue,
   leaveQueue,
   updateQueueStatus,

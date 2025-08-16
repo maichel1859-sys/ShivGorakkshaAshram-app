@@ -88,9 +88,7 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
     ) {
       setUILoading("delete-user", true);
       try {
-        const formData = new FormData();
-        formData.append("userId", userId);
-        await deleteUserMutation.mutateAsync(formData);
+        await deleteUserMutation.mutateAsync(userId);
         toast.success("User deleted successfully");
       } catch (error) {
         toast.error("Failed to delete user");
@@ -105,10 +103,7 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
     setUILoading("toggle-status", true);
     try {
-      const formData = new FormData();
-      formData.append("userId", userId);
-      formData.append("isActive", (!currentStatus).toString());
-      await toggleStatusMutation.mutateAsync(formData);
+      await toggleStatusMutation.mutateAsync(userId);
       toast.success(
         `User ${!currentStatus ? "activated" : "deactivated"} successfully`
       );

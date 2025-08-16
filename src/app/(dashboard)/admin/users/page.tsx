@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { getUsers } from "@/lib/actions";
-import { Role } from "@prisma/client";
+// import { Role } from "@prisma/client"; // Temporarily unused
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

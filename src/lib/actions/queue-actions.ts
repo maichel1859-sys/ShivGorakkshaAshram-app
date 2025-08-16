@@ -5,13 +5,44 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
+import { 
+  invalidateQueueCache, 
+  getCachedQueueStatus, 
+  getCachedUserQueueStatus, 
+  getCachedGurujiQueueEntries 
+} from '@/lib/services/queue.service';
 
 // Schemas
 const queueStatusSchema = z.object({
   status: z.enum(['WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
-  estimatedWaitTime: z.number().optional(),
+  estimatedWait: z.number().optional(),
   notes: z.string().optional(),
 });
+
+// Helper function to recalculate queue positions
+async function recalculateQueuePositions(gurujiId: string) {
+  const queueEntries = await prisma.queueEntry.findMany({
+    where: {
+      gurujiId,
+      status: { in: ['WAITING', 'IN_PROGRESS'] },
+    },
+    orderBy: [
+      { status: 'asc' }, // IN_PROGRESS first
+      { createdAt: 'asc' }, // Then by creation time
+    ],
+  });
+
+  // Update positions sequentially
+  for (let i = 0; i < queueEntries.length; i++) {
+    await prisma.queueEntry.update({
+      where: { id: queueEntries[i].id },
+      data: { 
+        position: i + 1,
+        estimatedWait: (i + 1) * 15, // 15 minutes per position
+      },
+    });
+  }
+}
 
 // Get queue status
 export async function getQueueStatus() {
@@ -22,71 +53,8 @@ export async function getQueueStatus() {
   }
 
   try {
-    const [waitingCount, inProgressCount, completedToday, totalToday] = await Promise.all([
-      prisma.queueEntry.count({
-        where: { status: 'WAITING' },
-      }),
-      prisma.queueEntry.count({
-        where: { status: 'IN_PROGRESS' },
-      }),
-      prisma.queueEntry.count({
-        where: {
-          status: 'COMPLETED',
-          updatedAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          },
-        },
-      }),
-      prisma.queueEntry.count({
-        where: {
-          createdAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          },
-        },
-      }),
-    ]);
-
-    const currentQueue = await prisma.queueEntry.findMany({
-      where: {
-        status: {
-          in: ['WAITING', 'IN_PROGRESS'],
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-          },
-        },
-        guruji: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [
-        { status: 'asc' }, // IN_PROGRESS first
-        { createdAt: 'asc' }, // Then by creation time
-      ],
-      take: 10,
-    });
-
-    const estimatedWaitTime = waitingCount * 15; // 15 minutes per person
-
-    return {
-      success: true,
-      queueStatus: {
-        waiting: waitingCount,
-        inProgress: inProgressCount,
-        completedToday,
-        totalToday,
-        estimatedWaitTime,
-        currentQueue,
-      },
-    };
+    const queueStatus = await getCachedQueueStatus();
+    return { success: true, queueStatus };
   } catch (error) {
     console.error('Get queue status error:', error);
     return { success: false, error: 'Failed to fetch queue status' };
@@ -136,15 +104,39 @@ export async function joinQueue(formData: FormData) {
       return { success: false, error: 'Guruji not found or not available' };
     }
 
+         // Create appointment first
+     const appointment = await prisma.appointment.create({
+       data: {
+         userId: session.user.id,
+         gurujiId,
+         date: new Date(),
+         startTime: new Date(),
+         endTime: new Date(new Date().getTime() + 30 * 60000), // 30 minutes later
+         reason,
+         status: 'BOOKED',
+         priority: 'NORMAL',
+       },
+     });
+
+    // Calculate position in queue
+    const queuePosition = await prisma.queueEntry.count({
+      where: {
+        gurujiId,
+        status: {
+          in: ['WAITING', 'IN_PROGRESS'],
+        },
+      },
+    }) + 1;
+
     // Create queue entry
     const queueEntry = await prisma.queueEntry.create({
       data: {
         userId: session.user.id,
         gurujiId,
-        appointmentId: crypto.randomUUID(), // Temporary appointment ID
-        position: 1, // Will be calculated properly
+        appointmentId: appointment.id,
+        position: queuePosition,
         status: 'WAITING',
-        estimatedWait: 15, // Default 15 minutes
+        estimatedWait: queuePosition * 15, // 15 minutes per position
         checkedInAt: new Date(),
         notes: reason,
       },
@@ -180,6 +172,11 @@ export async function joinQueue(formData: FormData) {
       },
     });
 
+    // Recalculate positions for this guruji's queue
+    await recalculateQueuePositions(gurujiId);
+    
+    // Invalidate cache
+    invalidateQueueCache();
     revalidatePath('/user/queue');
     revalidatePath('/guruji/queue');
     
@@ -207,8 +204,8 @@ export async function updateQueueStatus(formData: FormData) {
     const queueEntryId = formData.get('queueEntryId') as string;
     const data = queueStatusSchema.parse({
       status: formData.get('status') as 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
-      estimatedWaitTime: formData.get('estimatedWaitTime') ? 
-        parseInt(formData.get('estimatedWaitTime') as string) : undefined,
+      estimatedWait: formData.get('estimatedWait') ? 
+        parseInt(formData.get('estimatedWait') as string) : undefined,
       notes: formData.get('notes') as string || undefined,
     });
 
@@ -242,9 +239,9 @@ export async function updateQueueStatus(formData: FormData) {
       where: { id: queueEntryId },
       data: {
         status: data.status,
-        estimatedWait: data.estimatedWaitTime,
+        estimatedWait: data.estimatedWait,
         notes: data.notes,
-        ...(data.status === 'COMPLETED' && { completedAt: new Date() }),
+        ...((data.status === 'COMPLETED' || data.status === 'CANCELLED') && { completedAt: new Date() }),
       },
       include: {
         user: {
@@ -286,6 +283,13 @@ export async function updateQueueStatus(formData: FormData) {
       });
     }
 
+    // Recalculate positions if status changed to COMPLETED or CANCELLED
+    if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
+      await recalculateQueuePositions(queueEntry.gurujiId!);
+    }
+    
+    // Invalidate cache
+    invalidateQueueCache();
     revalidatePath('/user/queue');
     revalidatePath('/guruji/queue');
     
@@ -341,6 +345,7 @@ export async function leaveQueue(formData: FormData) {
       data: {
         status: 'CANCELLED',
         notes: 'Left queue voluntarily',
+        completedAt: new Date(),
       },
     });
 
@@ -360,6 +365,13 @@ export async function leaveQueue(formData: FormData) {
       });
     }
 
+    // Recalculate positions for this guruji's queue
+    if (queueEntry.gurujiId) {
+      await recalculateQueuePositions(queueEntry.gurujiId);
+    }
+    
+    // Invalidate cache
+    invalidateQueueCache();
     revalidatePath('/user/queue');
     revalidatePath('/guruji/queue');
     
@@ -379,24 +391,8 @@ export async function getUserQueueEntries() {
   }
 
   try {
-    const queueEntries = await prisma.queueEntry.findMany({
-      where: {
-        userId: session.user.id,
-        status: {
-          in: ['WAITING', 'IN_PROGRESS'],
-        },
-      },
-      include: {
-        guruji: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
+    const queueEntry = await getCachedUserQueueStatus(session.user.id);
+    const queueEntries = queueEntry ? [queueEntry] : [];
     return { success: true, queueEntries };
   } catch (error) {
     console.error('Get user queue entries error:', error);
@@ -418,29 +414,7 @@ export async function getGurujiQueueEntries() {
   }
 
   try {
-    const queueEntries = await prisma.queueEntry.findMany({
-      where: {
-        gurujiId: session.user.id,
-        status: {
-          in: ['WAITING', 'IN_PROGRESS'],
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            dateOfBirth: true,
-          },
-        },
-      },
-      orderBy: [
-        { status: 'asc' }, // IN_PROGRESS first
-        { createdAt: 'asc' }, // Then by creation time
-      ],
-    });
-
+    const queueEntries = await getCachedGurujiQueueEntries(session.user.id);
     return { success: true, queueEntries };
   } catch (error) {
     console.error('Get guruji queue entries error:', error);
@@ -544,6 +518,8 @@ export async function startConsultation(formData: FormData) {
       },
     });
 
+    // Invalidate cache
+    invalidateQueueCache();
     revalidatePath('/guruji/queue');
     revalidatePath('/user/queue');
     
@@ -649,6 +625,11 @@ export async function completeConsultation(formData: FormData) {
       },
     });
 
+    // Recalculate positions for this guruji's queue
+    await recalculateQueuePositions(session.user.id);
+    
+    // Invalidate cache
+    invalidateQueueCache();
     revalidatePath('/guruji/queue');
     revalidatePath('/user/queue');
     

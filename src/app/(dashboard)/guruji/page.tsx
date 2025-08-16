@@ -14,7 +14,7 @@ import {
   Square,
   AlertTriangle,
   Timer,
-  User,
+  // User, // Temporarily unused
 } from "lucide-react";
 import {
   useGurujiQueue,

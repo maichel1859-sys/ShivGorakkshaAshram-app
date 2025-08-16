@@ -8,7 +8,6 @@ export * from './queries';
 export * from './use-server-action';
 
 // Custom Hooks
-export * from './use-socket';
 export * from './use-mobile';
 export * from './use-offline-sync';
 export * from './use-network-status';

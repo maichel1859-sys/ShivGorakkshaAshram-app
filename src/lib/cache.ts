@@ -470,35 +470,7 @@ export const sessionCache = {
   },
 };
 
-// Socket connection cache
-export const socketCache = {
-  addConnection: (userId: string, socketId: string) => {
-    const connections: string[] = memoryCache.get<string[]>(`socket_connections:${userId}`) || [];
-    if (!connections.includes(socketId)) {
-      connections.push(socketId);
-      memoryCache.set(`socket_connections:${userId}`, connections, CACHE_TIMES.hour);
-    }
-  },
 
-  removeConnection: (userId: string, socketId: string) => {
-    const connections: string[] = memoryCache.get<string[]>(`socket_connections:${userId}`) || [];
-    const updated = connections.filter(id => id !== socketId);
-    if (updated.length > 0) {
-      memoryCache.set(`socket_connections:${userId}`, updated, CACHE_TIMES.hour);
-    } else {
-      memoryCache.delete(`socket_connections:${userId}`);
-    }
-  },
-
-  getConnections: (userId: string): string[] => {
-    return memoryCache.get<string[]>(`socket_connections:${userId}`) || [];
-  },
-
-  isUserOnline: (userId: string): boolean => {
-    const connections = memoryCache.get<string[]>(`socket_connections:${userId}`);
-    return Boolean(connections && connections.length > 0);
-  },
-};
 
 // Cache warming functions
 export const cacheWarming = {
@@ -560,7 +532,7 @@ const cacheModule = {
   cacheInvalidation,
   rateLimitCache,
   sessionCache,
-  socketCache,
+
   cacheWarming,
   cacheUtils,
   memoryCache,

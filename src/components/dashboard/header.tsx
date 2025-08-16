@@ -4,7 +4,7 @@ import { Bell, Menu, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { LanguageSwitcher } from "@/components/ui/language-switcher";
+// import { LanguageSwitcher } from "@/components/ui/language-switcher"; // Temporarily unused
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import React from "react";
 import {
   Calendar,
   Clock,
@@ -19,11 +20,19 @@ import {
   Activity,
 } from "lucide-react";
 import { useUserDashboard, useNotifications } from "@/hooks/queries";
+import { useLoadingStore } from "@/lib/stores/loading-store";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 export default function UserDashboard() {
   const { data: session } = useSession();
   const { data: dashboardData, isLoading, error } = useUserDashboard();
   const { data: notificationsData } = useNotifications({ limit: 5 });
+  const { setDashboardLoading } = useLoadingStore();
+
+  // Update loading state
+  React.useEffect(() => {
+    setDashboardLoading(isLoading);
+  }, [isLoading, setDashboardLoading]);
 
   if (isLoading) {
     return (
@@ -31,6 +40,7 @@ export default function UserDashboard() {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
+        <LoadingOverlay loadingKey="dashboardLoading" />
       </div>
     );
   }
@@ -51,6 +61,9 @@ export default function UserDashboard() {
   }
 
   const appointmentCount = dashboardData?.stats?.appointmentCount || 0;
+  const currentQueuePosition = dashboardData?.stats?.currentQueuePosition;
+  const currentQueueStatus = dashboardData?.stats?.currentQueueStatus;
+  const recentAppointments = dashboardData?.recentAppointments || [];
 
   return (
     <div className="space-y-6">
@@ -97,8 +110,12 @@ export default function UserDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
-            <p className="text-xs text-muted-foreground">Not in queue</p>
+            <div className="text-2xl font-bold">
+              {currentQueuePosition ? `#${currentQueuePosition}` : '-'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {currentQueuePosition && currentQueueStatus ? currentQueueStatus.toLowerCase() : 'Not in queue'}
+            </p>
           </CardContent>
         </Card>
 
@@ -135,14 +152,37 @@ export default function UserDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Upcoming Appointments
+              Recent Appointments
             </CardTitle>
-            <CardDescription>Your next few appointments</CardDescription>
+            <CardDescription>Your recent appointments</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center text-muted-foreground">
-              No upcoming appointments
-            </div>
+            {recentAppointments.length > 0 ? (
+              <div className="space-y-3">
+                {recentAppointments.map((appointment) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {new Date(appointment.date).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {appointment.guruji?.name || 'Unknown Guruji'}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {appointment.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground">
+                No recent appointments
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -1,0 +1,479 @@
+# ShivGorakksha Ashram App - Cursor Rules
+
+## Project Overview
+This is a Next.js 15 application for managing a spiritual ashram's queue system, appointments, consultations, and user management. The app serves 150-200 users daily within a 5-hour window (9 AM to 2 PM) and uses polling-based real-time updates instead of WebSockets.
+
+## Architecture & Technology Stack
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Database**: Prisma ORM with PostgreSQL
+- **Authentication**: NextAuth.js
+- **State Management**: Zustand
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **Real-time**: Polling-based updates (15-20 second intervals)
+- **Caching**: Next.js cache with revalidation tags
+
+## Core Principles
+
+### 1. Performance & Scalability
+- Use Next.js caching strategies (unstable_cache, revalidateTag, revalidatePath)
+- Implement proper cache invalidation for real-time data
+- Optimize database queries with Prisma select and include
+- Use React Query for client-side data fetching and caching
+- Implement adaptive polling based on user state
+
+### 2. Type Safety
+- Always use TypeScript with strict mode
+- Define proper interfaces for all data structures
+- Use Zod for runtime validation
+- Avoid `any` types - use proper typing
+- Export types from dedicated type files
+
+### 3. Code Organization
+- Follow Next.js App Router conventions
+- Use server components by default, client components when needed
+- Organize code by feature, not by type
+- Keep components small and focused
+- Use barrel exports (index.ts files)
+
+### 4. Error Handling
+- Use try-catch blocks for async operations
+- Implement proper error boundaries
+- Return structured error responses
+- Log errors appropriately
+- Provide user-friendly error messages
+
+## File Structure Rules
+
+### Components
+```
+src/components/
+├── ui/                    # shadcn/ui components
+├── common/               # Shared components
+├── forms/                # Form components
+├── dashboard/            # Dashboard-specific components
+├── auth/                 # Authentication components
+└── [feature]/            # Feature-specific components
+```
+
+### Pages & Routes
+```
+src/app/
+├── (auth)/               # Authentication routes
+├── (dashboard)/          # Protected dashboard routes
+│   ├── admin/           # Admin routes
+│   ├── guruji/          # Guruji routes
+│   ├── coordinator/     # Coordinator routes
+│   └── user/            # User routes
+├── api/                  # API routes
+└── globals.css          # Global styles
+```
+
+### Server Actions
+```
+src/lib/actions/
+├── index.ts             # Barrel export
+├── auth-actions.ts      # Authentication actions
+├── queue-actions.ts     # Queue management
+├── appointment-actions.ts
+├── notification-actions.ts
+└── [feature]-actions.ts
+```
+
+## Coding Standards
+
+### 1. Server Actions
+```typescript
+'use server';
+
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/core/auth';
+import { prisma } from '@/lib/database/prisma';
+import { z } from 'zod';
+
+// Always validate input with Zod
+const actionSchema = z.object({
+  // Define schema
+});
+
+export async function actionName(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    // Validate input
+    const data = actionSchema.parse({
+      // Parse form data
+    });
+
+    // Perform action
+    const result = await prisma.model.operation({
+      // Database operation
+    });
+
+    // Invalidate cache
+    revalidateTag(CACHE_TAGS.relevant);
+    revalidatePath('/relevant/path');
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('Action error:', error);
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.errors[0].message };
+    }
+    return { success: false, error: 'Operation failed' };
+  }
+}
+```
+
+### 2. Client Components
+```typescript
+"use client";
+
+import { useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+
+export default function ComponentName() {
+  const { data: session } = useSession();
+  const [state, setState] = useState();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['key'],
+    queryFn: () => fetchData(),
+    enabled: !!session?.user,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data) => performAction(data),
+    onSuccess: () => {
+      // Handle success
+    },
+    onError: (error) => {
+      // Handle error
+    },
+  });
+
+  const handleAction = useCallback(async () => {
+    // Handle user action
+  }, [dependencies]);
+
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage error={error} />;
+
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+}
+```
+
+### 3. Custom Hooks
+```typescript
+"use client";
+
+import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+
+export function useCustomHook() {
+  const { data: session } = useSession();
+  const [state, setState] = useState();
+
+  const action = useCallback(async () => {
+    if (!session?.user) return;
+    
+    try {
+      // Perform action
+    } catch (error) {
+      console.error('Hook error:', error);
+    }
+  }, [session?.user]);
+
+  useEffect(() => {
+    if (session?.user) {
+      // Initialize hook
+    }
+  }, [session?.user]);
+
+  return {
+    state,
+    action,
+  };
+}
+```
+
+### 4. Database Operations
+```typescript
+// Always use proper Prisma patterns
+const result = await prisma.model.findMany({
+  where: {
+    // Use proper filters
+    status: { in: ['ACTIVE', 'PENDING'] },
+    createdAt: { gte: new Date() },
+  },
+  include: {
+    // Only include necessary relations
+    relatedModel: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+  },
+  orderBy: [
+    { createdAt: 'desc' },
+  ],
+  take: 10, // Limit results
+});
+```
+
+## Queue System Rules
+
+### 1. Polling Implementation
+- Use adaptive polling intervals (15-30 seconds)
+- Implement exponential backoff for errors
+- Cache queue data with 1-minute TTL
+- Invalidate cache on queue changes
+
+### 2. Queue Status Management
+- Always validate queue entry ownership
+- Implement proper status transitions
+- Create notifications for status changes
+- Update estimated wait times
+
+### 3. Real-time Updates
+- Use React Query for client-side caching
+- Implement optimistic updates
+- Handle offline scenarios gracefully
+- Provide loading states
+
+## Security Rules
+
+### 1. Authentication
+- Always check session in server actions
+- Validate user permissions
+- Use role-based access control
+- Implement proper session management
+
+### 2. Data Validation
+- Validate all inputs with Zod
+- Sanitize user inputs
+- Use parameterized queries (Prisma handles this)
+- Implement rate limiting
+
+### 3. Error Handling
+- Don't expose sensitive information in errors
+- Log errors appropriately
+- Return generic error messages to users
+- Implement proper error boundaries
+
+## Performance Rules
+
+### 1. Caching Strategy
+```typescript
+// Use Next.js cache for server-side data
+export const getCachedData = cache(
+  async () => {
+    // Fetch data
+    return data;
+  },
+  ['cache-key'],
+  {
+    tags: [CACHE_TAGS.relevant],
+    revalidate: CACHE_TIMES.short, // 60 seconds
+  }
+);
+```
+
+### 2. Database Optimization
+- Use database indexes
+- Implement pagination
+- Select only needed fields
+- Use proper relationships
+
+### 3. Bundle Optimization
+- Use dynamic imports for large components
+- Implement code splitting
+- Optimize images
+- Minimize bundle size
+
+## Testing Rules
+
+### 1. Component Testing
+- Test user interactions
+- Mock external dependencies
+- Test error scenarios
+- Verify accessibility
+
+### 2. Server Action Testing
+- Test input validation
+- Test authentication
+- Test database operations
+- Test error handling
+
+### 3. Integration Testing
+- Test complete user flows
+- Test API endpoints
+- Test database operations
+- Test caching behavior
+
+## Accessibility Rules
+
+### 1. Semantic HTML
+- Use proper heading hierarchy
+- Use semantic elements
+- Provide alt text for images
+- Use ARIA labels when needed
+
+### 2. Keyboard Navigation
+- Ensure all interactive elements are keyboard accessible
+- Implement proper focus management
+- Use skip links
+- Test with screen readers
+
+### 3. Color & Contrast
+- Maintain proper color contrast
+- Don't rely solely on color for information
+- Support dark mode
+- Test with color blindness simulators
+
+## Documentation Rules
+
+### 1. Code Comments
+- Comment complex business logic
+- Document API endpoints
+- Explain database relationships
+- Document configuration options
+
+### 2. README Files
+- Keep README up to date
+- Document setup instructions
+- Explain architecture decisions
+- Provide troubleshooting guides
+
+### 3. API Documentation
+- Document all server actions
+- Explain request/response formats
+- Provide usage examples
+- Document error codes
+
+## Deployment Rules
+
+### 1. Environment Variables
+- Use proper environment variable naming
+- Validate environment variables at startup
+- Don't commit sensitive data
+- Use different configs for different environments
+
+### 2. Database Migrations
+- Always use Prisma migrations
+- Test migrations on staging
+- Backup before production migrations
+- Document migration changes
+
+### 3. Monitoring
+- Implement proper logging
+- Monitor application performance
+- Set up error tracking
+- Monitor database performance
+
+## Queue-Specific Rules
+
+### 1. Queue Entry Management
+```typescript
+// Always validate queue entry ownership
+if (queueEntry.userId !== session.user.id) {
+  return { success: false, error: 'Permission denied' };
+}
+
+// Check queue entry status before operations
+if (queueEntry.status !== 'WAITING') {
+  return { success: false, error: 'Invalid queue status' };
+}
+```
+
+### 2. Position Calculation
+- Calculate positions dynamically
+- Update positions when entries are removed
+- Handle edge cases (empty queue, single entry)
+- Maintain queue order integrity
+
+### 3. Notification System
+- Send notifications for status changes
+- Include relevant data in notifications
+- Handle notification delivery failures
+- Provide notification preferences
+
+## Error Handling Patterns
+
+### 1. Server Actions
+```typescript
+try {
+  // Operation
+  return { success: true, data: result };
+} catch (error) {
+  console.error('Operation error:', error);
+  
+  if (error instanceof z.ZodError) {
+    return { success: false, error: error.errors[0].message };
+  }
+  
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return { success: false, error: 'Database operation failed' };
+  }
+  
+  return { success: false, error: 'Operation failed' };
+}
+```
+
+### 2. Client Components
+```typescript
+const { data, error, isLoading } = useQuery({
+  queryKey: ['key'],
+  queryFn: fetchData,
+  retry: 3,
+  retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+});
+
+if (error) {
+  return <ErrorMessage error={error} />;
+}
+```
+
+## Best Practices Summary
+
+1. **Always use TypeScript** with strict mode
+2. **Validate all inputs** with Zod schemas
+3. **Check authentication** in server actions
+4. **Use proper caching** strategies
+5. **Handle errors gracefully** with user-friendly messages
+6. **Follow Next.js conventions** for file structure
+7. **Implement proper loading states** and error boundaries
+8. **Use semantic HTML** and ensure accessibility
+9. **Optimize database queries** with proper selects and includes
+10. **Test thoroughly** before deploying changes
+11. **Document code** and maintain up-to-date README
+12. **Monitor performance** and implement proper logging
+13. **Use adaptive polling** for real-time updates
+14. **Implement proper cache invalidation** for queue changes
+15. **Follow security best practices** for authentication and data validation
+
+## Forbidden Patterns
+
+1. ❌ Don't use `any` types
+2. ❌ Don't skip authentication checks
+3. ❌ Don't expose sensitive data in error messages
+4. ❌ Don't use client components unnecessarily
+5. ❌ Don't forget to invalidate cache
+6. ❌ Don't use inline styles
+7. ❌ Don't forget error handling
+8. ❌ Don't use hardcoded values
+9. ❌ Don't skip input validation
+10. ❌ Don't forget to test edge cases
+
+Follow these rules to maintain a robust, scalable, and maintainable codebase for the ShivGorakksha Ashram application.

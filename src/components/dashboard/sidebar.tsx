@@ -24,6 +24,7 @@ import {
   Monitor,
   Bell,
   Zap,
+  CheckCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -100,11 +101,12 @@ const navItems: NavItem[] = [
     roles: ["ADMIN"],
   },
   {
-    title: "Socket Monitor",
-    href: "/admin/socket-monitor",
-    icon: Activity,
+    title: "QR Codes",
+    href: "/admin/qr-codes",
+    icon: QrCode,
     roles: ["ADMIN"],
   },
+
   {
     title: "Database",
     href: "/admin/database",
@@ -173,6 +175,12 @@ const navItems: NavItem[] = [
     title: "QR Scanner",
     href: "/user/qr-scanner",
     icon: QrCode,
+    roles: ["USER"],
+  },
+  {
+    title: "Check In",
+    href: "/user/checkin",
+    icon: CheckCircle,
     roles: ["USER"],
   },
 
@@ -245,7 +253,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
     (item) =>
       !item.title.includes("System") &&
       !item.title.includes("API") &&
-      !item.title.includes("Socket") &&
+              true &&
       !item.title.includes("Database") &&
       !item.title.includes("Monitoring") &&
       !item.title.includes("Settings") &&
@@ -257,7 +265,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
     (item) =>
       item.title.includes("System") ||
       item.title.includes("API") ||
-      item.title.includes("Socket") ||
+              false ||
       item.title.includes("Database") ||
       item.title.includes("Monitoring")
   );

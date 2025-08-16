@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+// import { NextRequest } from 'next/server'; // Temporarily unused
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
+  // Note: request parameter is not used but required by Next.js API route signature
   try {
     const session = await getServerSession(authOptions);
     

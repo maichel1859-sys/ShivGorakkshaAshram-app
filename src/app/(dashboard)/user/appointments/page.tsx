@@ -4,7 +4,7 @@ import { AppointmentList } from '@/components/server/appointment-list';
 import { DashboardStats } from '@/components/server/dashboard-stats';
 import { AppointmentManager } from '@/components/client/appointment-manager';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar } from 'lucide-react';
+import { Plus, Calendar, QrCode } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -29,12 +29,20 @@ export default function AppointmentsPage() {
             View and manage your spiritual consultation appointments
           </p>
         </div>
-        <Button asChild>
-          <Link href="/user/appointments/book">
-            <Plus className="h-4 w-4 mr-2" />
-            Book New Appointment
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/user/qr-scanner">
+              <QrCode className="h-4 w-4 mr-2" />
+              QR Scanner
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/user/appointments/book">
+              <Plus className="h-4 w-4 mr-2" />
+              Book New Appointment
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Dashboard Stats - Server Component with Suspense */}

@@ -240,7 +240,49 @@ export async function getUserById(userId: string) {
   }
 }
 
-// Minimal user dashboard endpoint for queries/hooks
+// Get available gurujis for appointment booking
+export async function getAvailableGurujis() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const gurujis = await prisma.user.findMany({
+      where: {
+        role: 'GURUJI',
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        preferences: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Add availability and specialization info
+    const availableGurujis = gurujis.map(guruji => ({
+      id: guruji.id,
+      name: guruji.name,
+      email: guruji.email,
+      phone: guruji.phone,
+      isAvailable: true, // For now, all active gurujis are available
+      specialization: guruji.preferences && typeof guruji.preferences === 'object' 
+        ? (guruji.preferences as Record<string, unknown>).specialization as string || 'General Consultation'
+        : 'General Consultation',
+    }));
+
+    return { success: true, gurujis: availableGurujis };
+  } catch (error) {
+    console.error('Error fetching available gurujis:', error);
+    return { success: false, error: 'Failed to fetch available gurujis' };
+  }
+}
+
+// Enhanced user dashboard endpoint for queries/hooks
 export async function getUserDashboard() {
   try {
     const session = await getServerSession(authOptions);
@@ -248,13 +290,49 @@ export async function getUserDashboard() {
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Compute minimal dashboard data; extend as needed
-    const appointmentCount = await prisma.appointment.count({
-      where: { userId: session.user.id },
-    });
+    // Get appointment count and recent appointments
+    const [appointmentCount, recentAppointments] = await Promise.all([
+      prisma.appointment.count({
+        where: { userId: session.user.id },
+      }),
+      prisma.appointment.findMany({
+        where: { userId: session.user.id },
+        include: {
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          queueEntry: {
+            select: {
+              id: true,
+              position: true,
+              status: true,
+            },
+          },
+        },
+        orderBy: { date: 'desc' },
+        take: 5,
+      }),
+    ]);
 
     const unreadNotifications = await prisma.notification.count({
       where: { userId: session.user.id, read: false },
+    });
+
+    // Get current queue position
+    const currentQueueEntry = await prisma.queueEntry.findFirst({
+      where: {
+        userId: session.user.id,
+        status: { in: ['WAITING', 'IN_PROGRESS'] },
+      },
+      select: {
+        id: true,
+        position: true,
+        status: true,
+        estimatedWait: true,
+      },
     });
 
     return {
@@ -269,7 +347,12 @@ export async function getUserDashboard() {
         stats: {
           appointmentCount,
           unreadNotifications,
+          currentQueuePosition: currentQueueEntry?.position || null,
+          currentQueueStatus: currentQueueEntry?.status || null,
+          estimatedWait: currentQueueEntry?.estimatedWait || null,
         },
+        recentAppointments,
+        currentQueueEntry,
       },
     };
   } catch (error) {

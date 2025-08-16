@@ -1,42 +1,41 @@
 # 🕉️ Shivgoraksha Ashram Management System
 
-A comprehensive, enterprise-grade management system for Shivgoraksha Ashram built with **Next.js 15**, featuring appointment booking, queue management, spiritual consultations, and real-time communication.
+A comprehensive, enterprise-grade management system for Shivgoraksha Ashram built with **Next.js 15**, featuring appointment booking, queue management, spiritual consultations, and real-time updates using polling.
 
 ## ✨ Features
 
 ### 🏛️ Core Ashram Management
-- **Multi-Guruji Support** - Scalable system supporting multiple Gurujis (currently configured for single Guruji)
+- **Multi-Guruji Support** - Scalable system supporting multiple Gurujis
 - **Appointment Booking** - Intelligent scheduling with conflict detection and business hours validation
-- **Queue Management** - Real-time queue tracking and position updates with priority handling
-- **Check-in System** - QR code and manual check-in with rate limiting protection
+- **Queue Management** - Real-time queue tracking with adaptive polling (15-30 second intervals)
+- **Location-Based QR Check-in** - Static QR codes per location for streamlined check-ins
 - **Spiritual Remedies** - Digital remedy prescriptions and templates with categorization
 - **Multi-language Support** - English, Hindi, Marathi, Sanskrit, and regional languages
 
 ### 👥 User Management
-- **Role-based Access Control** - Admin, Guruji, and User roles
-- **Authentication** - Secure NextAuth.js integration
-- **User Profiles** - Complete profile management
-- **Notification System** - Real-time notifications and alerts
+- **Role-based Access Control** - Admin, Guruji, Coordinator, and User roles
+- **Authentication** - Secure NextAuth.js integration with phone OTP
+- **User Profiles** - Complete profile management with family contacts
+- **Notification System** - Real-time notifications with polling-based updates
 
 ### 🚀 Technical Features
 - **Progressive Web App (PWA)** - Full offline functionality
-- **Real-time Updates** - Socket.IO integration for live updates
-- **Next.js 15 Caching** - Advanced caching strategy replacing Redis
+- **Real-time Updates** - Adaptive polling system for live updates
+- **Next.js 15 Caching** - Advanced caching strategy with revalidation
 - **Enterprise Security** - Rate limiting, audit logging, error handling
 - **TypeScript** - Full type safety throughout the application
 - **Responsive Design** - Mobile-first approach with Tailwind CSS
 
 ### 📊 Analytics & Monitoring
 - **Usage Analytics** - Comprehensive tracking and reporting
-- **Performance Monitoring** - Real-time performance metrics with Core Web Vitals
+- **Performance Monitoring** - Real-time performance metrics
 - **Audit Logging** - Complete action tracking for compliance and security
-- **Error Tracking** - Sentry integration for error monitoring and alerting
-- **Socket.IO Admin UI** - Built-in WebSocket monitoring at `/admin/socket.io`
-- **API Documentation** - Interactive Swagger/OpenAPI documentation
+- **Error Tracking** - Comprehensive error monitoring and alerting
+- **API Documentation** - Interactive documentation with examples
 
 ### 🌐 Admin Features
-- **Interactive API Documentation** - Swagger UI with live API testing
-- **Socket.IO Monitoring** - Real-time WebSocket connection monitoring
+- **Interactive API Documentation** - Complete system documentation
+- **QR Code Management** - Generate and download location-based QR codes
 - **Language Management** - Multi-language support with dynamic switching
 - **System Management** - Comprehensive admin controls and settings
 
@@ -46,12 +45,12 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
 - **Next.js 15** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first CSS framework
-- **Radix UI** - Accessible component library
-- **Framer Motion** - Animation library
+- **shadcn/ui** - Accessible component library
 - **React Hook Form** - Form management with Zod validation
+- **Zustand** - Lightweight state management
 
 ### Backend
-- **Next.js 15 Server Actions** - Secure server-side functions (No API routes)
+- **Next.js 15 Server Actions** - Secure server-side functions
 - **React Server Components** - Server-side rendering with zero client JS
 - **Prisma ORM** - Database management with full TypeScript support
 - **PostgreSQL** - Primary database with audit logging
@@ -59,15 +58,14 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
 - **Zod** - Schema validation and input sanitization
 
 ### Real-time & Caching
-- **Socket.IO** - Real-time bidirectional communication
+- **Adaptive Polling** - Smart polling intervals based on user state
 - **Next.js Caching** - Built-in caching with custom memory cache
-- **Unstable_cache** - Server-side caching strategy
+- **unstable_cache** - Server-side caching strategy
 - **Rate Limiting** - Memory-based rate limiting system
 
 ### DevOps & Monitoring
-- **Sentry** - Error monitoring and performance tracking
-- **Vercel Analytics** - Usage analytics
-- **Web Vitals** - Performance monitoring
+- **Error Monitoring** - Comprehensive error tracking
+- **Performance Monitoring** - Real-time performance metrics
 - **PWA** - Progressive Web App capabilities
 
 ## 🚀 Quick Start
@@ -82,7 +80,7 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd aadhram-app
+   cd ShivGorakkshaAshram-app
    ```
 
 2. **Install dependencies**
@@ -112,36 +110,21 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
    TWILIO_ACCOUNT_SID="your-twilio-sid"
    TWILIO_AUTH_TOKEN="your-twilio-token"
    TWILIO_PHONE_NUMBER="your-twilio-phone"
-   
-   # Monitoring (Optional)
-   SENTRY_DSN="your-sentry-dsn"
-   NEXT_PUBLIC_VERCEL_ANALYTICS_ID="your-analytics-id"
    ```
 
 4. **Database Setup**
    ```bash
    # Generate Prisma client
-   npm run db:generate
+   npx prisma generate
    
    # Push database schema
-   npm run db:push
+   npx prisma db push
    
    # (Optional) Open Prisma Studio to view data
-   npm run db:studio
+   npx prisma studio
    ```
 
-5. **Initialize Shivgoraksha Ashram**
-   ```bash
-   # Run the automated setup script
-   npm run setup:ashram
-   ```
-
-   This will create:
-   - **Guruji Account**: `guruji@shivgoraksha.ashram` / `GurujiPassword@123`
-   - **Admin Account**: `admin@shivgoraksha.ashram` / `AdminPassword@123`
-   - System settings and sample spiritual remedies
-
-6. **Start Development Server**
+5. **Start Development Server**
    ```bash
    npm run dev
    ```
@@ -151,31 +134,23 @@ A comprehensive, enterprise-grade management system for Shivgoraksha Ashram buil
 ## 📋 Available Scripts
 
 ### Development
-- `npm run dev` - Start development server with Turbopack
+- `npm run dev` - Start development server
 - `npm run build` - Build production application
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run type-check` - Run TypeScript type checking
 
 ### Database
-- `npm run db:generate` - Generate Prisma client
-- `npm run db:push` - Push schema to database
-- `npm run db:migrate` - Run database migrations
-- `npm run db:studio` - Open Prisma Studio
-- `npm run db:seed` - Seed database with sample data
-
-### Setup
-- `npm run setup:ashram` - Initialize Shivgoraksha Ashram with default data
-
-### Testing
-- `npm test` - Run Jest tests
-- `npm run test:watch` - Run tests in watch mode
+- `npx prisma generate` - Generate Prisma client
+- `npx prisma db push` - Push schema to database
+- `npx prisma db migrate` - Run database migrations
+- `npx prisma studio` - Open Prisma Studio
 
 ## 🏗️ Architecture Overview
 
 ### Modern Next.js 15 Architecture
 
-The application uses a **layered architecture** with **Server Actions** replacing traditional API routes:
+The application uses a **layered architecture** with **Server Actions** and **React Server Components**:
 
 ```
 ┌─────────────────────────────────────────┐
@@ -241,12 +216,11 @@ src/lib/actions/
 ├── remedy-actions.ts     # Remedy prescriptions
 ├── notification-actions.ts # Notification system
 ├── user-actions.ts       # User CRUD operations
-├── admin-actions.ts      # Admin dashboard
 ├── dashboard-actions.ts  # Analytics & reporting
-├── system-actions.ts     # System health & monitoring
 ├── settings-actions.ts   # Configuration management
 ├── checkin-actions.ts    # QR code check-in
-└── queue-actions.ts      # Real-time queue management
+├── queue-actions.ts      # Real-time queue management
+└── location-actions.ts   # Location-based QR codes
 ```
 
 ### Caching Strategy
@@ -273,40 +247,42 @@ export async function createAppointment(formData: FormData) {
 ```
 
 ### Real-time Communication
-Socket.IO integration for live updates:
+Adaptive polling system for live updates:
 
 ```typescript
-// Server-side socket handling
-io.on('connection', (socket) => {
-  socket.on('join-queue', (queueId) => {
-    socket.join(`queue-${queueId}`);
-  });
+// Adaptive polling hook
+export function useAdaptivePolling(
+  callback: () => void,
+  dependencies: any[] = []
+) {
+  const [interval, setInterval] = useState(15000); // 15 seconds default
   
-  // Emit queue updates
-  io.to(`queue-${queueId}`).emit('queue-updated', queueData);
-});
-
-// Client-side socket usage
-const { socket, isConnected } = useSocket();
+  useEffect(() => {
+    const timer = setInterval(callback, interval);
+    return () => clearInterval(timer);
+  }, [callback, interval, ...dependencies]);
+  
+  return { interval, setInterval };
+}
 ```
 
 ### Database Schema
 Key entities in the Prisma schema:
 
-- **User** - System users (Admin, Guruji, User roles)
+- **User** - System users (Admin, Guruji, Coordinator, User roles)
 - **Appointment** - Scheduled consultations
 - **QueueEntry** - Real-time queue management
 - **RemedyTemplate** - Spiritual remedy templates
 - **Notification** - User notifications
-- **AuditLog** - Complete action tracking
-- **SystemSetting** - Configurable system parameters
+- **ConsultationSession** - Consultation records
+- **FamilyContact** - User family contacts
 
 ## 🔐 Security Features
 
 ### Authentication & Authorization
 - **NextAuth.js** - Secure session management
 - **Role-based Access Control** - Granular permission system
-- **Password Hashing** - bcryptjs with salt rounds
+- **Phone OTP Verification** - Secure phone-based authentication
 - **Session Management** - Secure token handling
 
 ### Rate Limiting
@@ -347,14 +323,71 @@ export function applyRateLimitWithCache(
 }
 ```
 
+## 🏷️ Location-Based QR Code System
+
+### Overview
+The system uses **static QR codes** per location instead of individual appointment QR codes:
+
+### QR Code Locations
+- **Main Consultation Room** (`GURUJI_LOC_001`)
+- **Waiting Area** (`GURUJI_LOC_002`)
+- **Reception Desk** (`GURUJI_LOC_003`)
+
+### How It Works
+1. **Admin generates** location QR codes from `/admin/qr-codes`
+2. **Print and stick** QR codes on walls at respective locations
+3. **Users book appointments** normally (no individual QR codes)
+4. **Users scan location QR** when they arrive
+5. **System automatically** checks them in and adds to queue
+
+### QR Code Data Format
+```json
+{
+  "locationId": "GURUJI_LOC_001",
+  "locationName": "Main Consultation Room",
+  "timestamp": 1704067200000
+}
+```
+
+### Admin QR Management
+- **Generate QR Codes** - Create new location QR codes
+- **Download QR Codes** - Print-ready QR code images
+- **Location Management** - Add/remove locations as needed
+
+## 🔄 Real-time Updates with Polling
+
+### Adaptive Polling System
+The application uses intelligent polling instead of WebSockets:
+
+```typescript
+// Polling intervals based on user state
+const POLLING_INTERVALS = {
+  IDLE: 30000,        // 30 seconds when idle
+  WAITING: 15000,     // 15 seconds when in queue
+  NEAR_FRONT: 10000,  // 10 seconds when near front
+  CONSULTATION: 5000, // 5 seconds during consultation
+  BACKGROUND: 60000   // 60 seconds when app in background
+};
+```
+
+### Benefits of Polling
+- **Simpler Architecture** - No WebSocket server complexity
+- **Better Reliability** - Works behind firewalls and proxies
+- **Easier Scaling** - Standard HTTP requests
+- **Cost Effective** - No persistent connections
+
+### Polling Hooks
+- **useAdaptivePolling** - Smart polling based on context
+- **usePollingNotifications** - Real-time notification updates
+- **useQueuePolling** - Queue status updates
+
 ## 🌐 API Documentation
 
 ### Interactive Documentation
-Access the complete, interactive API documentation with live testing capabilities:
+Access the complete, interactive API documentation:
 - **Admin URL**: `/admin/api-docs` (Admin users only)
-- **Swagger/OpenAPI 3.0** compliant
-- **Live API Testing** - Test endpoints directly from the documentation
-- **Authentication Included** - Uses your current session for testing
+- **Server Actions** - All functions documented with examples
+- **Live Testing** - Test functions directly from documentation
 
 ### Key Server Actions
 
@@ -367,7 +400,7 @@ Access the complete, interactive API documentation with live testing capabilitie
 
 #### Appointment Actions (`appointment-actions.ts`)
 - `getAppointments()` - List appointments with advanced filtering
-- `createAppointment()` - Book appointment with conflict detection
+- `bookAppointment()` - Book appointment with conflict detection
 - `updateAppointment()` - Update appointment details
 - `cancelAppointment()` - Cancel appointment with notifications
 - `getAppointmentAvailability()` - Check time slot availability
@@ -378,21 +411,21 @@ Access the complete, interactive API documentation with live testing capabilitie
 - `updateQueueStatus()` - Update queue position
 - `leaveQueue()` - Leave queue system
 
+#### Location Actions (`location-actions.ts`)
+- `generateLocationQRCode()` - Create QR code for location
+- `getLocationQRCodes()` - Get all location QR codes
+- `validateLocationQRData()` - Validate QR code data
+
 #### User Actions (`user-actions.ts`)
 - `getUser()` - Get user profile
 - `updateUserProfile()` - Update profile information
 - `getUserAppointments()` - Get user's appointments
 - `toggleUserStatus()` - Admin user management
 
-#### Admin Actions (`admin-actions.ts`)
-- `getAdminDashboardStats()` - Complete dashboard analytics  
-- `getSystemAlerts()` - System health alerts
-- `getUsers()` - User management for admins
-
 ## 🔧 Configuration
 
 ### System Settings
-The application can be configured through the SystemSetting model:
+The application can be configured through environment variables and system settings:
 
 ```typescript
 // Key configuration options
@@ -414,7 +447,6 @@ NEXTAUTH_URL=
 NEXTAUTH_SECRET=
 
 # Optional but Recommended
-SENTRY_DSN=
 RESEND_API_KEY=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
@@ -443,19 +475,18 @@ The application supports multiple languages with real-time switching:
 ## 📊 Monitoring & Analytics
 
 ### Real-time Monitoring
-- **Socket.IO Admin UI** - Built-in WebSocket monitoring at `/admin/socket.io`
-- **Connection Tracking** - Monitor active WebSocket connections
-- **Event Debugging** - Real-time event stream monitoring
-- **Room Management** - Socket.IO room and namespace management
+- **Performance Monitoring** - Real-time performance metrics
+- **Error Tracking** - Comprehensive error monitoring
+- **User Analytics** - User behavior tracking
 
 ### Error Monitoring
-- **Sentry Integration** - Real-time error tracking
+- **Error Tracking** - Real-time error tracking
 - **Performance Monitoring** - Core Web Vitals tracking
 - **Custom Analytics** - User behavior analytics
 
 ### API Documentation & Testing
-- **Interactive Swagger UI** - Complete API documentation with live testing
-- **OpenAPI 3.0 Specification** - Standards-compliant API documentation
+- **Interactive Documentation** - Complete system documentation with examples
+- **Server Actions** - All functions documented with live testing
 - **Admin Access** - Available at `/admin/api-docs` for administrators
 
 ### Audit Logging
@@ -520,7 +551,7 @@ This project is proprietary software developed for Shivgoraksha Ashram. All righ
 ## 🆘 Support
 
 ### Default Login Credentials
-After running `npm run setup:ashram`:
+After initial setup:
 
 **Guruji Account:**
 - Email: `guruji@shivgoraksha.ashram`
@@ -546,10 +577,10 @@ After running `npm run setup:ashram`:
    - Check ESLint output with `npm run lint`
    - Verify all dependencies are installed
 
-3. **Socket Connection Issues**
-   - Check server logs for Socket.IO errors
-   - Verify CORS configuration
-   - Ensure proper port configuration
+3. **Polling Issues**
+   - Check network connectivity
+   - Verify server is running
+   - Check browser console for errors
 
 #### Performance Optimization
 - Enable Next.js caching in production
@@ -562,71 +593,33 @@ After running `npm run setup:ashram`:
 - **Feature Requests:** Submit through appropriate channels
 - **Emergency Support:** Available during business hours
 
-## 🔄 Migration to Server Actions & RSC
+## 🔄 Recent Updates
 
-### ✅ Completed Migration
+### ✅ Completed Migrations
 
-The application has been successfully migrated from API routes to **Next.js Server Actions** and **React Server Components (RSC)**, following Next.js 15 best practices.
-
-#### Migrated Components
-
-1. **Dashboard Actions** - `src/lib/actions/dashboard-actions.ts`
-   - Admin, Coordinator, and Guruji dashboard statistics
-   - System alerts and usage reports
-
-2. **System Actions** - `src/lib/actions/system-actions.ts`
-   - System health, metrics, and monitoring
-   - API documentation and cache management
-
-3. **Authentication Actions** - `src/lib/actions/auth-actions.ts`
-   - Phone OTP, user registration, family contacts
-   - Password management and security
-
-4. **Check-in Actions** - `src/lib/actions/checkin-actions.ts`
-   - QR code and manual check-in functionality
-   - Check-in history and statistics
-
-5. **Settings Actions** - `src/lib/actions/settings-actions.ts`
-   - System and user settings management
-   - Privacy and notification preferences
-
-6. **Queue Actions** - `src/lib/actions/queue-actions.ts`
-   - Real-time queue management
-   - Join, leave, and status updates
-
-7. **Notification Actions** - `src/lib/actions/notification-actions.ts`
-   - User notification management
-   - Read/unread status and deletion
-
-8. **Remedy Actions** - `src/lib/actions/remedy-actions.ts`
-   - Remedy template management
-   - Prescription and PDF generation
-
-#### UI Components Updated
-
-- **Admin Dashboard** - Server Components with Suspense
-- **User Settings** - RSC with client-side forms
-- **Create User Modal** - Intercepting routes with server actions
-- **User List** - Server-side rendering with search
-- **Settings Forms** - Client components with server action integration
-
-#### Architecture Benefits
-
-- **Performance** - Reduced client-side JavaScript
-- **SEO** - Better server-side rendering
-- **Security** - Server-side validation and authentication
-- **Maintainability** - Centralized server actions
-- **Caching** - Next.js built-in caching strategies
-- **Type Safety** - Full TypeScript support
+The application has been successfully updated with modern Next.js 15 features:
 
 #### Removed Components
+- **Socket.IO** - Replaced with adaptive polling system
+- **WebSocket Server** - No longer needed
+- **Custom Server** - Using Next.js built-in server
+- **Individual QR Codes** - Replaced with location-based QR codes
 
-- **All API Routes** - Complete `src/app/api/` directory removed
-- **Duplicate Functionality** - No redundant code
-- **Client-side API Calls** - Replaced with direct server action calls
+#### New Features
+- **Adaptive Polling** - Smart polling intervals based on user state
+- **Location-Based QR Codes** - Static QR codes per location
+- **Enhanced Caching** - Next.js 15 caching strategies
+- **Improved Performance** - Reduced client-side JavaScript
+
+#### Architecture Benefits
+- **Simplified Architecture** - No WebSocket complexity
+- **Better Reliability** - Works behind firewalls and proxies
+- **Easier Scaling** - Standard HTTP requests
+- **Cost Effective** - No persistent connections
+- **Location-Based Check-in** - Streamlined user experience
 
 ---
 
 **🕉️ Built with devotion for Shivgoraksha Ashram Management**
 
-*Last Updated: August 2025*
+*Last Updated: January 2025*

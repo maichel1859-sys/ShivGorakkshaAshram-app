@@ -121,9 +121,7 @@ export function UsersManager() {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const formData = new FormData();
-      formData.append("userId", userId);
-      const result = await deleteUser(formData);
+      const result = await deleteUser(userId);
       if (!result.success) {
         throw new Error(result.error || "Failed to delete user");
       }
@@ -142,15 +140,12 @@ export function UsersManager() {
   const toggleStatusMutation = useMutation({
     mutationFn: async ({
       userId,
-      currentStatus,
+      // currentStatus, // Temporarily unused
     }: {
       userId: string;
       currentStatus: boolean;
     }) => {
-      const formData = new FormData();
-      formData.append("userId", userId);
-      formData.append("isActive", (!currentStatus).toString());
-      const result = await toggleUserStatus(formData);
+      const result = await toggleUserStatus(userId);
       if (!result.success) {
         throw new Error(result.error || "Failed to update user status");
       }

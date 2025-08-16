@@ -34,11 +34,7 @@ export default function APIDocsPage() {
     toast.success("API documentation URL copied to clipboard");
   };
 
-  const openSocketAdmin = () => {
-    const baseUrl = window.location.origin;
-    const socketAdminUrl = `${baseUrl}/admin/socket.io`;
-    window.open(socketAdminUrl, "_blank");
-  };
+
 
   if (status === "loading" || isLoading) {
     return (
@@ -105,21 +101,7 @@ export default function APIDocsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Socket.IO Admin</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={openSocketAdmin}
-              variant="outline"
-              className="w-full flex items-center gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open Socket Admin
-            </Button>
-          </CardContent>
-        </Card>
+
 
         <Card>
           <CardHeader className="pb-3">

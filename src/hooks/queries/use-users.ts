@@ -79,8 +79,8 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (formData: FormData) => {
-      const result = await updateUser(formData);
+    mutationFn: async ({ userId, formData }: { userId: string; formData: FormData }) => {
+      const result = await updateUser(userId, formData);
       if (!result.success) {
         throw new Error(result.error || 'Failed to update user');
       }
@@ -98,14 +98,14 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (formData: FormData) => {
-      const result = await deleteUser(formData);
+    mutationFn: async (userId: string) => {
+      const result = await deleteUser(userId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to delete user');
       }
       return result;
     },
-          onSuccess: () => {
+    onSuccess: () => {
       // Invalidate users list
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
     },
@@ -117,8 +117,8 @@ export function useToggleUserStatus() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (formData: FormData) => {
-      const result = await toggleUserStatus(formData);
+    mutationFn: async (userId: string) => {
+      const result = await toggleUserStatus(userId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to toggle user status');
       }

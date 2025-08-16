@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+// import { useEffect, useCallback } from "react"; // Temporarily unused
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,14 +14,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, Clock, User, AlertCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Calendar, Clock, User, AlertCircle, Loader2, CheckCircle, XCircle } from "lucide-react";
 import {
   bookAppointment,
-  getAppointmentAvailability,
 } from "@/lib/actions/appointment-actions";
 import { getAvailableGurujis } from "@/lib/actions/user-actions";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useAppointmentAvailability } from "@/hooks/queries/use-appointments";
 
 interface TimeSlot {
   time: string;
@@ -33,8 +42,10 @@ export default function BookAppointmentPage() {
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedGuruji, setSelectedGuruji] = useState("");
   const [reason, setReason] = useState("");
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [booking, setBooking] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
   const router = useRouter();
 
   // Fetch available gurujis using TanStack Query with Server Action
@@ -52,28 +63,22 @@ export default function BookAppointmentPage() {
 
   const gurujis = gurujisData || [];
 
-  const loadAvailability = useCallback(async () => {
-    if (!selectedDate) return;
-
-    try {
-      const result = await getAppointmentAvailability({ date: selectedDate });
-      if (result.success && result.availability) {
-        setTimeSlots(result.availability);
-      }
-    } catch (error) {
-      console.error("Failed to load availability:", error);
-    }
-  }, [selectedDate]);
-
-  useEffect(() => {
-    if (selectedDate) {
-      loadAvailability();
-    }
-  }, [selectedDate, loadAvailability]);
+  // Use the appointment availability hook
+  const { data: availability, isLoading: availabilityLoading, error: availabilityError } = useAppointmentAvailability(selectedDate);
+  
+  // Debug logging
+  console.log('Booking page state:', {
+    selectedDate,
+    availability,
+    availabilityLoading,
+    availabilityError,
+    gurujis: gurujis.length
+  });
 
   const handleBookAppointment = async () => {
     if (!selectedDate || !selectedTime || !selectedGuruji || !reason.trim()) {
-      alert("Please fill in all required fields");
+      setModalMessage("Please fill in all required fields");
+      setShowErrorModal(true);
       return;
     }
 
@@ -86,18 +91,29 @@ export default function BookAppointmentPage() {
       formData.append("reason", reason);
 
       await bookAppointment(formData);
-      alert("Appointment booked successfully!");
-      router.push("/user/appointments");
+      setModalMessage("Your appointment has been booked successfully!");
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Booking error:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
           : "Failed to book appointment. Please try again.";
-      alert(errorMessage);
+      setModalMessage(errorMessage);
+      setShowErrorModal(true);
     } finally {
       setBooking(false);
     }
+  };
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    router.push("/user/appointments");
+  };
+
+  const handleErrorModalClose = () => {
+    setShowErrorModal(false);
+    setModalMessage("");
   };
 
   const getAvailableGurujisList = () => {
@@ -105,7 +121,8 @@ export default function BookAppointmentPage() {
   };
 
   const getAvailableTimeSlots = () => {
-    return timeSlots.filter((slot) => slot.available);
+    if (!availability) return [];
+    return availability.filter((slot: TimeSlot) => slot.available);
   };
 
   return (
@@ -130,13 +147,16 @@ export default function BookAppointmentPage() {
             {/* Date Selection */}
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-              />
+                             <Input
+                 id="date"
+                 type="date"
+                 value={selectedDate}
+                 onChange={(e) => {
+                   console.log('Date selected:', e.target.value);
+                   setSelectedDate(e.target.value);
+                 }}
+                 min={new Date().toISOString().split("T")[0]}
+               />
             </div>
 
             {/* Guruji Selection */}
@@ -166,7 +186,7 @@ export default function BookAppointmentPage() {
               </Select>
             </div>
 
-            {/* Time Selection */}
+                        {/* Time Selection */}
             <div className="space-y-2">
               <Label htmlFor="time">Time</Label>
               <Select value={selectedTime} onValueChange={setSelectedTime}>
@@ -174,16 +194,44 @@ export default function BookAppointmentPage() {
                   <SelectValue placeholder="Choose a time slot" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getAvailableTimeSlots().map((slot) => (
-                    <SelectItem key={slot.time} value={slot.time}>
+                  {availabilityLoading ? (
+                    <SelectItem value="loading" disabled>
                       <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{slot.time}</span>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading time slots...</span>
                       </div>
                     </SelectItem>
-                  ))}
+                  ) : availabilityError ? (
+                    <SelectItem value="error" disabled>
+                      <div className="flex items-center space-x-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>Error loading time slots</span>
+                      </div>
+                    </SelectItem>
+                  ) : getAvailableTimeSlots().length === 0 ? (
+                    <SelectItem value="no-slots" disabled>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4" />
+                        <span>No available slots</span>
+                      </div>
+                    </SelectItem>
+                  ) : (
+                    getAvailableTimeSlots().map((slot) => (
+                      <SelectItem key={slot.time} value={slot.time}>
+                        <div className="flex items-center space-x-2">
+                          <Clock className="h-4 w-4" />
+                          <span>{slot.time}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {selectedDate && !availabilityLoading && (
+                <p className="text-xs text-muted-foreground">
+                  {getAvailableTimeSlots().length} available slots for {selectedDate}
+                </p>
+              )}
             </div>
 
             {/* Reason */}
@@ -270,6 +318,34 @@ export default function BookAppointmentPage() {
         </Card>
       </div>
 
+      {/* Debug Info */}
+      {selectedDate && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Debug Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p><strong>Selected Date:</strong> {selectedDate}</p>
+              <p><strong>Loading:</strong> {availabilityLoading ? 'Yes' : 'No'}</p>
+              <p><strong>Error:</strong> {availabilityError ? 'Yes' : 'No'}</p>
+              <p><strong>Total Time Slots:</strong> {availability ? availability.length : 0}</p>
+              <p><strong>Available Time Slots:</strong> {getAvailableTimeSlots().length}</p>
+              <p><strong>All Time Slots:</strong></p>
+              <div className="grid grid-cols-4 gap-2">
+                {availability ? availability.map((slot: TimeSlot) => (
+                  <div key={slot.time} className={`p-2 text-xs rounded ${slot.available ? 'bg-green-100' : 'bg-red-100'}`}>
+                    {slot.time} ({slot.available ? 'Available' : 'Booked'})
+                  </div>
+                )) : (
+                  <p>No availability data</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Instructions */}
       <Card className="mt-6">
         <CardHeader>
@@ -305,6 +381,66 @@ export default function BookAppointmentPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+              <span>Booking Confirmed</span>
+            </DialogTitle>
+            <DialogDescription>
+              {modalMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Appointment Details:</p>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p><strong>Date:</strong> {selectedDate}</p>
+                  <p><strong>Time:</strong> {selectedTime}</p>
+                  <p><strong>Guruji:</strong> {gurujis.find(g => g.id === selectedGuruji)?.name}</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You will be redirected to your appointments page where you can view and manage this appointment.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSuccessModalClose} className="w-full">
+              View My Appointments
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Modal */}
+      <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <XCircle className="h-6 w-6 text-red-600" />
+              <span>Booking Failed</span>
+            </DialogTitle>
+            <DialogDescription>
+              {modalMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg">
+            <p className="text-sm text-red-700 dark:text-red-300">
+              Please check your selection and try again. If the problem persists, contact support.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleErrorModalClose} variant="outline" className="w-full">
+              Try Again
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

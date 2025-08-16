@@ -7,7 +7,6 @@ import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import { AppointmentStatus } from '@prisma/client';
-import QRCode from 'qrcode';
 
 
 const appointmentSchema = z.object({
@@ -248,15 +247,8 @@ export async function bookAppointment(formData: FormData) {
       throw new Error('This time slot is not available. Please choose a different time.');
     }
 
-    // Generate unique appointment ID and QR code
+    // Generate unique appointment ID (no individual QR code needed)
     const appointmentId = crypto.randomUUID();
-    const qrData = {
-      appointmentId,
-      userId: session.user.id,
-      type: 'checkin',
-      timestamp: Date.now(),
-    };
-    const qrCodeString = await QRCode.toDataURL(JSON.stringify(qrData));
 
     // Create the appointment
     const appointment = await prisma.appointment.create({
@@ -271,7 +263,7 @@ export async function bookAppointment(formData: FormData) {
         priority: data.priority,
         isRecurring: data.isRecurring,
         recurringPattern: data.recurringPattern ? JSON.stringify(data.recurringPattern) : undefined,
-        qrCode: qrCodeString,
+        // No individual QR code - users will scan location QR code
         status: 'BOOKED',
       },
       include: {

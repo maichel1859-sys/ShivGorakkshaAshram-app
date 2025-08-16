@@ -14,12 +14,8 @@ export { sendEmail } from './external/email';
 export { sendSMS, generateOTP } from './external/sms';
 export * from './external/rate-limit';
 
-// Repositories
-export * from './repositories';
-
 // Services
-export * from './services/base.service';
-export * from './services/user.service';
+export * from './services/queue.service';
 
 // Validation
 export * from './validation/unified-schemas';
@@ -28,8 +24,7 @@ export * from './validation/unified-schemas';
 export { cn } from './utils/helpers';
 export * from './utils/colors';
 
-// Communication
-export * from './communication/socket-manager';
+// Communication - Socket functionality removed, using polling instead
 
 // Error Handling
 export { 

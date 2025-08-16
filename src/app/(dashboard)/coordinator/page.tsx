@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button"; // Temporarily unused
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,7 +10,7 @@ import {
   Users,
   CheckCircle,
   AlertTriangle,
-  Phone,
+  // Phone, // Temporarily unused
   Activity,
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
@@ -174,7 +174,7 @@ export default function CoordinatorDashboard() {
           <div className="space-y-4">
             {stats?.upcomingAppointments
               ?.slice(0, 5)
-              .map((appointment, index) => (
+              .map((appointment) => (
                 <div
                   key={appointment.id}
                   className="flex items-center justify-between p-3 border rounded-lg"

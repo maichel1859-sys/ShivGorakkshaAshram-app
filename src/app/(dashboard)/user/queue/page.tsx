@@ -1,290 +1,270 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Clock, Users, CheckCircle, AlertCircle } from 'lucide-react';
-import { getQueueStatus, joinQueue, leaveQueue } from '@/lib/actions/queue-actions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Clock, Users, CheckCircle, AlertCircle, QrCode } from 'lucide-react';
+import Link from 'next/link';
+import { getUserQueueStatusSimple } from '@/lib/actions/qr-scan-actions-simple';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/core/auth';
+import { redirect } from 'next/navigation';
 
-interface QueueStatus {
-  waiting: number;
-  inProgress: number;
-  completedToday: number;
-  totalToday: number;
-  estimatedWaitTime: number;
-  currentQueue: Array<{
-    id: string;
-    user: {
-      id: string;
-      name: string;
-      phone: string;
-    };
-    reason: string;
-    status: string;
-    createdAt: string;
-  }>;
-}
+export const metadata: Metadata = {
+  title: 'My Queue Status',
+  description: 'Check your current position in the queue',
+  keywords: ['queue', 'wait time', 'appointment', 'shivgoraksha ashram'],
+  openGraph: {
+    title: 'My Queue Status',
+    description: 'Check your current position in the queue',
+    type: 'website',
+  },
+};
 
-export default function UserQueuePage() {
-  const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-
-
-  useEffect(() => {
-    loadQueueStatus();
-    const interval = setInterval(loadQueueStatus, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadQueueStatus = async () => {
-    try {
-      const result = await getQueueStatus();
-      if (result.success && result.queueStatus) {
-        const formattedQueueStatus = {
-          ...result.queueStatus,
-          currentQueue: result.queueStatus.currentQueue.map(entry => ({
-            id: entry.id,
-            user: {
-              id: entry.user.id,
-              name: entry.user.name || 'Unknown',
-              phone: entry.user.phone || '',
-            },
-            reason: entry.notes || 'General consultation',
-            status: entry.status,
-            createdAt: entry.createdAt.toISOString(),
-          })),
-        };
-        setQueueStatus(formattedQueueStatus);
-      }
-    } catch (error) {
-      console.error('Failed to load queue status:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJoinQueue = async () => {
-    setJoining(true);
-    try {
-      const formData = new FormData();
-      formData.append('gurujiId', 'default-guruji-id'); // You'll need to get this from context or props
-      formData.append('reason', 'General consultation');
-      
-      const result = await joinQueue(formData);
-      if (result.success) {
-        await loadQueueStatus();
-      } else {
-        console.error('Failed to join queue:', result.error);
-      }
-    } catch (error) {
-      console.error('Error joining queue:', error);
-    } finally {
-      setJoining(false);
-    }
-  };
-
-  const handleLeaveQueue = async (queueEntryId: string) => {
-    setLeaving(true);
-    try {
-      const formData = new FormData();
-      formData.append('queueEntryId', queueEntryId);
-      
-      const result = await leaveQueue(formData);
-      if (result.success) {
-        await loadQueueStatus();
-      } else {
-        console.error('Failed to leave queue:', result.error);
-      }
-    } catch (error) {
-      console.error('Error leaving queue:', error);
-    } finally {
-      setLeaving(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+async function QueueStatusContent() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    redirect('/auth/signin');
   }
 
+  const queueResult = await getUserQueueStatusSimple();
+  const queueEntry = queueResult.success ? queueResult.data : null;
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Queue Status</h1>
-        <p className="text-muted-foreground">
-          Check your position and estimated wait time
-        </p>
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">My Queue Status</h1>
+          <p className="text-muted-foreground mt-2">
+            Check your current position and estimated wait time
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/user/qr-scanner">
+              <QrCode className="h-4 w-4 mr-2" />
+              QR Scanner
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/user/appointments">
+              <Clock className="h-4 w-4 mr-2" />
+              My Appointments
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {queueStatus && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Waiting</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+      {/* Queue Status */}
+      {queueEntry ? (
+        <div className="space-y-6">
+          {/* Current Position */}
+          <Card className="border-green-200 bg-green-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-800">
+                <CheckCircle className="h-5 w-5" />
+                You&apos;re in the Queue!
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{queueStatus.waiting}</div>
-              <p className="text-xs text-muted-foreground">
-                People in queue
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estimated Wait</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {queueStatus.estimatedWaitTime} min
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-white rounded-lg">
+                  <div className="text-3xl font-bold text-green-600 mb-1">
+                    #{queueEntry.position}
+                  </div>
+                  <div className="text-sm text-green-700">Current Position</div>
+                </div>
+                
+                <div className="text-center p-4 bg-white rounded-lg">
+                  <div className="text-3xl font-bold text-blue-600 mb-1">
+                    {queueEntry.estimatedWait || 0}
+                  </div>
+                  <div className="text-sm text-blue-700">Minutes Wait</div>
+                </div>
+                
+                <div className="text-center p-4 bg-white rounded-lg">
+                  <div className="text-3xl font-bold text-purple-600 mb-1">
+                    {queueEntry.guruji?.name || 'Guruji'}
+                  </div>
+                  <div className="text-sm text-purple-700">Your Guruji</div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Average wait time
-              </p>
+
+              <div className="bg-white p-4 rounded-lg">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Checked in at:</span>
+                  <span className="font-medium">
+                    {new Date(queueEntry.checkedInAt).toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-2">
+                  <span className="text-muted-foreground">Status:</span>
+                  <Badge variant={queueEntry.status === 'WAITING' ? 'secondary' : 'default'}>
+                    {queueEntry.status}
+                  </Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
+          {/* Wait Time Information */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Wait Time Information
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{queueStatus.completedToday}</div>
-              <p className="text-xs text-muted-foreground">
-                Consultations completed
-              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Estimated wait time: <strong>{queueEntry.estimatedWait || 0} minutes</strong></span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm">Queue position: <strong>#{queueEntry.position}</strong></span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span className="text-sm">Average consultation time: <strong>30 minutes</strong></span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* What to Expect */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">What to Expect</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-medium">Wait for your turn</p>
+                    <p className="text-muted-foreground">Please remain in the waiting area until called</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-medium">You&apos;ll be called by name</p>
+                    <p className="text-muted-foreground">The receptionist will announce when it&apos;s your turn</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
+                    3
+                  </div>
+                  <div>
+                    <p className="font-medium">Consultation begins</p>
+                    <p className="text-muted-foreground">Your appointment will start when called</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Not in Queue */}
+          <Alert className="border-blue-200 bg-blue-50">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              You are not currently in the queue. To join the queue, you need to:
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Join the Queue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                    <div className="text-sm text-yellow-800">
+                      <p className="font-medium mb-1">Requirements to join queue:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>You must have an appointment for today</li>
+                        <li>You must be physically present at the location</li>
+                        <li>You must scan the QR code within the time window</li>
+                        <li>Time window: 20 minutes before to 15 minutes after appointment</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  <Button asChild className="w-full">
+                    <Link href="/user/qr-scanner">
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Scan QR Code to Join Queue
+                    </Link>
+                  </Button>
+                  
+                  <Button variant="outline" asChild className="w-full">
+                    <Link href="/user/appointments">
+                      <Clock className="h-4 w-4 mr-2" />
+                      Check My Appointments
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Users className="h-5 w-5" />
-              <span>Current Queue</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {queueStatus?.currentQueue && queueStatus.currentQueue.length > 0 ? (
-              <div className="space-y-3">
-                {queueStatus.currentQueue.map((entry, index) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium">{index + 1}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{entry.user.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {entry.reason}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge
-                        variant={
-                          entry.status === 'IN_PROGRESS' ? 'default' : 'secondary'
-                        }
-                      >
-                        {entry.status}
-                      </Badge>
-                      {entry.user.id === 'current-user-id' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleLeaveQueue(entry.id)}
-                          disabled={leaving}
-                        >
-                          Leave
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No one in queue</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5" />
-              <span>Queue Actions</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="font-medium">Join Queue</h4>
-              <p className="text-sm text-muted-foreground">
-                Join the queue to see a guruji. You&apos;ll be notified when it&apos;s your turn.
-              </p>
-              <Button
-                onClick={handleJoinQueue}
-                disabled={joining}
-                className="w-full"
-              >
-                {joining ? 'Joining...' : 'Join Queue'}
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-medium">Estimated Wait Time</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Current wait</span>
-                  <span className="font-medium">
-                    {queueStatus?.estimatedWaitTime || 0} minutes
-                  </span>
-                </div>
-                <Progress
-                  value={Math.min((queueStatus?.estimatedWaitTime || 0) / 60 * 100, 100)}
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Based on average consultation time of 15 minutes
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-medium">Tips</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Stay nearby - you&apos;ll be called when ready</li>
-                <li>• You can leave the queue anytime</li>
-                <li>• Check back regularly for updates</li>
-              </ul>
+      {/* Auto-refresh notice */}
+      {queueEntry && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-blue-800">
+              <Clock className="h-4 w-4" />
+              <span>This page will automatically refresh to show updated queue status</span>
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
+  );
+}
+
+export default function QueuePage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">My Queue Status</h1>
+            <p className="text-muted-foreground mt-2">Loading...</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground animate-pulse" />
+            <p className="text-sm text-muted-foreground">Loading queue status...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <QueueStatusContent />
+    </Suspense>
   );
 }

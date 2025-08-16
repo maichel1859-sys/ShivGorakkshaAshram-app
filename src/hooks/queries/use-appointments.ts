@@ -16,7 +16,9 @@ export function useAppointmentAvailability(date: string) {
   return useQuery({
     queryKey: appointmentKeys.availability(date),
     queryFn: async () => {
+      console.log('useAppointmentAvailability called with date:', date);
       const result = await getAppointmentAvailability({ date });
+      console.log('useAppointmentAvailability result:', result);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch availability');
       }

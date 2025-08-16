@@ -236,12 +236,7 @@ export class SystemSetupChecker {
         critical: false,
         message: 'Service worker for PWA functionality',
       },
-      {
-        name: 'WebSocket',
-        check: () => !!window.WebSocket,
-        critical: true,
-        message: 'WebSocket for real-time updates',
-      },
+
       {
         name: 'Push Notifications',
         check: () => !!window.Notification,
@@ -293,9 +288,7 @@ export class SystemSetupChecker {
       if (check.name.includes('Local Storage')) {
         instructions.push('5. Use a modern browser that supports localStorage');
       }
-      if (check.name.includes('WebSocket')) {
-        instructions.push('6. Use a modern browser that supports WebSocket');
-      }
+      
     }
 
     const warningChecks = this.checks.filter(check => check.status === 'warning');

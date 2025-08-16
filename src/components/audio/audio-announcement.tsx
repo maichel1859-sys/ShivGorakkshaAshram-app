@@ -4,9 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Volume2, VolumeX, Play, Pause } from "lucide-react";
-import { useSocket } from "@/hooks/use-socket";
 import { useSession } from "next-auth/react";
-import { QueueData } from "@/types/socket";
+import { usePollingNotifications } from "@/hooks/use-polling-notifications";
 
 interface AudioAnnouncementProps {
   className?: string;
@@ -32,7 +31,7 @@ export function AudioAnnouncement({ className = "" }: AudioAnnouncementProps) {
   const queueRef = useRef<AnnouncementMessage[]>([]);
 
   const { data: session } = useSession();
-  const { socket } = useSocket();
+  const { isPolling, currentInterval } = usePollingNotifications();
 
   useEffect(() => {
     // Initialize Web Audio API for sound effects
@@ -140,87 +139,14 @@ export function AudioAnnouncement({ className = "" }: AudioAnnouncementProps) {
     [isSpeaking, processQueue]
   );
 
+  // Note: Audio announcements are now handled by the polling system
+  // The usePollingNotifications hook will trigger notifications that can be converted to audio
   useEffect(() => {
-    if (!socket || !isEnabled) return;
+    if (!isEnabled) return;
 
-    // Listen for announcement events
-    const handleAnnouncement = (data: { message: string; type?: string }) => {
-      const announcement: AnnouncementMessage = {
-        id: `announcement-${Date.now()}`,
-        message: data.message,
-        type: (data.type as "queue" | "general" | "urgent") || "general",
-        priority: data.type === "urgent" ? 3 : data.type === "queue" ? 2 : 1,
-        timestamp: new Date(),
-      };
-
-      addToQueue(announcement);
-    };
-
-    // Listen for queue-specific announcements
-    const handleQueueUpdate = (data: {
-      gurujiId: string;
-      queueData: QueueData[];
-    }) => {
-      if (
-        session?.user?.role === "USER" &&
-        Array.isArray(data.queueData) &&
-        data.queueData.length > 0
-      ) {
-        const userEntry = data.queueData.find(
-          (entry) => entry.userId === session?.user?.id
-        );
-        if (userEntry) {
-          const announcement: AnnouncementMessage = {
-            id: `queue-${Date.now()}`,
-            message: `Your queue position has been updated. You are now number ${userEntry.position} in line.`,
-            type: "queue",
-            priority: 2,
-            timestamp: new Date(),
-          };
-
-          addToQueue(announcement);
-        }
-      }
-    };
-
-    const handleConsultationReady = () => {
-      const announcement: AnnouncementMessage = {
-        id: `consultation-ready-${Date.now()}`,
-        message:
-          "Your turn! Please proceed to the consultation room immediately.",
-        type: "urgent",
-        priority: 3,
-        timestamp: new Date(),
-      };
-
-      addToQueue(announcement);
-    };
-
-    const handleNextInLine = () => {
-      const announcement: AnnouncementMessage = {
-        id: `next-in-line-${Date.now()}`,
-        message:
-          "You are next in line. Please get ready for your consultation.",
-        type: "queue",
-        priority: 2,
-        timestamp: new Date(),
-      };
-
-      addToQueue(announcement);
-    };
-
-    socket.on("system:announcement", handleAnnouncement);
-    socket.on("queue:updated", handleQueueUpdate);
-    socket.on("consultation:ready", handleConsultationReady);
-    socket.on("queue:position-changed", handleNextInLine);
-
-    return () => {
-      socket.off("system:announcement", handleAnnouncement);
-      socket.off("queue:updated", handleQueueUpdate);
-      socket.off("consultation:ready", handleConsultationReady);
-      socket.off("queue:position-changed", handleNextInLine);
-    };
-  }, [socket, isEnabled, session, addToQueue]);
+    // This effect is now minimal since polling handles the updates
+    // Audio announcements will be triggered by notification store updates
+  }, [isEnabled]);
 
   const toggleEnabled = () => {
     setIsEnabled(!isEnabled);
