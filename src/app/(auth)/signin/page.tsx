@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { useAuthToast } from "@/hooks/use-auth-toast";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -20,9 +19,8 @@ const signinSchema = z.object({
 type SigninFormData = z.infer<typeof signinSchema>;
 
 export default function SignInPage() {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
+  const { isLoading, signInWithToast, signInWithGoogle } = useAuthToast();
 
   const {
     register,
@@ -33,57 +31,15 @@ export default function SignInPage() {
   });
 
   const onSubmit = async (data: SigninFormData) => {
-    setIsLoading(true);
-
-    try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-        callbackUrl: "/",
-      });
-
-      if (result?.error) {
-        toast.error("Invalid credentials. Please try again.");
-        return;
-      }
-
-      if (result?.ok) {
-        toast.success("Signed in successfully!");
-
-        // Get updated session to check user role
-        const session = await getSession();
-
-        if (session?.user) {
-          // Redirect based on user role
-          switch (session.user.role) {
-            case "ADMIN":
-              router.push("/admin");
-              break;
-            case "COORDINATOR":
-              router.push("/coordinator");
-              break;
-            case "GURUJI":
-              router.push("/guruji");
-              break;
-            default:
-              router.push("/user");
-          }
-        } else {
-          // Fallback redirect
-          router.push("/");
-        }
-      }
-    } catch (error) {
-      toast.error("An error occurred during sign in");
-      console.error("Sign in error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await signInWithToast({
+      email: data.email,
+      password: data.password,
+    });
   };
 
   return (
     <div className="space-y-6">
+      <LoadingOverlay loadingKey="authLoading" />
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Sign in to your account
@@ -158,7 +114,7 @@ export default function SignInPage() {
         variant="outline"
         type="button"
         className="w-full"
-        onClick={() => signIn("google", { callbackUrl: "/" })}
+        onClick={signInWithGoogle}
         disabled={isLoading}
       >
         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">

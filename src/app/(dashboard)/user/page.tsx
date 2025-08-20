@@ -23,6 +23,23 @@ import { useUserDashboard, useNotifications } from "@/hooks/queries";
 import { useLoadingStore } from "@/lib/stores/loading-store";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
+interface Appointment {
+  id: string;
+  date: Date;
+  guruji: {
+    id: string;
+    name: string | null;
+  } | null;
+  status: string;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  createdAt: string;
+}
+
 export default function UserDashboard() {
   const { data: session } = useSession();
   const { data: dashboardData, isLoading, error } = useUserDashboard();
@@ -159,7 +176,7 @@ export default function UserDashboard() {
           <CardContent>
             {recentAppointments.length > 0 ? (
               <div className="space-y-3">
-                {recentAppointments.map((appointment) => (
+                {recentAppointments.map((appointment: Appointment) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-3 border rounded-lg"
@@ -195,7 +212,7 @@ export default function UserDashboard() {
             {notificationsData?.notifications &&
             notificationsData.notifications.length > 0 ? (
               <div className="space-y-3">
-                {notificationsData.notifications.map((n) => (
+                {notificationsData.notifications.map((n: Notification) => (
                   <div
                     key={n.id}
                     className="flex items-center justify-between p-3 border rounded-lg"

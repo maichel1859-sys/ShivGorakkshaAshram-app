@@ -758,21 +758,4 @@ export async function updateSystemSettings(formData: FormData) {
   }
 } 
 
-export async function getApiDocs() {
-  try {
-    // Import the swagger spec dynamically
-    const swaggerModule = await import('@/lib/swagger');
-    const swaggerSpec = swaggerModule.default;
-    
-    return {
-      success: true,
-      spec: swaggerSpec
-    };
-  } catch (error) {
-    console.error('Error loading API docs:', error);
-    return {
-      success: false,
-      error: 'Failed to load API documentation'
-    };
-  }
-} 
+ 

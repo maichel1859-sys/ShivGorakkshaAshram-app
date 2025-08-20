@@ -59,5 +59,4 @@ export * from './i18n';
 export * from './metadata';
 export * from './pwa';
 
-// Swagger (API Documentation)
-export * from './swagger'; 
+ 

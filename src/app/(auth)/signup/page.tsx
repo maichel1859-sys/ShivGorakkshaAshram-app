@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
-import { registerUser } from "@/lib/actions/auth-actions";
+import { useAuthToast } from "@/hooks/use-auth-toast";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 const signupSchema = z
   .object({
@@ -29,10 +27,9 @@ const signupSchema = z
 type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function SignUpPage() {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const router = useRouter();
+  const { isLoading, signUpWithToast, signInWithGoogle } = useAuthToast();
 
   const {
     register,
@@ -43,38 +40,17 @@ export default function SignUpPage() {
   });
 
   const onSubmit = async (data: SignupFormData) => {
-    setIsLoading(true);
-
-    try {
-      // Convert form data to FormData for Server Action
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("email", data.email);
-      formData.append("phone", data.phone || "");
-      formData.append("password", data.password);
-
-      const result = await registerUser(formData);
-
-      if (result.success) {
-        toast.success("Account created successfully! Please sign in.");
-        router.push("/signin");
-      } else {
-        throw new Error(result.error || "Registration failed");
-      }
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An error occurred during registration";
-      toast.error(errorMessage);
-      console.error("Registration error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await signUpWithToast({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      password: data.password,
+    });
   };
 
   return (
     <div className="space-y-6">
+      <LoadingOverlay loadingKey="authLoading" />
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Create your account
@@ -204,13 +180,13 @@ export default function SignUpPage() {
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        type="button"
-        className="w-full"
-        onClick={() => signIn("google", { callbackUrl: "/" })}
-        disabled={isLoading}
-      >
+             <Button
+         variant="outline"
+         type="button"
+         className="w-full"
+         onClick={signInWithGoogle}
+         disabled={isLoading}
+       >
         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
           <path
             fill="currentColor"

@@ -14,11 +14,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
 import { useState } from "react";
 import { NotificationCenter } from "@/components/notifications/notification-center";
+import { useAuthToast } from "@/hooks/use-auth-toast";
 import { useNotifications } from "@/hooks/queries";
 
 interface HeaderProps {
@@ -29,6 +30,7 @@ export function Header({ title }: HeaderProps) {
   const { data: session, status } = useSession();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { data: notificationData } = useNotifications({ limit: 5 });
+  const { signOutWithToast } = useAuthToast();
 
   const unreadCount = notificationData?.unreadCount || 0;
 
@@ -154,7 +156,7 @@ export function Header({ title }: HeaderProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-red-600 focus:text-red-600"
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={signOutWithToast}
                   >
                     <span>Sign out</span>
                   </DropdownMenuItem>

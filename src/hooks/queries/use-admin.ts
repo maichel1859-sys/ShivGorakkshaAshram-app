@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAdminQueueEntries } from '@/lib/actions/queue-actions';
 import { getAdminConsultations } from '@/lib/actions/consultation-actions';
-import { getSystemStatus, getSystemSettings, updateSystemSettings, getUsageReports, exportUsageReport, getApiDocs } from '@/lib/actions/dashboard-actions';
+import { getSystemStatus, getSystemSettings, updateSystemSettings, getUsageReports, exportUsageReport } from '@/lib/actions/dashboard-actions';
 import { toast } from 'sonner';
 
 // Query keys
@@ -13,7 +13,6 @@ export const adminKeys = {
   settings: () => [...adminKeys.all, 'settings'] as const,
   reports: () => [...adminKeys.all, 'reports'] as const,
   usage: (params?: { dateFrom?: string; dateTo?: string; type?: string }) => [...adminKeys.reports(), 'usage', params] as const,
-  apiDocs: () => [...adminKeys.all, 'apiDocs'] as const,
 };
 
 // Hook for fetching admin queue data
@@ -141,16 +140,4 @@ export function useExportUsageReport() {
   });
 } 
 
-export const useApiDocs = () => {
-  return useQuery({
-    queryKey: adminKeys.apiDocs(),
-    queryFn: async () => {
-      const result = await getApiDocs();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch API documentation');
-      }
-      return result.spec;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}; 
+ 

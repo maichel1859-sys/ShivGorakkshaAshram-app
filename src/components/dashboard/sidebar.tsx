@@ -1,9 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils/helpers";
+import { useAuthToast } from "@/hooks/use-auth-toast";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -94,12 +95,7 @@ const navItems: NavItem[] = [
     icon: Shield,
     roles: ["ADMIN"],
   },
-  {
-    title: "API Docs",
-    href: "/admin/api-docs",
-    icon: FileText,
-    roles: ["ADMIN"],
-  },
+
   {
     title: "QR Codes",
     href: "/admin/qr-codes",
@@ -234,9 +230,10 @@ const navItems: NavItem[] = [
 export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const { signOutWithToast } = useAuthToast();
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: "/" });
+    signOutWithToast();
   };
 
   if (!session?.user) {

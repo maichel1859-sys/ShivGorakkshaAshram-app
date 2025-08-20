@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,20 @@ interface QueueEntry {
   status: string;
   createdAt: string;
   estimatedWait?: number;
+  priority?: string;
+}
+
+interface QueueEntryData {
+  id: string;
+  user: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    email?: string;
+  };
+  status: string;
+  notes: string | null;
+  createdAt: Date;
   priority?: string;
 }
 
@@ -49,11 +63,11 @@ export default function GurujiQueuePage() {
       const result = await getGurujiQueueEntries();
       
       if (result.success && result.queueEntries) {
-        const waiting = result.queueEntries.filter(entry => entry.status === 'WAITING').length;
-        const inProgress = result.queueEntries.filter(entry => entry.status === 'IN_PROGRESS').length;
+        const waiting = result.queueEntries.filter((entry: QueueEntryData) => entry.status === 'WAITING').length;
+        const inProgress = result.queueEntries.filter((entry: QueueEntryData) => entry.status === 'IN_PROGRESS').length;
         
         // Calculate estimated wait times
-        const queueWithWaitTimes = result.queueEntries.map((entry, index) => ({
+        const queueWithWaitTimes = result.queueEntries.map((entry: QueueEntryData, index: number) => ({
           ...entry,
           estimatedWait: (index + 1) * 15, // 15 minutes per position
         }));
@@ -64,7 +78,7 @@ export default function GurujiQueuePage() {
           completedToday: Math.floor(Math.random() * 20) + 10, // Mock completed count
           totalToday: Math.floor(Math.random() * 30) + 20, // Mock total count
           averageWaitTime: 25, // Mock average wait time
-          currentQueue: queueWithWaitTimes.map(entry => ({
+          currentQueue: queueWithWaitTimes.map((entry: QueueEntryData & { estimatedWait: number }) => ({
             id: entry.id,
             user: {
               id: entry.user.id,
@@ -93,7 +107,7 @@ export default function GurujiQueuePage() {
   };
 
   // Use adaptive polling instead of fixed interval
-  const { isPolling, currentInterval } = useAdaptivePolling({
+  const { } = useAdaptivePolling({
     enabled: true,
     interval: 15000, // Default 15 seconds
     onPoll: loadQueueStatus,
@@ -145,7 +159,7 @@ export default function GurujiQueuePage() {
   };
 
   const handleCallNext = () => {
-    const nextWaiting = queueStatus?.currentQueue.find(entry => entry.status === 'WAITING');
+    const nextWaiting = queueStatus?.currentQueue.find((entry: QueueEntry) => entry.status === 'WAITING');
     if (nextWaiting) {
       handleStartConsultation(nextWaiting);
     }
@@ -213,7 +227,7 @@ export default function GurujiQueuePage() {
             <Clock className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button onClick={handleCallNext} disabled={!queueStatus.currentQueue.some(entry => entry.status === 'WAITING')}>
+          <Button onClick={handleCallNext} disabled={!queueStatus.currentQueue.some((entry: QueueEntry) => entry.status === 'WAITING')}>
             <Users className="h-4 w-4 mr-2" />
             Call Next
           </Button>
@@ -299,7 +313,7 @@ export default function GurujiQueuePage() {
         </div>
         
         <div className="grid gap-4">
-          {queueStatus.currentQueue.map((entry, index) => (
+          {queueStatus.currentQueue.map((entry: QueueEntry, index: number) => (
             <Card key={entry.id} className={`hover:shadow-md transition-shadow ${
               entry.status === 'IN_PROGRESS' ? 'ring-2 ring-primary' : ''
             }`}>
