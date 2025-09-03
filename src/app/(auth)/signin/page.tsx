@@ -39,7 +39,7 @@ export default function SignInPage() {
 
   return (
     <div className="space-y-6">
-      <FullScreenSpinner message="Signing you in..." />
+      {isLoading && <FullScreenSpinner message="Signing you in..." />}
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Sign in to your account

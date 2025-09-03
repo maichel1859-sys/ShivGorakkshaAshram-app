@@ -50,7 +50,7 @@ export default function SignUpPage() {
 
   return (
     <div className="space-y-6">
-      <FullScreenSpinner message="Creating your account..." />
+      {isLoading && <FullScreenSpinner message="Creating your account..." />}
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Create your account
