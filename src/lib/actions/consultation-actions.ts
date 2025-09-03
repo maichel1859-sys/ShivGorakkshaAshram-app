@@ -606,6 +606,21 @@ export async function getGurujiConsultations() {
             reason: true,
           },
         },
+        remedies: {
+          include: {
+            template: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                category: true,
+                instructions: true,
+                dosage: true,
+                duration: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [
         { startTime: 'desc' },

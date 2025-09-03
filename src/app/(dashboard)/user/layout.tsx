@@ -13,13 +13,11 @@ export const metadata: Metadata = {
 interface UserLayoutProps {
   children: React.ReactNode;
   modal: React.ReactNode;
-  notifications: React.ReactNode;
 }
 
 export default async function UserLayout({
   children,
   modal,
-  notifications,
 }: UserLayoutProps) {
   const session = await getServerSession(authOptions);
 
@@ -37,9 +35,8 @@ export default async function UserLayout({
         {children}
       </Suspense>
 
-      {/* Parallel routes */}
+      {/* Parallel routes - only essential ones */}
       {modal && <Suspense fallback={null}>{modal}</Suspense>}
-      <Suspense fallback={null}>{notifications}</Suspense>
     </DashboardLayout>
   );
 }

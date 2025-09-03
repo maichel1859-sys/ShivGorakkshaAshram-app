@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSpinner, PageSpinner, ButtonSpinner } from "@/components/ui/global-spinner";
@@ -112,46 +111,38 @@ export default function PrescribeRemedyPage({
   }, [params]);
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <CardSpinner message="Loading..." />
-      </DashboardLayout>
-    );
+    return <CardSpinner message="Loading..." />;
   }
 
   if (error) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold text-red-600">
-              Error loading data
-            </h3>
-            <p className="text-sm text-muted-foreground mt-2">
-              {error instanceof Error ? error.message : "An error occurred"}
-            </p>
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold text-red-600">
+            Error loading data
+          </h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   if (!template) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold text-red-600">
-              Template not found
-            </h3>
-            <p className="text-sm text-muted-foreground mt-2">
-              The remedy template you&apos;re looking for doesn&apos;t exist.
-            </p>
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold text-red-600">
+            Template not found
+          </h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            The remedy template you&apos;re looking for doesn&apos;t exist.
+          </p>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
@@ -200,13 +191,7 @@ export default function PrescribeRemedyPage({
     });
   };
 
-  if (isLoading || !template) {
-    return (
-      <DashboardLayout title="Prescribe Remedy" allowedRoles={["GURUJI"]}>
-        <PageSpinner message="Loading..." />
-      </DashboardLayout>
-    );
-  }
+
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -226,8 +211,7 @@ export default function PrescribeRemedyPage({
   };
 
   return (
-    <DashboardLayout title="Prescribe Remedy" allowedRoles={["GURUJI"]}>
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-4">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
@@ -547,6 +531,5 @@ export default function PrescribeRemedyPage({
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

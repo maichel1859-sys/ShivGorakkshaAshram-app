@@ -27,13 +27,23 @@ import {
   Pill,
   MessageSquare,
   Phone,
+  Mail,
 } from "lucide-react";
 import { useGurujiConsultations } from "@/hooks/queries/use-guruji";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
+import { RemedyDetailsModal } from "@/components/guruji/remedy-details-modal";
+import { ContactHistoryModal } from "@/components/guruji/contact-history-modal";
 import { getGurujiQueueEntries, startConsultation, updateQueueStatus } from "@/lib/actions/queue-actions";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/ui/global-spinner";
 import React from "react";
+
+interface Patient {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
 
 interface ConsultationSession {
   id: string;
@@ -49,18 +59,28 @@ interface ConsultationSession {
   recordings?: unknown;
   createdAt: Date;
   updatedAt: Date;
-  patient: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    phone: string | null;
-  };
+  patient: Patient;
   appointment: {
     id: string;
     date: string;
     startTime: string;
     reason: string | null;
   };
+  remedies?: Array<{
+    id: string;
+    template: {
+      id: string;
+      name: string;
+      type: string;
+      category: string;
+      instructions: string;
+      dosage?: string | null;
+      duration?: string | null;
+    };
+    customInstructions?: string | null;
+    customDosage?: string | null;
+    customDuration?: string | null;
+  }>;
 }
 
 interface QueueEntry {
@@ -99,8 +119,15 @@ export default function GurujiConsultationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
+  const [remedyDetailsModalOpen, setRemedyDetailsModalOpen] = useState(false);
+  const [contactHistoryModalOpen, setContactHistoryModalOpen] = useState(false);
 
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
+  const [selectedRemedy, setSelectedRemedy] = useState<{
+    remedy: any;
+    consultation: ConsultationSession;
+  } | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -300,15 +327,15 @@ export default function GurujiConsultationsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Consultations</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Consultations</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Manage patient consultations and prescribe remedies
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadQueueEntries}>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={loadQueueEntries} className="flex-1 sm:flex-none">
             <Clock className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -322,7 +349,7 @@ export default function GurujiConsultationsPage() {
           <CardDescription>Search and filter consultations</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -335,7 +362,7 @@ export default function GurujiConsultationsPage() {
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -406,6 +433,20 @@ export default function GurujiConsultationsPage() {
                             </span>
                           )}
                         </div>
+                        {/* Enhanced contact display */}
+                        <div className="mt-2 p-2 bg-blue-50 rounded border-l-4 border-blue-200">
+                          <div className="text-xs font-medium text-blue-800 mb-1">Contact Information</div>
+                          <div className="text-xs text-blue-700">
+                            {entry.user.phone ? (
+                              <span className="flex items-center">
+                                <Phone className="mr-1 h-3 w-3" />
+                                {entry.user.phone}
+                              </span>
+                            ) : (
+                              <span className="text-red-600">No phone number available</span>
+                            )}
+                          </div>
+                        </div>
                         {entry.notes && (
                           <p className="text-sm text-muted-foreground mt-1">
                             <strong>Reason:</strong> {entry.notes}
@@ -413,14 +454,26 @@ export default function GurujiConsultationsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          if (entry.user.phone) {
+                            window.open(`tel:${entry.user.phone}`, '_blank');
+                          } else {
+                            toast.info('No phone number available');
+                          }
+                        }}
+                        className="flex-1 sm:flex-none"
+                      >
                         <MessageSquare className="h-3 w-3 mr-1" />
                         Contact
                       </Button>
                       <Button 
                         size="sm" 
                         onClick={() => handleStartConsultation(entry)}
+                        className="flex-1 sm:flex-none"
                       >
                         Start Consultation
                       </Button>
@@ -480,6 +533,20 @@ export default function GurujiConsultationsPage() {
                             Started: {new Date(entry.checkedInAt).toLocaleTimeString()}
                           </span>
                         </div>
+                        {/* Enhanced contact display */}
+                        <div className="mt-2 p-2 bg-green-50 rounded border-l-4 border-green-200">
+                          <div className="text-xs font-medium text-green-800 mb-1">Contact Information</div>
+                          <div className="text-xs text-green-700">
+                            {entry.user.phone ? (
+                              <span className="flex items-center">
+                                <Phone className="mr-1 h-3 w-3" />
+                                {entry.user.phone}
+                              </span>
+                            ) : (
+                              <span className="text-red-600">No phone number available</span>
+                            )}
+                          </div>
+                        </div>
                         {entry.notes && (
                           <p className="text-sm text-muted-foreground mt-1">
                             <strong>Reason:</strong> {entry.notes}
@@ -487,11 +554,27 @@ export default function GurujiConsultationsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          if (entry.user.phone) {
+                            window.open(`tel:${entry.user.phone}`, '_blank');
+                          } else {
+                            toast.info('No phone number available');
+                          }
+                        }}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <MessageSquare className="h-3 w-3 mr-1" />
+                        Contact
+                      </Button>
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => handlePrescribeRemedy(entry)}
+                        className="flex-1 sm:flex-none"
                       >
                         <Pill className="h-3 w-3 mr-1" />
                         Prescribe Remedy
@@ -500,6 +583,7 @@ export default function GurujiConsultationsPage() {
                         size="sm" 
                         variant="secondary"
                         onClick={() => handleCompleteConsultation(entry)}
+                        className="flex-1 sm:flex-none"
                       >
                         Complete Consultation
                       </Button>
@@ -549,6 +633,12 @@ export default function GurujiConsultationsPage() {
                         <div className="flex items-center space-x-2">
                           <h3 className="font-semibold">{consultation.patient.name || 'Unknown User'}</h3>
                           <Badge className="bg-green-100 text-green-800">COMPLETED</Badge>
+                          {consultation.remedies && consultation.remedies.length > 0 && (
+                            <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                              <Pill className="h-3 w-3" />
+                              {consultation.remedies.length} Remedy{consultation.remedies.length > 1 ? 'ies' : ''}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <span className="flex items-center">
@@ -566,6 +656,27 @@ export default function GurujiConsultationsPage() {
                             </span>
                           )}
                         </div>
+                        {/* Enhanced contact display */}
+                        <div className="mt-2 p-2 bg-gray-50 rounded border-l-4 border-gray-200">
+                          <div className="text-xs font-medium text-gray-800 mb-1">Contact Information</div>
+                          <div className="text-xs text-gray-700 space-y-1">
+                            {consultation.patient.phone && (
+                              <span className="flex items-center">
+                                <Phone className="mr-1 h-3 w-3" />
+                                {consultation.patient.phone}
+                              </span>
+                            )}
+                            {consultation.patient.email && (
+                              <span className="flex items-center">
+                                <Mail className="mr-1 h-3 w-3" />
+                                {consultation.patient.email}
+                              </span>
+                            )}
+                            {!consultation.patient.phone && !consultation.patient.email && (
+                              <span className="text-red-600">No contact information available</span>
+                            )}
+                          </div>
+                        </div>
                         {consultation.diagnosis && (
                           <p className="text-sm text-muted-foreground mt-1">
                             <strong>Diagnosis:</strong> {consultation.diagnosis}
@@ -573,12 +684,33 @@ export default function GurujiConsultationsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          if (consultation.remedies && consultation.remedies.length > 0) {
+                            const remedy = consultation.remedies[0]; // Show first remedy
+                            setSelectedRemedy({ remedy, consultation });
+                            setRemedyDetailsModalOpen(true);
+                          } else {
+                            toast.info(`No remedies prescribed for ${consultation.patient.name || 'Unknown'} yet`);
+                          }
+                        }}
+                        className="flex-1 sm:flex-none"
+                      >
                         <Pill className="h-3 w-3 mr-1" />
-                        View Remedy
+                        {consultation.remedies && consultation.remedies.length > 0 ? 'View Remedy' : 'No Remedy'}
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedPatient(consultation.patient);
+                          setContactHistoryModalOpen(true);
+                        }}
+                        className="flex-1 sm:flex-none"
+                      >
                         <MessageSquare className="h-3 w-3 mr-1" />
                         Contact
                       </Button>
@@ -600,6 +732,31 @@ export default function GurujiConsultationsPage() {
           }}
           consultationId={selectedQueueEntry.id}
           patientName={selectedQueueEntry.user.name || 'Unknown User'}
+        />
+      )}
+
+      {/* Remedy Details Modal */}
+      {selectedRemedy && (
+        <RemedyDetailsModal
+          isOpen={remedyDetailsModalOpen}
+          onClose={() => {
+            setRemedyDetailsModalOpen(false);
+            setSelectedRemedy(null);
+          }}
+          remedy={selectedRemedy.remedy}
+          consultation={selectedRemedy.consultation}
+        />
+      )}
+
+      {/* Contact History Modal */}
+      {selectedPatient && (
+        <ContactHistoryModal
+          isOpen={contactHistoryModalOpen}
+          onClose={() => {
+            setContactHistoryModalOpen(false);
+            setSelectedPatient(null);
+          }}
+          patient={selectedPatient}
         />
       )}
     </div>

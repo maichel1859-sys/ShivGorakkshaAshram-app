@@ -275,21 +275,22 @@ function GurujiQueuePageContent() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Queue Management</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Queue Management</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Manage the queue of patients waiting for spiritual consultation
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadQueueStatus} disabled={isPolling}>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={loadQueueStatus} disabled={isPolling} className="flex-1 sm:flex-none">
             <Clock className="h-4 w-4 mr-2" />
             {isPolling ? 'Refreshing...' : 'Refresh'}
           </Button>
           <Button 
             onClick={handleCallNext} 
             disabled={!queueStatus.currentQueue.some((entry: QueueEntry) => entry.status === 'WAITING')}
+            className="flex-1 sm:flex-none"
           >
             <Users className="h-4 w-4 mr-2" />
             Call Next
@@ -455,8 +456,8 @@ function GurujiQueuePageContent() {
                       >
                         {entry.status.replace('_', ' ').toLowerCase()}
                       </Badge>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
                           <MessageSquare className="h-3 w-3 mr-1" />
                           Contact
                         </Button>
@@ -464,6 +465,7 @@ function GurujiQueuePageContent() {
                           <Button 
                             size="sm" 
                             onClick={() => handleStartConsultation(entry)}
+                            className="flex-1 sm:flex-none"
                           >
                             Start
                           </Button>
@@ -474,6 +476,7 @@ function GurujiQueuePageContent() {
                               size="sm" 
                               variant="outline"
                               onClick={() => handlePrescribeRemedy(entry)}
+                              className="flex-1 sm:flex-none"
                             >
                               <Pill className="h-3 w-3 mr-1" />
                               Prescribe Remedy
@@ -482,7 +485,7 @@ function GurujiQueuePageContent() {
                               size="sm" 
                               variant="secondary"
                               onClick={() => handleCompleteConsultation(entry)}
-                              className="relative"
+                              className="relative flex-1 sm:flex-none"
                               title="Remedy must be prescribed before completing consultation"
                             >
                               Complete

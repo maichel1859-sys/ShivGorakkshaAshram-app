@@ -43,7 +43,7 @@ interface Notification {
 export default function UserDashboard() {
   const { data: session } = useSession();
   const { data: dashboardData, isLoading, error } = useUserDashboard();
-  const { data: notificationsData } = useNotifications({ limit: 5 });
+
   const { setDashboardLoading } = useLoadingStore();
 
   // Update loading state
@@ -196,39 +196,7 @@ export default function UserDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Notifications</CardTitle>
-            <CardDescription>Latest updates and reminders</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {notificationsData?.notifications &&
-            notificationsData.notifications.length > 0 ? (
-              <div className="space-y-3">
-                {notificationsData.notifications.map((n: Notification) => (
-                  <div
-                    key={n.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{n.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {n.message}
-                      </p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(n.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground">
-                No recent notifications
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
       </div>
 
       {/* Quick Actions */}

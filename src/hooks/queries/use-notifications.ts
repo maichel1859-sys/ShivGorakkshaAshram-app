@@ -66,6 +66,10 @@ export function useMarkNotificationAsRead() {
           unreadCount: Math.max(0, (data.unreadCount || 0) - 1),
         };
       });
+      
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to mark notification as read');
@@ -96,6 +100,10 @@ export function useMarkAllNotificationsAsRead() {
           unreadCount: 0,
         };
       });
+      
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
       toast.success('All notifications marked as read');
     },
     onError: (error) => {
@@ -132,6 +140,10 @@ export function useDeleteNotification() {
             : data.unreadCount,
         };
       });
+      
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
       toast.success('Notification deleted');
     },
     onError: (error) => {

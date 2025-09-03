@@ -294,53 +294,69 @@ export async function prescribeRemedy(formData: FormData) {
   }
 
   try {
-    const data = prescribeRemedySchema.parse({
-      consultationId: (formData.get('consultationId') as string) || '',
-      templateId: (formData.get('templateId') as string) || '',
-      customInstructions: (formData.get('customInstructions') as string) || undefined,
-      customDosage: (formData.get('customDosage') as string) || undefined,
-      customDuration: (formData.get('customDuration') as string) || undefined,
-    });
+    const templateId = formData.get('templateId') as string;
+    const patientId = formData.get('patientId') as string;
+    const customInstructions = formData.get('customInstructions') as string;
+    const customDosage = formData.get('customDosage') as string;
+    const customDuration = formData.get('customDuration') as string;
 
-    // Verify consultation exists and guruji has permission
-    const consultation = await prisma.consultationSession.findUnique({
-      where: { id: data.consultationId },
-      include: {
-        appointment: {
-          include: {
-            user: { select: { id: true, name: true, email: true, phone: true } },
-            guruji: { select: { id: true, name: true, email: true } },
-          },
-        },
-      },
-    });
-
-    if (!consultation) {
-      return { success: false, error: 'Consultation not found' };
-    }
-
-    if (session.user.role === 'GURUJI' && consultation.appointment.gurujiId !== session.user.id) {
-      return { success: false, error: 'Permission denied' };
+    if (!templateId || !patientId) {
+      return { success: false, error: 'Template ID and Patient ID are required' };
     }
 
     // Verify template exists
     const template = await prisma.remedyTemplate.findUnique({
-      where: { id: data.templateId },
+      where: { id: templateId },
     });
 
     if (!template) {
       return { success: false, error: 'Remedy template not found' };
     }
 
-    // Create remedy prescription
+    // Verify patient exists
+    const patient = await prisma.user.findUnique({
+      where: { id: patientId },
+      select: { id: true, name: true, email: true, phone: true },
+    });
+
+    if (!patient) {
+      return { success: false, error: 'Patient not found' };
+    }
+
+    // Create a minimal appointment for tracking
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId: patientId,
+        gurujiId: session.user.id,
+        date: new Date(),
+        startTime: new Date(),
+        endTime: new Date(),
+        status: 'COMPLETED',
+        notes: 'Direct remedy prescription without consultation',
+      },
+    });
+
+    // Create a minimal consultation session for tracking
+    const consultationSession = await prisma.consultationSession.create({
+      data: {
+        appointmentId: appointment.id,
+        patientId: patientId,
+        gurujiId: session.user.id,
+        startTime: new Date(),
+        endTime: new Date(), // Mark as completed immediately
+        notes: 'Direct remedy prescription',
+      },
+    });
+
+    // Create the remedy document
     const remedy = await prisma.remedyDocument.create({
       data: {
-        consultationSessionId: consultation.id,
-        templateId: data.templateId,
-        userId: consultation.appointment.userId,
-        customInstructions: data.customInstructions,
-        customDosage: data.customDosage,
-        customDuration: data.customDuration,
+        consultationSessionId: consultationSession.id,
+        templateId: templateId,
+        userId: patientId,
+        customInstructions: customInstructions || undefined,
+        customDosage: customDosage || undefined,
+        customDuration: customDuration || undefined,
       },
       include: {
         template: true,
@@ -360,14 +376,14 @@ export async function prescribeRemedy(formData: FormData) {
     // Create notification for patient
     await prisma.notification.create({
       data: {
-        userId: consultation.appointment.userId,
+        userId: patientId,
         title: "New Remedy Prescribed",
-        message: `${consultation.appointment.guruji?.name || 'Guruji'} has prescribed a new remedy: ${template.name}`,
+        message: `${session.user.name || 'Guruji'} has prescribed a new remedy: ${template.name}`,
         type: "remedy",
         data: {
           remedyId: remedy.id,
           templateName: template.name,
-          gurujiName: consultation.appointment.guruji?.name || 'Guruji',
+          gurujiName: session.user.name || 'Guruji',
         },
       },
     });
@@ -380,14 +396,14 @@ export async function prescribeRemedy(formData: FormData) {
         resource: 'REMEDY',
         resourceId: remedy.id,
         newData: {
-          consultationId: data.consultationId,
           templateName: template.name,
-          patientName: consultation.appointment.user.name,
+          patientName: patient.name,
+          directPrescription: true,
         },
       },
     });
 
-    revalidatePath('/guruji/consultations');
+    revalidatePath('/guruji/remedies');
     revalidatePath('/user/remedies');
     
     return { success: true, remedy };
