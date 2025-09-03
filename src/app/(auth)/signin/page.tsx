@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuthToast } from "@/hooks/use-auth-toast";
-import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { FullScreenSpinner } from "@/components/ui/global-spinner";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -39,7 +39,7 @@ export default function SignInPage() {
 
   return (
     <div className="space-y-6">
-      <LoadingOverlay loadingKey="authLoading" />
+      <FullScreenSpinner message="Signing you in..." />
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Sign in to your account

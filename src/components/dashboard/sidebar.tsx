@@ -220,9 +220,21 @@ const navItems: NavItem[] = [
     roles: ["GURUJI"],
   },
   {
+    title: "My Consultations",
+    href: "/guruji/consultations",
+    icon: UserCheck,
+    roles: ["GURUJI"],
+  },
+  {
     title: "Remedies",
     href: "/guruji/remedies",
     icon: Heart,
+    roles: ["GURUJI"],
+  },
+  {
+    title: "Settings",
+    href: "/guruji/settings",
+    icon: Settings,
     roles: ["GURUJI"],
   },
 ];

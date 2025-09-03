@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
 import { PWAInstallPrompt } from "@/components/ui/pwa-install-prompt";
-import { GlobalLoadingOverlay } from "@/components/ui/global-loading";
 import { TopProgressBar } from "@/components/ui/top-progress-bar";
 
 const inter = Inter({
@@ -102,7 +101,7 @@ export default function RootLayout({
           <TopProgressBar />
           {children}
           <PWAInstallPrompt />
-          <GlobalLoadingOverlay />
+          <TopProgressBar />
         </AppProviders>
       </body>
     </html>

@@ -12,62 +12,188 @@ import {
   CheckCircle,
   Play,
   Square,
-  AlertTriangle,
   Timer,
-  // User, // Temporarily unused
+  Pill,
+  Phone,
+  MessageSquare,
+  AlertCircle,
 } from "lucide-react";
-import {
-  useGurujiQueue,
-  useStartConsultation,
-  useCompleteConsultation,
-} from "@/hooks/queries/use-guruji";
+import { getGurujiQueueEntries, startConsultation, updateQueueStatus, getConsultationSessionId } from "@/lib/actions/queue-actions";
+import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
+import { toast } from "sonner";
+import { PageSpinner } from "@/components/ui/global-spinner";
+
+interface QueueEntry {
+  id: string;
+  position: number;
+  status: string;
+  estimatedWait?: number;
+  priority?: string;
+  checkedInAt: string;
+  notes?: string;
+  user: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    dateOfBirth?: string | null; // Transformed to string
+  };
+}
+
+interface QueueEntryFromDB {
+  id: string;
+  position: number;
+  status: string;
+  estimatedWait: number | null;
+  priority: string | null;
+  checkedInAt: Date | string; // Can be Date or string from server
+  notes: string | null;
+  user: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    dateOfBirth: Date | string | null; // Can be Date or string from server
+  };
+}
 
 export default function GurujiDashboard() {
   const { data: session } = useSession();
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
+  const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
+  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
 
-  // React Query hooks
-  const { data: queueData, isLoading, error } = useGurujiQueue();
-  const startConsultationMutation = useStartConsultation();
-  const completeConsultationMutation = useCompleteConsultation();
-
-  const queuePatients = queueData?.queuePatients || [];
-  const currentPatient = queueData?.currentPatient || null;
-  const stats = queueData?.stats || {
-    todayTotal: 0,
-    todayCompleted: 0,
-    currentWaiting: 0,
-    averageConsultationTime: 15,
+  // Load queue entries
+  const loadQueueEntries = async () => {
+    try {
+      setLoading(true);
+      const result = await getGurujiQueueEntries();
+      
+      if (result.success && result.queueEntries) {
+        const entries = result.queueEntries;
+        const transformedQueue = entries.map((entry: QueueEntryFromDB, index: number) => ({
+          id: entry.id,
+          position: entry.position,
+          status: entry.status,
+          estimatedWait: entry.status === 'WAITING' ? (index + 1) * 15 : (entry.estimatedWait || undefined),
+          priority: entry.priority || undefined,
+          checkedInAt: entry.checkedInAt instanceof Date ? entry.checkedInAt.toISOString() : entry.checkedInAt,
+          notes: entry.notes || undefined,
+          user: {
+            id: entry.user.id,
+            name: entry.user.name,
+            phone: entry.user.phone,
+            dateOfBirth: entry.user.dateOfBirth instanceof Date ? entry.user.dateOfBirth.toISOString() : entry.user.dateOfBirth,
+          },
+        }));
+        setQueueEntries(transformedQueue);
+      } else {
+        console.error('Failed to load queue entries:', result.error);
+        toast.error('Failed to load queue data');
+      }
+    } catch (error) {
+      console.error('Error loading queue entries:', error);
+      toast.error('Error loading queue data');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Load queue entries on component mount
+  useEffect(() => {
+    loadQueueEntries();
+  }, []);
 
   // Auto-refresh queue data every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      // The useGurujiQueue hook handles refetching automatically
+      loadQueueEntries();
     }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleStartConsultation = async (queueEntryId: string) => {
+  const handleStartConsultation = async (entry: QueueEntry) => {
     try {
-      await startConsultationMutation.mutateAsync(queueEntryId);
-      setSessionActive(true);
-      setSessionStartTime(new Date());
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      
+      const result = await startConsultation(formData);
+      if (result.success) {
+        toast.success(`Started consultation with ${entry.user.name}`);
+        setSessionActive(true);
+        setSessionStartTime(new Date());
+        // Store the consultation session ID for prescribing remedies
+        if (result.consultationSessionId) {
+          setConsultationSessionId(result.consultationSessionId);
+        }
+        await loadQueueEntries(); // Refresh the queue
+      } else {
+        toast.error(result.error || 'Failed to start consultation');
+      }
     } catch (error) {
-      console.error("Failed to start consultation:", error);
+      console.error('Error starting consultation:', error);
+      toast.error('Error starting consultation');
     }
   };
 
-  const handleCompleteConsultation = async () => {
-    if (!currentPatient) return;
-
+  const handleCompleteConsultation = async (entry: QueueEntry) => {
     try {
-      await completeConsultationMutation.mutateAsync(currentPatient.id);
-      setSessionActive(false);
-      setSessionStartTime(null);
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      formData.append('status', 'COMPLETED');
+      
+      const result = await updateQueueStatus(formData);
+      if (result.success) {
+        toast.success(`Completed consultation with ${entry.user.name}`);
+        setSessionActive(false);
+        setSessionStartTime(null);
+        setConsultationSessionId(null); // Clear consultation session ID
+        await loadQueueEntries(); // Refresh the queue
+      } else {
+        // Check if the error is about missing remedy
+        if (result.error?.includes('remedy')) {
+          toast.error(result.error);
+          // Automatically open the prescribe remedy modal
+          setSelectedQueueEntry(entry);
+          setPrescribeModalOpen(true);
+        } else {
+          toast.error(result.error || 'Failed to complete consultation');
+        }
+      }
     } catch (error) {
-      console.error("Failed to complete consultation:", error);
+      console.error('Error completing consultation:', error);
+      toast.error('Error completing consultation');
+    }
+  };
+
+  const handlePrescribeRemedy = async (entry: QueueEntry) => {
+    try {
+      // Check if the entry is in progress
+      if (entry.status !== 'IN_PROGRESS') {
+        toast.error('Can only prescribe remedies for consultations in progress.');
+        return;
+      }
+      
+      // Get the consultation session ID for this queue entry
+      const result = await getConsultationSessionId(entry.id);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to get consultation session');
+        return;
+      }
+      
+              // Store the consultation session ID temporarily for the modal
+        if (result.consultationSessionId) {
+          setConsultationSessionId(result.consultationSessionId);
+          setSelectedQueueEntry(entry);
+          setPrescribeModalOpen(true);
+        } else {
+          toast.error('Failed to get consultation session ID');
+        }
+    } catch (error) {
+      console.error('Error preparing to prescribe remedy:', error);
+      toast.error('Error preparing to prescribe remedy');
     }
   };
 
@@ -95,28 +221,21 @@ export default function GurujiDashboard() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  // Calculate stats
+  const waitingPatients = queueEntries.filter(entry => entry.status === 'WAITING');
+  const inProgressPatients = queueEntries.filter(entry => entry.status === 'IN_PROGRESS');
+  const completedPatients = queueEntries.filter(entry => entry.status === 'COMPLETED');
+  const currentPatient = inProgressPatients[0] || null;
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-red-600">
-            Error Loading Dashboard
-          </h3>
-          <p className="text-muted-foreground">
-            Failed to load queue data. Please try again.
-          </p>
-        </div>
-      </div>
-    );
+  const stats = {
+    todayTotal: queueEntries.length,
+    todayCompleted: completedPatients.length,
+    currentWaiting: waitingPatients.length,
+    averageConsultationTime: 15,
+  };
+
+  if (loading) {
+    return <PageSpinner message="Loading dashboard..." />;
   }
 
   return (
@@ -212,32 +331,47 @@ export default function GurujiDashboard() {
               <div className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12">
                   <AvatarFallback className="bg-green-100 text-green-700">
-                    {currentPatient.appointment.user.name
-                      .split(" ")
+                    {currentPatient.user.name
+                      ?.split(" ")
                       .map((n: string) => n[0])
                       .join("")
-                      .toUpperCase()}
+                      .toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="font-semibold text-green-800">
-                    {currentPatient.appointment.user.name}
+                    {currentPatient.user.name || 'Unknown User'}
                   </h3>
                   <p className="text-sm text-green-600">
-                    Priority: {currentPatient.appointment.priority}
+                    Priority: {currentPatient.priority || 'NORMAL'}
                   </p>
                   <p className="text-xs text-green-500">
                     Started: {sessionStartTime?.toLocaleTimeString()}
                   </p>
+                  {currentPatient.user.phone && (
+                    <p className="text-xs text-green-500">
+                      Phone: {currentPatient.user.phone}
+                    </p>
+                  )}
                 </div>
               </div>
-              <Button
-                onClick={handleCompleteConsultation}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Square className="h-4 w-4 mr-2" />
-                Complete Session
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => handlePrescribeRemedy(currentPatient)}
+                  variant="outline"
+                  className="border-green-600 text-green-700 hover:bg-green-50"
+                >
+                  <Pill className="h-4 w-4 mr-2" />
+                  Prescribe Remedy
+                </Button>
+                <Button
+                  onClick={() => handleCompleteConsultation(currentPatient)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Square className="h-4 w-4 mr-2" />
+                  Complete Session
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -250,11 +384,15 @@ export default function GurujiDashboard() {
             <Users className="h-5 w-5" />
             Patient Queue
           </CardTitle>
+          <div className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 mt-2">
+            <AlertCircle className="h-4 w-4 inline mr-2" />
+            <strong>Important:</strong> Remedies must be prescribed before completing consultations
+          </div>
         </CardHeader>
         <CardContent>
-          {queuePatients.length > 0 ? (
+          {waitingPatients.length > 0 ? (
             <div className="space-y-3">
-              {queuePatients.map((patient, index) => (
+              {waitingPatients.map((patient, index) => (
                 <div
                   key={patient.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -262,36 +400,53 @@ export default function GurujiDashboard() {
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center justify-center w-8 h-8 bg-primary/10 rounded-full">
                       <span className="text-sm font-semibold text-primary">
-                        {index + 1}
+                        {patient.position}
                       </span>
                     </div>
                     <Avatar className="h-10 w-10">
                       <AvatarFallback>
-                        {patient.appointment.user.name
-                          .split(" ")
+                        {patient.user.name
+                          ?.split(" ")
                           .map((n: string) => n[0])
                           .join("")
-                          .toUpperCase()}
+                          .toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <h4 className="font-medium">
-                        {patient.appointment.user.name}
+                        {patient.user.name || 'Unknown User'}
                       </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Position: #{patient.position}
-                      </p>
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <span>Position: #{patient.position}</span>
+                        {patient.user.phone && (
+                          <span className="flex items-center">
+                            <Phone className="mr-1 h-3 w-3" />
+                            {patient.user.phone}
+                          </span>
+                        )}
+                        {patient.estimatedWait && (
+                          <span className="flex items-center">
+                            <Clock className="mr-1 h-3 w-3" />
+                            Est. wait: {patient.estimatedWait}m
+                          </span>
+                        )}
+                      </div>
+                      {patient.notes && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          <strong>Reason:</strong> {patient.notes}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Badge
-                      className={`${getPriorityColor(patient.appointment.priority)} px-2 py-1`}
+                      className={`${getPriorityColor(patient.priority || 'NORMAL')} px-2 py-1`}
                     >
-                      {patient.appointment.priority}
+                      {patient.priority || 'NORMAL'}
                     </Badge>
                     {!currentPatient && (
                       <Button
-                        onClick={() => handleStartConsultation(patient.id)}
+                        onClick={() => handleStartConsultation(patient)}
                         size="sm"
                         className="bg-primary hover:bg-primary/90"
                       >
@@ -299,6 +454,10 @@ export default function GurujiDashboard() {
                         Start
                       </Button>
                     )}
+                    <Button size="sm" variant="outline">
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Contact
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -316,6 +475,19 @@ export default function GurujiDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Prescribe Remedy Modal */}
+      {selectedQueueEntry && consultationSessionId && (
+        <PrescribeRemedyModal
+          isOpen={prescribeModalOpen}
+          onClose={() => {
+            setPrescribeModalOpen(false);
+            setSelectedQueueEntry(null);
+          }}
+          consultationId={consultationSessionId}
+          patientName={selectedQueueEntry.user.name || "Patient"}
+        />
+      )}
     </div>
   );
 }

@@ -234,6 +234,35 @@ export async function updateQueueStatus(formData: FormData) {
       return { success: false, error: 'Permission denied' };
     }
 
+    // If trying to complete a consultation, check if remedy has been prescribed
+    if (data.status === 'COMPLETED') {
+      // Find the consultation session
+      const consultationSession = await prisma.consultationSession.findFirst({
+        where: {
+          appointmentId: queueEntry.appointmentId,
+          patientId: queueEntry.userId,
+          gurujiId: session.user.id,
+          endTime: null, // Only active sessions
+        },
+      });
+
+      if (consultationSession) {
+        // Check if any remedy has been prescribed for this consultation
+        const remedyCount = await prisma.remedyDocument.count({
+          where: {
+            consultationSessionId: consultationSession.id,
+          },
+        });
+
+        if (remedyCount === 0) {
+          return { 
+            success: false, 
+            error: 'Cannot complete consultation without prescribing a remedy. Please prescribe a remedy first.' 
+          };
+        }
+      }
+    }
+
     // Update queue entry
     const updatedEntry = await prisma.queueEntry.update({
       where: { id: queueEntryId },
@@ -286,12 +315,39 @@ export async function updateQueueStatus(formData: FormData) {
     // Recalculate positions if status changed to COMPLETED or CANCELLED
     if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
       await recalculateQueuePositions(queueEntry.gurujiId!);
+      
+      // If completing a consultation, also end the consultation session
+      if (data.status === 'COMPLETED') {
+        const consultationSession = await prisma.consultationSession.findFirst({
+          where: {
+            appointmentId: queueEntry.appointmentId,
+            patientId: queueEntry.userId,
+            gurujiId: session.user.id,
+            endTime: null, // Only find active sessions
+          },
+        });
+
+        if (consultationSession) {
+          await prisma.consultationSession.update({
+            where: { id: consultationSession.id },
+            data: {
+              endTime: new Date(),
+              duration: Math.floor((new Date().getTime() - consultationSession.startTime.getTime()) / 60000), // in minutes
+            },
+          });
+        }
+      }
     }
     
     // Invalidate cache
-    invalidateQueueCache();
-    revalidatePath('/user/queue');
-    revalidatePath('/guruji/queue');
+    try {
+      invalidateQueueCache();
+      revalidatePath('/user/queue');
+      revalidatePath('/guruji/queue');
+    } catch (cacheError) {
+      console.error('Cache invalidation error:', cacheError);
+      // Continue even if cache invalidation fails
+    }
     
     return { success: true, queueEntry: updatedEntry };
   } catch (error) {
@@ -371,9 +427,14 @@ export async function leaveQueue(formData: FormData) {
     }
     
     // Invalidate cache
-    invalidateQueueCache();
-    revalidatePath('/user/queue');
-    revalidatePath('/guruji/queue');
+    try {
+      invalidateQueueCache();
+      revalidatePath('/user/queue');
+      revalidatePath('/guruji/queue');
+    } catch (cacheError) {
+      console.error('Cache invalidation error:', cacheError);
+      // Continue even if cache invalidation fails
+    }
     
     return { success: true };
   } catch (error) {
@@ -525,6 +586,8 @@ export async function startConsultation(formData: FormData) {
     
     return { 
       success: true, 
+      message: 'Consultation started successfully',
+      consultationSessionId: consultationSession.id,
       consultationSession,
       currentPatient: updatedQueueEntry,
     };
@@ -639,6 +702,63 @@ export async function completeConsultation(formData: FormData) {
     return { success: false, error: 'Failed to complete consultation' };
   }
 } 
+
+// Get consultation session ID for a queue entry
+export async function getConsultationSessionId(queueEntryId: string) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    // Find the queue entry
+    const queueEntry = await prisma.queueEntry.findUnique({
+      where: { id: queueEntryId },
+      select: {
+        id: true,
+        appointmentId: true,
+        userId: true,
+        gurujiId: true,
+        status: true,
+      },
+    });
+
+    if (!queueEntry) {
+      return { success: false, error: 'Queue entry not found' };
+    }
+
+    // Check if this guruji owns the queue entry
+    if (queueEntry.gurujiId !== session.user.id) {
+      return { success: false, error: 'Permission denied' };
+    }
+
+    // Find the consultation session
+    const consultationSession = await prisma.consultationSession.findFirst({
+      where: {
+        appointmentId: queueEntry.appointmentId,
+        patientId: queueEntry.userId,
+        gurujiId: session.user.id,
+        endTime: null, // Only active sessions
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!consultationSession) {
+      return { success: false, error: 'No active consultation session found' };
+    }
+
+    return { 
+      success: true, 
+      consultationSessionId: consultationSession.id 
+    };
+  } catch (error) {
+    console.error('Get consultation session ID error:', error);
+    return { success: false, error: 'Failed to get consultation session ID' };
+  }
+}
 
 // Get admin queue entries
 export async function getAdminQueueEntries() {

@@ -1,58 +1,56 @@
 "use client";
 
-import { ReactNode } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
-import { Role } from "@prisma/client";
+import { GlobalSpinner } from "@/components/ui/global-spinner";
 
 interface DashboardLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
   title?: string;
-  allowedRoles?: Role[];
+  allowedRoles?: string[];
 }
 
-export function DashboardLayout({
-  children,
+export function DashboardLayout({ 
+  children, 
   title,
-  allowedRoles = ["USER", "COORDINATOR", "GURUJI", "ADMIN"],
+  allowedRoles = ["USER", "ADMIN", "GURUJI", "COORDINATOR"]
 }: DashboardLayoutProps) {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (status === "loading") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
+  useEffect(() => {
+    if (status === "loading") {
+      setIsLoading(true);
+    } else if (status === "unauthenticated") {
+      router.push("/signin");
+    } else if (status === "authenticated") {
+      if (!allowedRoles.includes(session?.user?.role || "")) {
+        router.push("/unauthorized");
+      } else {
+        setIsLoading(false);
+      }
+    }
+  }, [status, session, router, allowedRoles]);
+
+  if (isLoading || status === "loading") {
+    return <GlobalSpinner size="xl" message="Loading dashboard..." fullScreen />;
   }
 
   if (!session?.user) {
-    redirect("/signin");
-  }
-
-  if (!allowedRoles.includes(session.user.role)) {
-    redirect("/unauthorized");
+    return null;
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar for desktop */}
-      <aside className="hidden lg:block w-64 border-r bg-background flex-shrink-0">
-        <Sidebar />
-      </aside>
-
-      {/* Main content area */}
+    <div className="flex h-screen bg-background">
+      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Fixed Header */}
         <Header title={title} />
-
-        {/* Scrollable Page content */}
-        <main className="flex-1 overflow-y-auto bg-muted/10 scroll-smooth">
-          <div className="container max-w-7xl mx-auto py-6 px-4 lg:px-8 min-h-full">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
         </main>
       </div>
     </div>

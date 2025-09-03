@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
+import { CardSpinner } from "@/components/ui/global-spinner";
 import {
   Card,
   CardContent,
@@ -76,9 +77,7 @@ export default function AdminSystemPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
+        <CardSpinner message="Loading system status..." />
       </DashboardLayout>
     );
   }

@@ -1,0 +1,215 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useFormState } from "react-dom";
+import { prescribeRemedyDuringConsultation } from "@/lib/actions/remedy-actions";
+import { useRemedyTemplates } from "@/hooks/queries/use-remedies";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Pill, AlertCircle, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
+
+interface PrescribeRemedyModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  consultationId: string;
+  patientName: string;
+}
+
+export function PrescribeRemedyModal({
+  isOpen,
+  onClose,
+  consultationId,
+  patientName,
+}: PrescribeRemedyModalProps) {
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [customInstructions, setCustomInstructions] = useState("");
+  const [customDosage, setCustomDosage] = useState("");
+  const [customDuration, setCustomDuration] = useState("");
+
+  // Get remedy templates
+  const { data: templatesData, isLoading: templatesLoading } = useRemedyTemplates({
+    active: true,
+    limit: 100,
+  });
+
+  const templates = templatesData?.templates || [];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedTemplate) {
+      toast.error("Please select a remedy template");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("consultationId", consultationId);
+    formData.append("templateId", selectedTemplate);
+    formData.append("customInstructions", customInstructions);
+    formData.append("customDosage", customDosage);
+    formData.append("customDuration", customDuration);
+
+    try {
+      const result = await prescribeRemedyDuringConsultation(formData);
+      
+      if (result.success) {
+        toast.success(result.message || "Remedy prescribed successfully!");
+        onClose();
+        // Reset form
+        setSelectedTemplate("");
+        setCustomInstructions("");
+        setCustomDosage("");
+        setCustomDuration("");
+      } else {
+        toast.error(result.error || "Failed to prescribe remedy");
+      }
+    } catch (error) {
+      toast.error("An error occurred while prescribing the remedy");
+    }
+  };
+
+  const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pill className="h-5 w-5" />
+            Prescribe Remedy
+          </DialogTitle>
+          <DialogDescription>
+            Prescribe a remedy for {patientName} during this consultation session.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Remedy Template Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="template">Select Remedy Template *</Label>
+            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a remedy template..." />
+              </SelectTrigger>
+              <SelectContent>
+                {templatesLoading ? (
+                  <SelectItem value="loading" disabled>
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading templates...
+                    </div>
+                  </SelectItem>
+                ) : (
+                  templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{template.name}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {template.type}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Selected Template Details */}
+          {selectedTemplateData && (
+            <div className="p-4 border rounded-lg bg-muted/50">
+              <h4 className="font-semibold mb-2">{selectedTemplateData.name}</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{selectedTemplateData.type}</Badge>
+                  <Badge variant="secondary">{selectedTemplateData.category}</Badge>
+                </div>
+                {selectedTemplateData.description && (
+                  <p className="text-muted-foreground">{selectedTemplateData.description}</p>
+                )}
+                <div>
+                  <strong>Instructions:</strong> {selectedTemplateData.instructions}
+                </div>
+                {selectedTemplateData.dosage && (
+                  <div><strong>Dosage:</strong> {selectedTemplateData.dosage}</div>
+                )}
+                {selectedTemplateData.duration && (
+                  <div><strong>Duration:</strong> {selectedTemplateData.duration}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Instructions */}
+          <div className="space-y-2">
+            <Label htmlFor="customInstructions">
+              Custom Instructions (Optional)
+            </Label>
+            <Textarea
+              id="customInstructions"
+              placeholder="Add any custom instructions or modifications..."
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {/* Custom Dosage */}
+          <div className="space-y-2">
+            <Label htmlFor="customDosage">
+              Custom Dosage (Optional)
+            </Label>
+            <Input
+              id="customDosage"
+              placeholder="e.g., 2 tablets twice daily"
+              value={customDosage}
+              onChange={(e) => setCustomDosage(e.target.value)}
+            />
+          </div>
+
+          {/* Custom Duration */}
+          <div className="space-y-2">
+            <Label htmlFor="customDuration">
+              Custom Duration (Optional)
+            </Label>
+            <Input
+              id="customDuration"
+              placeholder="e.g., 7 days"
+              value={customDuration}
+              onChange={(e) => setCustomDuration(e.target.value)}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!selectedTemplate}>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Prescribe Remedy
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

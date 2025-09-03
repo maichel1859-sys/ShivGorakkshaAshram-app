@@ -38,7 +38,7 @@ export default async function UserLayout({
       </Suspense>
 
       {/* Parallel routes */}
-      <Suspense fallback={null}>{modal}</Suspense>
+      {modal && <Suspense fallback={null}>{modal}</Suspense>}
       <Suspense fallback={null}>{notifications}</Suspense>
     </DashboardLayout>
   );

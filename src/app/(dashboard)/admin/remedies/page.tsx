@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { DashboardLayout } from "@/components/dashboard/layout";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,9 +32,10 @@ import {
   Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { prisma } from "@/lib/database/prisma";
+import { useRemedyTemplates } from "@/hooks/queries/use-remedies";
+import type { RemedyTemplate as RemedyTemplateModel } from "@prisma/client";
 
-interface RemedyTemplate {
+interface RemedyTemplateUI {
   id: string;
   name: string;
   type: string;
@@ -56,71 +56,34 @@ interface Prescription {
 }
 
 export default function AdminRemediesPage() {
-  const [templates, setTemplates] = useState<RemedyTemplate[]>([]);
+  const [templates, setTemplates] = useState<RemedyTemplateUI[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const { data, isLoading, error } = useRemedyTemplates();
 
+  if (error) {
+    toast.error("Failed to load remedies data");
+  }
+
+  // Map server data into UI shape when available
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      // Fetch real data from database
-      const templates = await prisma.remedyTemplate.findMany({
-        orderBy: { createdAt: "desc" },
-        include: {
-          _count: {
-            select: { remedyDocuments: true },
-          },
-        },
-      });
-
-      const prescriptions = await prisma.remedyDocument.findMany({
-        orderBy: { createdAt: "desc" },
-        include: {
-          template: true,
-          user: true,
-          consultationSession: {
-            include: {
-              guruji: true,
-            },
-          },
-        },
-        take: 10,
-      });
-
-      const formattedTemplates = templates.map((template) => ({
-        id: template.id,
-        name: template.name,
-        type: template.type,
-        category: template.category,
-        description: template.description || "",
-        isActive: template.isActive,
-        createdAt: template.createdAt.toISOString().split("T")[0],
-        usageCount: template._count.remedyDocuments,
-      }));
-
-      const formattedPrescriptions = prescriptions.map((prescription) => ({
-        id: prescription.id,
-        templateName: prescription.template.name,
-        patientName: prescription.user.name || "Unknown",
-        gurujiName: prescription.consultationSession.guruji.name || "Unknown",
-        status: "ACTIVE", // RemedyDocument doesn't have status, using default
-        createdAt: prescription.createdAt.toISOString().split("T")[0],
-      }));
-
+    if (data?.templates) {
+      const formattedTemplates: RemedyTemplateUI[] = (data.templates as RemedyTemplateModel[]).map(
+        (template) => ({
+          id: template.id,
+          name: template.name,
+          type: template.type,
+          category: template.category,
+          description: template.description || "",
+          isActive: template.isActive,
+          createdAt: new Date(template.createdAt).toISOString().split("T")[0],
+          usageCount: 0,
+        })
+      );
       setTemplates(formattedTemplates);
-      setPrescriptions(formattedPrescriptions);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-      toast.error("Failed to load remedies data");
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [data?.templates]);
 
   // Removed duplicate color functions - now using centralized utilities
 
@@ -134,35 +97,30 @@ export default function AdminRemediesPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout title="Remedies Management" allowedRoles={["ADMIN"]}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout title="Remedies Management" allowedRoles={["ADMIN"]}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">
-              Remedies Management
-            </h2>
-            <p className="text-muted-foreground">
-              Manage remedy templates and monitor prescriptions
-            </p>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Template
-          </Button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Remedies Management</h2>
+          <p className="text-muted-foreground">
+            Manage remedy templates and monitor prescriptions
+          </p>
         </div>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Template
+        </Button>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -221,10 +179,10 @@ export default function AdminRemediesPage() {
               </p>
             </CardContent>
           </Card>
-        </div>
+      </div>
 
-        {/* Main Content */}
-        <Tabs defaultValue="templates" className="space-y-4">
+      {/* Main Content */}
+      <Tabs defaultValue="templates" className="space-y-4">
           <TabsList>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
@@ -355,8 +313,7 @@ export default function AdminRemediesPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </div>
-    </DashboardLayout>
+      </Tabs>
+    </div>
   );
 }

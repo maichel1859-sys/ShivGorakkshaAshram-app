@@ -60,6 +60,9 @@ export async function getAppointments(options?: {
         whereClause.userId = userId;
       }
       // If no userId specified for admin, show all appointments
+    } else if (session.user.role === 'GURUJI') {
+      // Gurujis see appointments assigned to them
+      whereClause.gurujiId = session.user.id;
     } else {
       // Regular users see only their appointments
       whereClause.userId = session.user.id;
@@ -210,22 +213,8 @@ export async function bookAppointment(formData: FormData) {
     // Validate date and time
     const appointmentDateTime = new Date(`${data.date}T${data.time}:00`);
     
-    // Check if the date is in the future
-    if (appointmentDateTime <= new Date()) {
-      throw new Error('Appointment date must be in the future');
-    }
-
-    // Check business hours (9 AM - 6 PM, not Sunday)
-    const day = appointmentDateTime.getDay();
-    const hours = appointmentDateTime.getHours();
-    
-    if (day === 0) {
-      throw new Error('Appointments cannot be scheduled on Sundays');
-    }
-    
-    if (hours < 9 || hours >= 18) {
-      throw new Error('Appointments can only be scheduled between 9:00 AM and 6:00 PM');
-    }
+    // For development: Allow any date/time (no restrictions)
+    // In production, you would add time restrictions here
 
     const endDateTime = new Date(appointmentDateTime.getTime() + 30 * 60000); // 30 minutes default
 
@@ -287,6 +276,7 @@ export async function bookAppointment(formData: FormData) {
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
+    revalidatePath('/guruji/appointments');
     
     return { success: true, appointment };
   } catch (error) {
@@ -347,7 +337,10 @@ export async function checkInAppointment(appointmentId: string) {
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { user: true },
+      include: { 
+        user: true,
+        guruji: true,
+      },
     });
 
     if (!appointment) {
@@ -358,18 +351,67 @@ export async function checkInAppointment(appointmentId: string) {
       throw new Error('Unauthorized');
     }
 
-    await prisma.appointment.update({
-      where: { id: appointmentId },
+    // Check if appointment is already checked in
+    if (appointment.status === 'CHECKED_IN') {
+      throw new Error('Appointment is already checked in');
+    }
+
+    // Get the next position in the queue for this guruji
+    const lastQueueEntry = await prisma.queueEntry.findFirst({
+      where: {
+        gurujiId: appointment.gurujiId,
+        status: { in: ['WAITING', 'IN_PROGRESS'] },
+      },
+      orderBy: { position: 'desc' },
+    });
+
+    const nextPosition = (lastQueueEntry?.position || 0) + 1;
+
+    // Update appointment status and create queue entry in a transaction
+    const [updatedAppointment, queueEntry] = await prisma.$transaction([
+      prisma.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: 'CHECKED_IN',
+          checkedInAt: new Date(),
+        },
+      }),
+      prisma.queueEntry.create({
+        data: {
+          appointmentId: appointmentId,
+          userId: appointment.userId,
+          gurujiId: appointment.gurujiId!,
+          position: nextPosition,
+          status: 'WAITING',
+          priority: appointment.priority,
+          checkedInAt: new Date(),
+          estimatedWait: 0, // No wait time for development
+        },
+      }),
+    ]);
+
+    // Create notification for the guruji
+    await prisma.notification.create({
       data: {
-        status: 'CHECKED_IN',
-        checkedInAt: new Date(),
+        userId: appointment.gurujiId!,
+        title: 'New Patient Checked In',
+        message: `${appointment.user.name} has checked in and is ready for consultation`,
+        type: 'queue',
+        data: {
+          appointmentId: appointmentId,
+          patientName: appointment.user.name,
+          position: nextPosition,
+          estimatedWait: 0,
+        },
       },
     });
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
+    revalidatePath('/guruji/queue');
+    revalidatePath('/user/queue');
     
-    return { success: true };
+    return { success: true, queueEntry };
   } catch (error) {
     console.error('Check-in appointment error:', error);
     throw new Error('Failed to check in');
@@ -407,21 +449,8 @@ export async function rescheduleAppointment(appointmentId: string, formData: For
     // Validate new date and time
     const newDateTime = new Date(`${date}T${time}:00`);
     
-    if (newDateTime <= new Date()) {
-      throw new Error('New appointment date must be in the future');
-    }
-
-    // Check business hours
-    const day = newDateTime.getDay();
-    const hours = newDateTime.getHours();
-    
-    if (day === 0) {
-      throw new Error('Appointments cannot be scheduled on Sundays');
-    }
-    
-    if (hours < 9 || hours >= 18) {
-      throw new Error('Appointments can only be scheduled between 9:00 AM and 6:00 PM');
-    }
+    // For development: Allow any date/time (no restrictions)
+    // In production, you would add time restrictions here
 
     // Check for conflicts (excluding current appointment)
     const existingAppointment = await prisma.appointment.findFirst({
@@ -636,10 +665,8 @@ export async function getAppointmentAvailability(options?: {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Check if it's Sunday
-    if (targetDate.getDay() === 0) {
-      return { success: true, availability: [], message: 'No appointments available on Sundays' };
-    }
+    // For development: Allow all days
+    // In production, you would check for Sundays here
 
     // Get existing appointments for the day
     const whereClause: Record<string, unknown> = {
@@ -664,10 +691,10 @@ export async function getAppointmentAvailability(options?: {
       },
     });
 
-    // Generate time slots (9 AM to 6 PM, 30-minute intervals)
+    // Generate time slots (24 hours for development)
     const timeSlots = [];
-    const businessStart = 9; // 9 AM
-    const businessEnd = 18; // 6 PM
+    const businessStart = 0; // 12 AM
+    const businessEnd = 24; // 12 AM next day
 
     for (let hour = businessStart; hour < businessEnd; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
@@ -681,9 +708,12 @@ export async function getAppointmentAvailability(options?: {
           return slotTime >= aptStart && slotTime < aptEnd;
         });
 
+        // For development: Allow all time slots (no future restriction)
+        const isInFuture = true;
+
         timeSlots.push({
           time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-          available: isAvailable,
+          available: isAvailable && isInFuture,
         });
       }
     }
@@ -789,4 +819,13 @@ export async function getAppointment(id: string) {
       error: 'Failed to fetch appointment'
     };
   }
+}
+
+// Development helper server action for check-in
+export async function devCheckInAppointment(formData: FormData) {
+  const appointmentId = formData.get("appointmentId") as string;
+  if (appointmentId) {
+    return await checkInAppointment(appointmentId);
+  }
+  return { success: false, error: 'Appointment ID is required' };
 } 

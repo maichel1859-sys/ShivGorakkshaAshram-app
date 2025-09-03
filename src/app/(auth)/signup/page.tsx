@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useAuthToast } from "@/hooks/use-auth-toast";
-import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { FullScreenSpinner } from "@/components/ui/global-spinner";
 
 const signupSchema = z
   .object({
@@ -50,7 +50,7 @@ export default function SignUpPage() {
 
   return (
     <div className="space-y-6">
-      <LoadingOverlay loadingKey="authLoading" />
+      <FullScreenSpinner message="Creating your account..." />
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
           Create your account

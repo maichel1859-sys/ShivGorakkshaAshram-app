@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardSpinner, PageSpinner, ButtonSpinner } from "@/components/ui/global-spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,12 +114,7 @@ export default function PrescribeRemedyPage({
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
+        <CardSpinner message="Loading..." />
       </DashboardLayout>
     );
   }
@@ -207,9 +203,7 @@ export default function PrescribeRemedyPage({
   if (isLoading || !template) {
     return (
       <DashboardLayout title="Prescribe Remedy" allowedRoles={["GURUJI"]}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
+        <PageSpinner message="Loading..." />
       </DashboardLayout>
     );
   }
@@ -486,12 +480,12 @@ export default function PrescribeRemedyPage({
                     className="w-full"
                     disabled={isSubmitting || !selectedPatient}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
-                        Prescribing...
-                      </>
-                    ) : (
+                                      {isSubmitting ? (
+                    <>
+                      <ButtonSpinner />
+                      Prescribing...
+                    </>
+                  ) : (
                       <>
                         <Send className="mr-2 h-4 w-4" />
                         Prescribe Remedy

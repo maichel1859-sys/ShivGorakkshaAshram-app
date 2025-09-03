@@ -14,6 +14,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
+import { PageSpinner } from "@/components/ui/global-spinner";
 
 export default function CoordinatorDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -56,11 +57,7 @@ export default function CoordinatorDashboard() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <PageSpinner message="Loading dashboard..." />;
   }
 
   if (error) {

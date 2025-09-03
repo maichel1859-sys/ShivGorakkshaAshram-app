@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import React from "react";
+import React, { Suspense } from "react";
 import {
   Calendar,
   Clock,
@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useUserDashboard, useNotifications } from "@/hooks/queries";
 import { useLoadingStore } from "@/lib/stores/loading-store";
-import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { PageSpinner } from "@/components/ui/global-spinner";
 
 interface Appointment {
   id: string;
@@ -52,14 +52,7 @@ export default function UserDashboard() {
   }, [isLoading, setDashboardLoading]);
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-        <LoadingOverlay loadingKey="dashboardLoading" />
-      </div>
-    );
+    return <PageSpinner message="Loading dashboard..." />;
   }
 
   if (error) {
@@ -259,6 +252,8 @@ export default function UserDashboard() {
           </Button>
         </CardContent>
       </Card>
+
+
     </div>
   );
 }

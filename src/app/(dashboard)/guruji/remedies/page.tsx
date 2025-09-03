@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { DashboardLayout } from "@/components/dashboard/layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CardSpinner, PageSpinner } from "@/components/ui/global-spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -146,33 +146,22 @@ export default function RemediesPage() {
   }, [templates, searchTerm, filterType, filterCategory]);
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading remedy templates...</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
+    return <CardSpinner message="Loading remedy templates..." />;
   }
 
   if (error) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold text-red-600">
-              Error loading remedy templates
-            </h3>
-            <p className="text-sm text-muted-foreground mt-2">
-              {error instanceof Error ? error.message : "An error occurred"}
-            </p>
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-semibold text-red-600">
+            Error loading remedy templates
+          </h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
@@ -269,23 +258,10 @@ export default function RemediesPage() {
   const categories = [...new Set(templates.map((t) => t.category))];
 
   if (isLoading) {
-    return (
-      <DashboardLayout
-        title="Remedy Management"
-        allowedRoles={["GURUJI", "ADMIN"]}
-      >
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </DashboardLayout>
-    );
+    return <PageSpinner message="Loading..." />;
   }
 
   return (
-    <DashboardLayout
-      title="Remedy Management"
-      allowedRoles={["GURUJI", "ADMIN"]}
-    >
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -655,6 +631,5 @@ export default function RemediesPage() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
   );
 }

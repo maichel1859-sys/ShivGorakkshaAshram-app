@@ -693,3 +693,116 @@ export async function updateRemedyStatus(formData: FormData) {
     return { success: false, error: 'Failed to update remedy status' };
   }
 }
+
+// Prescribe remedy during active consultation
+export async function prescribeRemedyDuringConsultation(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  // Only Gurujis can prescribe remedies
+  if (session.user.role !== 'GURUJI') {
+    return { success: false, error: 'Only Gurujis can prescribe remedies' };
+  }
+
+  try {
+    const consultationId = formData.get('consultationId') as string;
+    const templateId = formData.get('templateId') as string;
+    const customInstructions = formData.get('customInstructions') as string;
+    const customDosage = formData.get('customDosage') as string;
+    const customDuration = formData.get('customDuration') as string;
+
+    if (!consultationId || !templateId) {
+      return { success: false, error: 'Consultation ID and Template ID are required' };
+    }
+
+    // Verify the consultation exists and belongs to this guruji
+    const consultation = await prisma.consultationSession.findUnique({
+      where: { id: consultationId },
+      include: {
+        appointment: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!consultation) {
+      return { success: false, error: 'Consultation not found' };
+    }
+
+    if (consultation.gurujiId !== session.user.id) {
+      return { success: false, error: 'You can only prescribe remedies for your own consultations' };
+    }
+
+    // Check if consultation is still active (not completed)
+    if (consultation.endTime) {
+      return { success: false, error: 'Cannot prescribe remedies for completed consultations' };
+    }
+
+    // Verify the remedy template exists
+    const template = await prisma.remedyTemplate.findUnique({
+      where: { id: templateId },
+    });
+
+    if (!template) {
+      return { success: false, error: 'Remedy template not found' };
+    }
+
+    // Create the remedy document
+    const remedyDocument = await prisma.remedyDocument.create({
+      data: {
+        consultationSessionId: consultationId,
+        templateId: templateId,
+        userId: consultation.appointment.userId,
+        customInstructions: customInstructions || undefined,
+        customDosage: customDosage || undefined,
+        customDuration: customDuration || undefined,
+      },
+      include: {
+        template: true,
+        consultationSession: {
+          include: {
+            appointment: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Create notification for the patient
+    await prisma.notification.create({
+      data: {
+        userId: consultation.appointment.userId,
+        title: 'New Remedy Prescribed',
+        message: `Dr. ${session.user.name} has prescribed ${template.name} for your consultation`,
+        type: 'remedy',
+        data: {
+          consultationId: consultationId,
+          remedyId: remedyDocument.id,
+          remedyName: template.name,
+          gurujiName: session.user.name,
+        },
+      },
+    });
+
+    revalidatePath('/guruji/consultations');
+    revalidatePath('/user/remedies');
+    revalidatePath('/guruji/remedies');
+
+    return { 
+      success: true, 
+      remedyDocument,
+      message: `Remedy "${template.name}" prescribed successfully`
+    };
+  } catch (error) {
+    console.error('Prescribe remedy during consultation error:', error);
+    return { success: false, error: 'Failed to prescribe remedy' };
+  }
+}
