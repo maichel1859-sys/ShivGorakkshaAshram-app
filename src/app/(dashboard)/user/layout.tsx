@@ -10,17 +10,15 @@ export const metadata: Metadata = {
   description: "User dashboard for Shivgoraksha Ashram Management System",
 };
 
-interface UserLayoutProps {
-  children: React.ReactNode;
-  modal?: React.ReactNode;
-  notifications?: React.ReactNode;
-}
-
 export default async function UserLayout({
   children,
   modal,
   notifications,
-}: UserLayoutProps) {
+}: {
+  children: React.ReactNode;
+  modal?: React.ReactNode;
+  notifications?: React.ReactNode;
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
