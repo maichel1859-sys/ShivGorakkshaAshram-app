@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 interface UserLayoutProps {
   children: React.ReactNode;
-  modal: React.ReactNode;
-  notifications: React.ReactNode;
+  modal?: React.ReactNode;
+  notifications?: React.ReactNode;
 }
 
 export default async function UserLayout({

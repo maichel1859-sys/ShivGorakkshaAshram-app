@@ -173,7 +173,7 @@ export async function bookAppointment(formData: FormData) {
     if (rawTimeSlot) {
       try {
         timeSlot = JSON.parse(rawTimeSlot);
-      } catch (_err) {
+      } catch {
         // Fallback to flat fields if JSON parse fails
         timeSlot = undefined;
       }
