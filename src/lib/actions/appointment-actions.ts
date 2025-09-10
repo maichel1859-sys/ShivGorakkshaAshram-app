@@ -167,16 +167,49 @@ export async function bookAppointment(formData: FormData) {
   }
 
   try {
+    // Accept either a serialized `timeSlot` or flat `date`/`time` fields and build the schema payload
+    let timeSlot: { date: string; startTime: string; duration?: number } | undefined;
+    const rawTimeSlot = formData.get('timeSlot') as string | null;
+    if (rawTimeSlot) {
+      try {
+        timeSlot = JSON.parse(rawTimeSlot);
+      } catch (_err) {
+        // Fallback to flat fields if JSON parse fails
+        timeSlot = undefined;
+      }
+    }
+
+    if (!timeSlot) {
+      const date = formData.get('date');
+      const time = formData.get('time');
+      // If either is missing, let the schema validation surface a clear error below
+      if (date && time) {
+        timeSlot = {
+          date: String(date),
+          startTime: String(time),
+          duration: 30,
+        };
+      }
+    }
+
+    // Prefer `recurrencePattern` (schema name); support legacy `recurringPattern` if provided
+    const recurrencePattern = ((): unknown => {
+      const rp = formData.get('recurrencePattern');
+      if (rp) return JSON.parse(rp as string);
+      const legacy = formData.get('recurringPattern');
+      if (legacy) return JSON.parse(legacy as string);
+      return undefined;
+    })();
+
     const data = appointmentSchema.parse({
-      gurujiId: formData.get('gurujiId') || undefined,
-      date: formData.get('date'),
-      time: formData.get('time'),
-      reason: formData.get('reason') || undefined,
-      priority: formData.get('priority') || 'NORMAL',
+      gurujiId: (formData.get('gurujiId') || undefined) as string | undefined,
+      timeSlot,
+      reason: (formData.get('reason') || undefined) as string | undefined,
+      priority: ((formData.get('priority') as string) || 'NORMAL') as unknown,
       isRecurring: formData.get('isRecurring') === 'true',
-      recurringPattern: formData.get('recurringPattern') 
-        ? JSON.parse(formData.get('recurringPattern') as string)
-        : undefined,
+      recurrencePattern,
+      // Optional: allow admin/coordinator to book on behalf of a user (if schema allows userId)
+      userId: (formData.get('userId') || undefined) as string | undefined,
     });
 
     // Get the default Guruji if not specified
