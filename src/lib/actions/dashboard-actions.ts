@@ -108,114 +108,76 @@ export async function getAdminDashboardStats() {
   return _getAdminDashboardStatsInternal();
 }
 
-// Get coordinator dashboard data
-export const getCoordinatorDashboard = cache(
+// Internal cached coordinator dashboard (no auth inside cache)
+const _getCoordinatorDashboardInternal = cache(
   async () => {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return { success: false, error: 'Authentication required' };
-    }
-
-    if (session.user.role !== 'COORDINATOR' && session.user.role !== 'ADMIN') {
-      return { success: false, error: 'Insufficient permissions' };
-    }
-
     try {
-    const [
-      todayAppointments,
-      pendingAppointments,
-      activeQueue,
-      recentCheckins
-    ] = await Promise.all([
-      // Today's appointments
-      prisma.appointment.count({
-        where: {
-          date: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            lt: new Date(new Date().setHours(23, 59, 59, 999)),
+      const [
+        todayAppointments,
+        pendingAppointments,
+        activeQueue,
+        recentCheckins
+      ] = await Promise.all([
+        prisma.appointment.count({
+          where: {
+            date: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+              lt: new Date(new Date().setHours(23, 59, 59, 999)),
+            },
           },
-        },
-      }),
-      // Pending appointments
-      prisma.appointment.count({
-        where: {
-          status: { in: ['BOOKED', 'CONFIRMED'] },
-        },
-      }),
-      // Active queue
-      prisma.queueEntry.findMany({
-        where: {
-          status: { in: ['WAITING', 'IN_PROGRESS'] },
-        },
-        include: {
-          user: {
-            select: { name: true, phone: true },
+        }),
+        prisma.appointment.count({
+          where: { status: { in: ['BOOKED', 'CONFIRMED'] } },
+        }),
+        prisma.queueEntry.findMany({
+          where: { status: { in: ['WAITING', 'IN_PROGRESS'] } },
+          include: { user: { select: { name: true, phone: true } } },
+          orderBy: { position: 'asc' },
+        }),
+        prisma.appointment.findMany({
+          where: {
+            status: 'CHECKED_IN',
+            updatedAt: { gte: new Date(Date.now() - 2 * 60 * 60 * 1000) },
           },
-        },
-        orderBy: { position: 'asc' },
-      }),
-      // Recent check-ins
-      prisma.appointment.findMany({
-        where: {
-          status: 'CHECKED_IN',
-          updatedAt: {
-            gte: new Date(Date.now() - 2 * 60 * 60 * 1000), // Last 2 hours
-          },
-        },
-        include: {
-          user: {
-            select: { name: true, phone: true },
-          },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 10,
-      }),
-    ]);
+          include: { user: { select: { name: true, phone: true } } },
+          orderBy: { updatedAt: 'desc' },
+          take: 10,
+        }),
+      ]);
 
       return {
         success: true,
-        data: {
-          todayAppointments,
-          pendingAppointments,
-          activeQueue,
-          recentCheckins,
-        },
+        data: { todayAppointments, pendingAppointments, activeQueue, recentCheckins },
       };
     } catch (error) {
-      console.error("Get coordinator dashboard error:", error);
+      console.error('Get coordinator dashboard error:', error);
       return { success: false, error: 'Failed to fetch coordinator dashboard' };
     }
   },
   [CACHE_TAGS.coordinator, CACHE_TAGS.dashboard, CACHE_TAGS.appointments, CACHE_TAGS.queue],
-  {
-    revalidate: CACHE_TIMES.DASHBOARD,
-  }
+  { revalidate: CACHE_TIMES.DASHBOARD }
 );
 
-// Get guruji dashboard data
-export const getGurujiDashboard = cache(
-  async (gurujiId?: string) => {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return { success: false, error: 'Authentication required' };
-    }
+// Public wrapper with auth outside cache
+export async function getCoordinatorDashboard() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { success: false, error: 'Authentication required' };
+  if (session.user.role !== 'COORDINATOR' && session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+  return _getCoordinatorDashboardInternal();
+}
 
-    if (session.user.role !== 'GURUJI' && session.user.role !== 'ADMIN') {
-      return { success: false, error: 'Insufficient permissions' };
-    }
-
-    const targetGurujiId = gurujiId || session.user.id;
-
+// Internal cached guruji dashboard (no auth inside cache)
+const _getGurujiDashboardInternal = cache(
+  async (targetGurujiId: string) => {
     try {
-    const [
-      todayAppointments,
-      completedToday,
-      pendingConsultations,
-      recentPatients
-    ] = await Promise.all([
-        // Today's appointments
+      const [
+        todayAppointments,
+        completedToday,
+        pendingConsultations,
+        recentPatients
+      ] = await Promise.all([
         prisma.appointment.findMany({
           where: {
             gurujiId: targetGurujiId,
@@ -224,66 +186,51 @@ export const getGurujiDashboard = cache(
               lt: new Date(new Date().setHours(23, 59, 59, 999)),
             },
           },
-        include: {
-          user: {
-            select: { name: true, phone: true },
-          },
-        },
-        orderBy: { startTime: 'asc' },
-      }),
-        // Completed today
+          include: { user: { select: { name: true, phone: true } } },
+          orderBy: { startTime: 'asc' },
+        }),
         prisma.appointment.count({
           where: {
             gurujiId: targetGurujiId,
             status: 'COMPLETED',
-          updatedAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          },
-        },
-      }),
-        // Pending consultations
-        prisma.consultationSession.count({
-          where: {
-            gurujiId: targetGurujiId,
-            endTime: null, // Pending consultations are those without end time
+            updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
           },
         }),
-        // Recent patients
+        prisma.consultationSession.count({
+          where: { gurujiId: targetGurujiId, endTime: null },
+        }),
         prisma.appointment.findMany({
-          where: {
-            gurujiId: targetGurujiId,
-            status: 'COMPLETED',
-        },
-        include: {
-          user: {
-            select: { name: true, phone: true },
-          },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 5,
-        distinct: ['userId'],
-      }),
-    ]);
+          where: { gurujiId: targetGurujiId, status: 'COMPLETED' },
+          include: { user: { select: { name: true, phone: true } } },
+          orderBy: { updatedAt: 'desc' },
+          take: 5,
+          distinct: ['userId'],
+        }),
+      ]);
 
       return {
         success: true,
-        data: {
-          todayAppointments,
-          completedToday,
-          pendingConsultations,
-          recentPatients,
-        },
+        data: { todayAppointments, completedToday, pendingConsultations, recentPatients },
       };
     } catch (error) {
-      console.error("Get guruji dashboard error:", error);
+      console.error('Get guruji dashboard error:', error);
       return { success: false, error: 'Failed to fetch guruji dashboard' };
     }
   },
   [CACHE_TAGS.guruji, CACHE_TAGS.dashboard, CACHE_TAGS.appointments, CACHE_TAGS.consultations],
-  {
-    revalidate: CACHE_TIMES.DASHBOARD,
-  }
+  { revalidate: CACHE_TIMES.DASHBOARD }
 );
+
+// Public wrapper with auth outside cache
+export async function getGurujiDashboard(gurujiId?: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { success: false, error: 'Authentication required' };
+  if (session.user.role !== 'GURUJI' && session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Insufficient permissions' };
+  }
+  const targetGurujiId = session.user.role === 'ADMIN' ? (gurujiId || session.user.id) : session.user.id;
+  return _getGurujiDashboardInternal(targetGurujiId);
+}
 
 // Internal cached function without auth check
 const _getSystemAlertsInternal = cache(
