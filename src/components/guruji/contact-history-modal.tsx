@@ -13,11 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   MessageSquare,
-  Mail,
   Phone,
   Send,
   Clock,
@@ -30,10 +28,9 @@ import { toast } from "sonner";
 
 interface ContactHistory {
   id: string;
-  type: 'email' | 'sms' | 'phone';
+  type: 'notification' | 'phone';
   method: string;
   recipient: string;
-  subject?: string;
   message: string;
   status: 'sent' | 'delivered' | 'failed' | 'pending';
   sentAt: string;
@@ -63,8 +60,7 @@ export function ContactHistoryModal({
   const [contactHistory, setContactHistory] = useState<ContactHistory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newMessage, setNewMessage] = useState({
-    type: 'sms' as 'email' | 'sms',
-    subject: '',
+    type: 'notification' as 'notification' | 'phone',
     message: '',
   });
 
@@ -75,14 +71,13 @@ export function ContactHistoryModal({
       // const response = await fetch(`/api/patients/${patient.id}/contact-history`);
       // const data = await response.json();
       
-      // Mock data for now
+      // Mock data for now - only showing in-app notifications and phone calls
       const mockHistory: ContactHistory[] = [
         {
           id: '1',
-          type: 'email',
-          method: 'Email',
-          recipient: patient.email || 'No email',
-          subject: 'Remedy Prescription Update',
+          type: 'notification',
+          method: 'In-App Notification',
+          recipient: patient.name || 'Patient',
           message: 'Your remedy prescription has been updated with new instructions.',
           status: 'delivered',
           sentAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
@@ -90,9 +85,9 @@ export function ContactHistoryModal({
         },
         {
           id: '2',
-          type: 'sms',
-          method: 'SMS',
-          recipient: patient.phone || 'No phone',
+          type: 'notification',
+          method: 'In-App Notification',
+          recipient: patient.name || 'Patient',
           message: 'Remedy: Take 2 teaspoons daily. Follow up in 2 weeks.',
           status: 'sent',
           sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
@@ -116,7 +111,7 @@ export function ContactHistoryModal({
     } finally {
       setIsLoading(false);
     }
-  }, [patient.email, patient.phone]);
+  }, [patient.phone, patient.name]);
 
   useEffect(() => {
     if (isOpen) {
@@ -143,19 +138,18 @@ export function ContactHistoryModal({
         const newContact: ContactHistory = {
           id: Date.now().toString(),
           type: newMessage.type,
-          method: newMessage.type === 'email' ? 'Email' : 'SMS',
-          recipient: newMessage.type === 'email' ? patient.email || 'No email' : patient.phone || 'No phone',
-          subject: newMessage.subject,
+          method: 'In-App Notification',
+          recipient: patient.name || 'Patient',
           message: newMessage.message,
           status: 'pending',
           sentAt: new Date().toISOString(),
         };
 
         setContactHistory(prev => [newContact, ...prev]);
-        setNewMessage({ type: 'sms', subject: '', message: '' });
+        setNewMessage({ type: 'notification', message: '' });
         setActiveTab('history');
         
-        toast.success('Message sent successfully');
+        toast.success('Notification sent successfully');
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -209,9 +203,7 @@ export function ContactHistoryModal({
 
   const getMethodIcon = (type: string) => {
     switch (type) {
-      case 'email':
-        return <Mail className="h-4 w-4" />;
-      case 'sms':
+      case 'notification':
         return <MessageSquare className="h-4 w-4" />;
       case 'phone':
         return <Phone className="h-4 w-4" />;
@@ -248,18 +240,16 @@ export function ContactHistoryModal({
                   </p>
                 </div>
                 <div>
-                  <Label>Contact Methods</Label>
+                  <Label>Available Contact Methods</Label>
                   <div className="flex gap-2 mt-1">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3" />
+                      In-App Notifications
+                    </Badge>
                     {patient.phone && (
                       <Badge variant="outline" className="flex items-center gap-1">
                         <Phone className="h-3 w-3" />
-                        Phone
-                      </Badge>
-                    )}
-                    {patient.email && (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        Email
+                        Phone (Manual)
                       </Badge>
                     )}
                   </div>
@@ -271,7 +261,7 @@ export function ContactHistoryModal({
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'history' | 'new')}>
             <TabsList className="grid w-full grid-cols-2 gap-1">
               <TabsTrigger value="history" className="text-xs sm:text-sm">Contact History</TabsTrigger>
-              <TabsTrigger value="new" className="text-xs sm:text-sm">Send New Message</TabsTrigger>
+              <TabsTrigger value="new" className="text-xs sm:text-sm">Send Notification</TabsTrigger>
             </TabsList>
 
             {/* Contact History Tab */}
@@ -320,12 +310,6 @@ export function ContactHistoryModal({
                                 <p className="text-sm">{contact.recipient}</p>
                               </div>
                               
-                              {contact.subject && (
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Subject</Label>
-                                  <p className="text-sm font-medium">{contact.subject}</p>
-                                </div>
-                              )}
                               
                               <div>
                                 <Label className="text-xs text-muted-foreground">Message</Label>
@@ -371,55 +355,24 @@ export function ContactHistoryModal({
             <TabsContent value="new" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Send New Message</CardTitle>
+                  <CardTitle>Send In-App Notification</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Message Type</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        variant={newMessage.type === 'sms' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setNewMessage(prev => ({ ...prev, type: 'sms' }))}
-                        disabled={!patient.phone}
-                        className="flex-1"
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        SMS
-                      </Button>
-                      <Button
-                        variant={newMessage.type === 'email' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setNewMessage(prev => ({ ...prev, type: 'email' }))}
-                        disabled={!patient.email}
-                        className="flex-1"
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Email
-                      </Button>
-                    </div>
+                    <Label>Notification Type</Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Send an in-app notification directly to the patient&apos;s dashboard.
+                      External email and SMS services have been disabled.
+                    </p>
                   </div>
 
-                  {newMessage.type === 'email' && (
-                    <div>
-                      <Label htmlFor="subject">Subject</Label>
-                      <Input
-                        id="subject"
-                        value={newMessage.subject}
-                        onChange={(e) => setNewMessage(prev => ({ ...prev, subject: e.target.value }))}
-                        placeholder="Enter email subject..."
-                        className="mt-2"
-                      />
-                    </div>
-                  )}
-
                   <div>
-                    <Label htmlFor="message">Message</Label>
+                    <Label htmlFor="message">Notification Message</Label>
                     <Textarea
                       id="message"
                       value={newMessage.message}
                       onChange={(e) => setNewMessage(prev => ({ ...prev, message: e.target.value }))}
-                      placeholder={`Enter your ${newMessage.type === 'email' ? 'email' : 'SMS'} message...`}
+                      placeholder="Enter your notification message for the patient..."
                       rows={4}
                       className="mt-2"
                     />
@@ -427,11 +380,7 @@ export function ContactHistoryModal({
 
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
-                      {newMessage.type === 'sms' ? (
-                        <span>Recipient: {patient.phone || 'No phone number available'}</span>
-                      ) : (
-                        <span>Recipient: {patient.email || 'No email available'}</span>
-                      )}
+                      <span>Recipient: {patient.name || 'Patient'} (In-App Notification)</span>
                     </div>
                     <Button
                       onClick={handleSendMessage}
@@ -439,7 +388,7 @@ export function ContactHistoryModal({
                       className="w-full sm:w-auto"
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      {isLoading ? 'Sending...' : 'Send Message'}
+                      {isLoading ? 'Sending...' : 'Send Notification'}
                     </Button>
                   </div>
                 </CardContent>

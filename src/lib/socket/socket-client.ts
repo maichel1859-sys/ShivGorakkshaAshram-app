@@ -4,8 +4,8 @@ import { io, Socket } from 'socket.io-client';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 
-// Socket.IO server URL
-const SOCKET_SERVER_URL = 'https://ashram-queue-socket-server.onrender.com';
+// Socket.IO server URL from environment variable
+const SOCKET_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com';
 
 // Event types matching your server
 export enum SocketEvents {

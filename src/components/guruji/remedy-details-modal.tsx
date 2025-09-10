@@ -46,8 +46,6 @@ interface RemedyDocument {
   customDuration?: string | null;
   createdAt: string;
   pdfUrl?: string | null;
-  emailSent: boolean;
-  smsSent: boolean;
 }
 
 interface ConsultationSession {
@@ -143,6 +141,21 @@ export function RemedyDetailsModal({
     }
   };
 
+  const handleResendRemedy = async () => {
+    try {
+      const result = await resendRemedy(remedy.id);
+      
+      if (result.success) {
+        toast.success(result.message || "Remedy resent successfully");
+      } else {
+        toast.error(result.error || "Failed to resend remedy");
+      }
+    } catch (error) {
+      console.error('Resend error:', error);
+      toast.error("Failed to resend remedy");
+    }
+  };
+
   const handleContact = (method: 'phone' | 'email' | 'sms') => {
     switch (method) {
       case 'phone':
@@ -217,6 +230,16 @@ export function RemedyDetailsModal({
               >
                 <Edit className="h-4 w-4 mr-2" />
                 {isEditing ? 'Cancel' : 'Edit'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResendRemedy}
+                className="flex-1 sm:flex-none"
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Resend</span>
+                <span className="sm:hidden">Resend</span>
               </Button>
               <Button
                 variant="outline"
@@ -460,87 +483,18 @@ export function RemedyDetailsModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
-                    Delivery Status
+                    In-App Delivery
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Email Delivery</h4>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={remedy.emailSent ? "default" : "secondary"}>
-                          {remedy.emailSent ? "Sent" : "Pending"}
-                        </Badge>
-                        {remedy.emailSent && (
-                          <span className="text-xs text-muted-foreground">
-                            ✓ Delivered
-                          </span>
-                        )}
-                      </div>
+                  <div className="text-center py-8">
+                    <div className="text-sm text-muted-foreground mb-2">
+                      📱 In-App Notification System
                     </div>
-                    <div>
-                      <h4 className="font-medium mb-2">SMS Delivery</h4>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={remedy.smsSent ? "default" : "secondary"}>
-                          {remedy.smsSent ? "Sent" : "Pending"}
-                        </Badge>
-                        {remedy.smsSent && (
-                          <span className="text-xs text-muted-foreground">
-                            ✓ Delivered
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h4 className="font-medium mb-2">Actions</h4>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const result = await resendRemedy(remedy.id, 'email');
-                            if (result.success && result.remedyResent) {
-                              toast.success("Email resent successfully");
-                            } else {
-                              toast.error(result.error || "Failed to resend email");
-                            }
-                          } catch {
-                            toast.error("Failed to resend email");
-                          }
-                        }}
-                        disabled={!consultation.patient.email}
-                        className="flex-1 sm:flex-none"
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Resend Email
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const result = await resendRemedy(remedy.id, 'sms');
-                            if (result.success && result.remedyResent) {
-                              toast.success("SMS resent successfully");
-                            } else {
-                              toast.error(result.error || "Failed to resend SMS");
-                            }
-                          } catch {
-                            toast.error("Failed to resend SMS");
-                          }
-                        }}
-                        disabled={!consultation.patient.phone}
-                        className="flex-1 sm:flex-none"
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Resend SMS
-                      </Button>
-                    </div>
+                    <p className="text-sm">
+                      All remedy notifications are delivered through the in-app notification system.
+                      Patients are automatically notified when remedies are prescribed.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

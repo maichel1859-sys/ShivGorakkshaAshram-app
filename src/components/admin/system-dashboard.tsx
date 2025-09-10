@@ -99,11 +99,7 @@ export function SystemDashboard({ className = "" }: SystemDashboardProps) {
         if (check.name.includes("Environment Variable"))
           category = "Environment";
         else if (check.name.includes("Database")) category = "Database";
-        else if (
-          check.name.includes("Twilio") ||
-          check.name.includes("Resend") ||
-          check.name.includes("Sentry")
-        )
+        else if (check.name.includes("Sentry"))
           category = "External Services";
         else if (
           check.name.includes("Camera") ||

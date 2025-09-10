@@ -219,8 +219,6 @@ model RemedyDocument {
   customDosage          String?
   customDuration        String?
   pdfUrl                String?
-  emailSent             Boolean   @default(false)
-  smsSent               Boolean   @default(false)
   deliveredAt           DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -240,8 +238,6 @@ model Notification {
   type      String // 'appointment', 'queue', 'remedy', 'system'
   data      Json?
   read      Boolean  @default(false)
-  emailSent Boolean  @default(false)
-  smsSent   Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])

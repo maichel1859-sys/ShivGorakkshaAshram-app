@@ -50,11 +50,6 @@ export class SystemSetupChecker {
       { name: 'DATABASE_URL', critical: true },
       { name: 'NEXTAUTH_SECRET', critical: true },
       { name: 'NEXTAUTH_URL', critical: false },
-      { name: 'TWILIO_ACCOUNT_SID', critical: false },
-      { name: 'TWILIO_AUTH_TOKEN', critical: false },
-      { name: 'TWILIO_PHONE_NUMBER', critical: false },
-      { name: 'RESEND_API_KEY', critical: false },
-      { name: 'RESEND_FROM_EMAIL', critical: false },
       { name: 'NEXT_PUBLIC_SENTRY_DSN', critical: false },
       { name: 'NEXT_PUBLIC_APP_URL', critical: false },
     ];
@@ -113,60 +108,6 @@ export class SystemSetupChecker {
   }
 
   private async checkExternalServices() {
-    // Check Twilio
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-      try {
-        // Test Twilio connection (you would implement actual test here)
-        this.checks.push({
-          name: 'Twilio SMS Service',
-          status: 'pass',
-          message: 'Twilio credentials configured',
-          critical: false,
-        });
-      } catch {
-        this.checks.push({
-          name: 'Twilio SMS Service',
-          status: 'warning',
-          message: 'Twilio credentials may be invalid',
-          critical: false,
-        });
-      }
-    } else {
-      this.checks.push({
-        name: 'Twilio SMS Service',
-        status: 'warning',
-        message: 'Twilio not configured - SMS features unavailable',
-        critical: false,
-      });
-    }
-
-    // Check Resend
-    if (process.env.RESEND_API_KEY) {
-      try {
-        // Test Resend connection (you would implement actual test here)
-        this.checks.push({
-          name: 'Resend Email Service',
-          status: 'pass',
-          message: 'Resend email service configured',
-          critical: false,
-        });
-      } catch {
-        this.checks.push({
-          name: 'Resend Email Service',
-          status: 'warning',
-          message: 'Resend API key may be invalid',
-          critical: false,
-        });
-      }
-    } else {
-      this.checks.push({
-        name: 'Resend Email Service',
-        status: 'warning',
-        message: 'Resend not configured - email features unavailable',
-        critical: false,
-      });
-    }
-
     // Check Sentry
     if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
       this.checks.push({
@@ -293,12 +234,6 @@ export class SystemSetupChecker {
 
     const warningChecks = this.checks.filter(check => check.status === 'warning');
     
-    if (warningChecks.some(check => check.name.includes('Twilio'))) {
-      instructions.push('• Optional: Configure Twilio for SMS notifications');
-    }
-    if (warningChecks.some(check => check.name.includes('Resend'))) {
-      instructions.push('• Optional: Configure Resend for email notifications');
-    }
     if (warningChecks.some(check => check.name.includes('Sentry'))) {
       instructions.push('• Optional: Configure Sentry for error tracking');
     }

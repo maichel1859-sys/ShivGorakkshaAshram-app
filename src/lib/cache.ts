@@ -523,20 +523,24 @@ export const cacheUtils = {
   clearMemoryCache: () => memoryCache.clear(),
 };
 
-// Cleanup on process exit (Node.js only)
-if (typeof process !== 'undefined' && process.on && typeof process.exit === 'function') {
+// Cleanup on process exit (Node.js only) - Edge Runtime compatible
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  // Only register process handlers in development mode
+  // Edge Runtime doesn't support process events
   try {
-    process.on('SIGINT', () => {
-      memoryCache.destroy();
-      process.exit(0);
-    });
+    if (process.on && typeof process.exit === 'function') {
+      process.on('SIGINT', () => {
+        memoryCache.destroy();
+        process.exit(0);
+      });
 
-    process.on('SIGTERM', () => {
-      memoryCache.destroy();
-      process.exit(0);
-    });
+      process.on('SIGTERM', () => {
+        memoryCache.destroy();
+        process.exit(0);
+      });
+    }
   } catch {
-    // Edge runtime doesn't support process events - ignore
+    // Edge runtime doesn't support process events - ignore silently
   }
 }
 

@@ -19,7 +19,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx tsx:*)",
       "Bash(timeout 300 npm run build)",
-      "Bash(timeout 300 npm run build -- --no-lint)"
+      "Bash(timeout 300 npm run build -- --no-lint)",
+      "Bash(npm run lint:*)"
     ],
     "deny": []
   }

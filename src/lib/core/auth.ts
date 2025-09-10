@@ -169,7 +169,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   events: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       try {
         // Use enhanced audit logging
         const { createAuditLog } = await import('@/lib/audit/enhanced-audit');
@@ -184,11 +184,11 @@ export const authOptions: NextAuthOptions = {
             details: 'User signed in successfully'
           },
           newData: {
-            provider: "credentials",
+            provider: account?.provider || "credentials",
             timestamp: new Date().toISOString(),
           },
         });
-        console.log("User signed in:", user.email);
+        console.log("User signed in:", user.email, "via", account?.provider || "credentials");
       } catch (error) {
         // Log the error but don't fail the sign-in process
         console.error("Failed to create audit log for sign-in:", error);

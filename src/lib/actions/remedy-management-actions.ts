@@ -61,7 +61,7 @@ export async function getUserRemedies() {
       customDosage: remedy.customDosage || '',
       customDuration: remedy.customDuration || '',
       pdfUrl: remedy.pdfUrl || '',
-      emailSent: remedy.emailSent,
+      emailSent: false, // Default to false since we don't track email status yet
       deliveredAt: remedy.deliveredAt?.toISOString() || '',
       createdAt: remedy.createdAt.toISOString().split('T')[0],
     }));
@@ -206,8 +206,6 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
     const updatedRemedy = await prisma.remedyDocument.update({
       where: { id: remedyId },
       data: {
-        emailSent: false,
-        smsSent: false,
         deliveredAt: new Date(), // Mark as delivered via in-app notification
         updatedAt: new Date(),
       },
@@ -242,6 +240,96 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to send remedy' };
+  }
+}
+
+// Resend remedy to patient
+export async function resendRemedy(remedyId: string) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    // Get remedy details
+    const remedy = await prisma.remedyDocument.findUnique({
+      where: { id: remedyId },
+      include: {
+        template: true,
+        consultationSession: {
+          include: {
+            patient: true,
+            appointment: {
+              include: {
+                guruji: {
+                  select: { name: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!remedy) {
+      return { success: false, error: 'Remedy not found' };
+    }
+
+    // Verify guruji has permission to resend this remedy
+    if (remedy.consultationSession.appointment.gurujiId !== session.user.id) {
+      return { success: false, error: 'Permission denied' };
+    }
+
+    // Create notification for the patient
+    await prisma.notification.create({
+      data: {
+        userId: remedy.consultationSession.patientId,
+        type: 'REMEDY_PRESCRIBED',
+        title: 'Remedy Resent',
+        message: `Your remedy "${remedy.template.name}" has been resent by ${remedy.consultationSession.appointment.guruji?.name || 'Guruji'}. Please check your remedies section.`,
+        data: {
+          remedyId: remedy.id,
+          templateName: remedy.template.name,
+          gurujiName: remedy.consultationSession.appointment.guruji?.name || 'Guruji',
+          action: 'resend'
+        }
+      }
+    });
+
+    // Update remedy delivered timestamp
+    await prisma.remedyDocument.update({
+      where: { id: remedyId },
+      data: {
+        deliveredAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: 'RESEND_REMEDY',
+        resource: 'REMEDY',
+        resourceId: remedyId,
+        newData: JSON.parse(JSON.stringify({
+          templateName: remedy.template.name,
+          patientName: remedy.consultationSession.patient.name,
+          resentAt: new Date().toISOString()
+        })),
+      },
+    });
+
+    revalidateTag('remedies');
+    revalidateTag('notifications');
+    revalidatePath('/guruji/consultations');
+    revalidatePath('/guruji/remedies');
+    
+    return { success: true, message: 'Remedy resent successfully' };
+  } catch (error) {
+    console.error('Resend remedy error:', error);
+    return { success: false, error: 'Failed to resend remedy' };
   }
 }
 
@@ -401,17 +489,9 @@ export async function getRemedyStats(options?: {
 
     const [
       totalRemedies,
-      emailSentCount,
-      smsSentCount,
       deliveredCount,
     ] = await Promise.all([
       prisma.remedyDocument.count({ where: whereClause }),
-      prisma.remedyDocument.count({ 
-        where: { ...whereClause, emailSent: true } 
-      }),
-      prisma.remedyDocument.count({ 
-        where: { ...whereClause, smsSent: true } 
-      }),
       prisma.remedyDocument.count({ 
         where: { ...whereClause, deliveredAt: { not: null } } 
       }),
@@ -421,8 +501,6 @@ export async function getRemedyStats(options?: {
       success: true,
       stats: {
         total: totalRemedies,
-        emailSent: emailSentCount,
-        smsSent: smsSentCount,
         delivered: deliveredCount,
         pendingDelivery: totalRemedies - deliveredCount,
       },
@@ -433,78 +511,3 @@ export async function getRemedyStats(options?: {
   }
 }
 
-// Resend remedy delivery
-export async function resendRemedy(remedyId: string, method: 'email' | 'sms') {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
-  }
-
-  try {
-    // Verify remedy exists and guruji has permission
-    const remedy = await prisma.remedyDocument.findUnique({
-      where: { id: remedyId },
-      include: {
-        consultationSession: {
-          include: {
-            patient: true,
-            appointment: {
-              select: { gurujiId: true },
-            },
-          },
-        },
-        template: true,
-      },
-    });
-
-    if (!remedy) {
-      return { success: false, error: 'Remedy not found' };
-    }
-
-    if (remedy.consultationSession.appointment.gurujiId !== session.user.id) {
-      return { success: false, error: 'Permission denied' };
-    }
-
-    // Note: External messaging (Email/SMS) is disabled as per requirements
-    // The system now uses only in-app notifications
-    const success = true; // Always succeed since we're using in-app notifications
-    console.log('Remedy resent - handled by in-app notification system');
-
-    if (success) {
-      // Update remedy delivery status
-      await prisma.remedyDocument.update({
-        where: { id: remedyId },
-        data: {
-          [`${method}Sent`]: true,
-          deliveredAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      // Create audit log
-      await prisma.auditLog.create({
-        data: {
-          userId: session.user.id,
-          action: 'RESEND_REMEDY',
-          resource: 'REMEDY',
-          resourceId: remedyId,
-          newData: JSON.parse(JSON.stringify({ method, success: true })),
-        },
-      });
-
-      revalidateTag('remedies');
-      revalidatePath('/guruji/consultations');
-      revalidatePath('/guruji/remedies');
-    }
-
-    return { 
-      success: true, 
-      remedyResent: success,
-      method,
-    };
-  } catch (error) {
-    console.error('Resend remedy error:', error);
-    return { success: false, error: 'Failed to resend remedy' };
-  }
-}

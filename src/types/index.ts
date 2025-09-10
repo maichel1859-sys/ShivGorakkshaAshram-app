@@ -101,8 +101,6 @@ export interface RemedyDocument {
   customDosage?: string | null
   customDuration?: string | null
   pdfUrl?: string | null
-  emailSent: boolean
-  smsSent: boolean
   deliveredAt?: Date | null
   createdAt: Date
   updatedAt: Date
@@ -118,8 +116,6 @@ export interface Notification {
   type: string
   data?: Record<string, unknown>
   read: boolean
-  emailSent: boolean
-  smsSent: boolean
   createdAt: Date
   user?: User
 }
