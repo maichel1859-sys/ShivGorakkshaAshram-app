@@ -141,7 +141,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/signin",
-    error: "/error",
+    error: "/auth/error",
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -165,6 +165,26 @@ export const authOptions: NextAuthOptions = {
       } catch (error) {
         console.error("Session callback error:", error);
         return session;
+      }
+    },
+    async redirect({ url, baseUrl }) {
+      try {
+        // Always allow redirects to the base URL
+        if (url.startsWith(baseUrl)) return url;
+        
+        // For sign-in redirects, redirect to role-appropriate dashboard
+        if (url === baseUrl || url === `${baseUrl}/`) {
+          // Get the token to determine user role
+          // Note: This callback doesn't have access to the session/token directly
+          // So we'll redirect to a middleware route that will handle role-based routing
+          return `${baseUrl}/auth/redirect`;
+        }
+        
+        // For other cases, return the base URL
+        return baseUrl;
+      } catch (error) {
+        console.error("Redirect callback error:", error);
+        return baseUrl;
       }
     },
   },

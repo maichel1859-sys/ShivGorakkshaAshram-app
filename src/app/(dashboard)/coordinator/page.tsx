@@ -171,7 +171,7 @@ export default function CoordinatorDashboard() {
           <div className="space-y-4">
             {stats?.upcomingAppointments
               ?.slice(0, 5)
-              .map((appointment) => (
+              .map((appointment: { id: string; patientName: string; gurujiName: string; time: string; status: string; priority: string }) => (
                 <div
                   key={appointment.id}
                   className="flex items-center justify-between p-3 border rounded-lg"

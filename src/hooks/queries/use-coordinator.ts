@@ -18,11 +18,11 @@ export function useCoordinatorDashboard() {
       }
       
       // Transform the data to match the expected format
-      const data = result.data;
-      
-      if (!data) {
+      if (!result.success || !result.data) {
         throw new Error('No data received from coordinator dashboard');
       }
+      
+      const data = result.data;
       
       // Calculate stats
       const totalAppointmentsToday = data.todayAppointments || 0;
