@@ -677,8 +677,6 @@ Practice 3 times daily
           customDosage: 'As prescribed by Guruji',
           customDuration: remedyTemplate.duration,
           pdfUrl: `https://ashram.com/remedies/${appointment.id}.pdf`,
-          emailSent: Math.random() > 0.5,
-          smsSent: Math.random() > 0.5,
           deliveredAt: Math.random() > 0.7 ? new Date() : null,
         }
       });
