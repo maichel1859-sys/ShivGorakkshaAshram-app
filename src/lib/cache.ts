@@ -10,14 +10,23 @@ export const CACHE_TAGS = {
   settings: 'settings',
   guruji: 'guruji',
   dashboard: 'dashboard',
+  coordinator: 'coordinator',
+  admin: 'admin',
+  system: 'system',
+  audit: 'audit',
+  consultations: 'consultations',
 } as const;
 
 export const CACHE_TIMES = {
-  short: 60, // 1 minute
-  medium: 300, // 5 minutes
-  long: 1800, // 30 minutes
-  hour: 3600, // 1 hour
-  day: 86400, // 24 hours
+  SHORT: 60, // 1 minute
+  MEDIUM: 300, // 5 minutes
+  LONG: 1800, // 30 minutes
+  HOUR: 3600, // 1 hour
+  DAY: 86400, // 24 hours
+  DASHBOARD: 300, // 5 minutes for dashboard data
+  ALERTS: 120, // 2 minutes for alerts
+  SYSTEM_STATUS: 60, // 1 minute for system status
+  SETTINGS: 1800, // 30 minutes for settings
 } as const;
 
 // In-memory cache for rate limiting and sessions (since we don't have Redis)
@@ -155,7 +164,7 @@ export const cachedFunctions = {
     ['user'],
     { 
       tags: [CACHE_TAGS.users],
-      revalidate: CACHE_TIMES.medium 
+      revalidate: CACHE_TIMES.MEDIUM 
     }
   ),
 
@@ -177,7 +186,7 @@ export const cachedFunctions = {
     ['guruji'],
     { 
       tags: [CACHE_TAGS.guruji],
-      revalidate: CACHE_TIMES.long 
+      revalidate: CACHE_TIMES.LONG 
     }
   ),
 
@@ -199,7 +208,7 @@ export const cachedFunctions = {
     ['all-gurujis'],
     { 
       tags: [CACHE_TAGS.guruji],
-      revalidate: CACHE_TIMES.long 
+      revalidate: CACHE_TIMES.LONG 
     }
   ),
 
@@ -221,7 +230,7 @@ export const cachedFunctions = {
     ['guruji-by-id'],
     { 
       tags: [CACHE_TAGS.guruji],
-      revalidate: CACHE_TIMES.long 
+      revalidate: CACHE_TIMES.LONG 
     }
   ),
 
@@ -242,7 +251,7 @@ export const cachedFunctions = {
     ['user-appointments'],
     { 
       tags: [CACHE_TAGS.appointments],
-      revalidate: CACHE_TIMES.short 
+      revalidate: CACHE_TIMES.SHORT 
     }
   ),
 
@@ -269,7 +278,7 @@ export const cachedFunctions = {
     ['today-appointments'],
     { 
       tags: [CACHE_TAGS.appointments],
-      revalidate: CACHE_TIMES.short 
+      revalidate: CACHE_TIMES.SHORT 
     }
   ),
 
@@ -295,7 +304,7 @@ export const cachedFunctions = {
     ['queue-entries'],
     { 
       tags: [CACHE_TAGS.queue],
-      revalidate: CACHE_TIMES.short 
+      revalidate: CACHE_TIMES.SHORT 
     }
   ),
 
@@ -349,7 +358,7 @@ export const cachedFunctions = {
     ['dashboard-stats'],
     { 
       tags: [CACHE_TAGS.dashboard],
-      revalidate: CACHE_TIMES.short 
+      revalidate: CACHE_TIMES.SHORT 
     }
   ),
 
@@ -369,7 +378,7 @@ export const cachedFunctions = {
     ['system-settings'],
     { 
       tags: [CACHE_TAGS.settings],
-      revalidate: CACHE_TIMES.long 
+      revalidate: CACHE_TIMES.LONG 
     }
   ),
 };
@@ -514,17 +523,21 @@ export const cacheUtils = {
   clearMemoryCache: () => memoryCache.clear(),
 };
 
-// Cleanup on process exit
-if (typeof process !== 'undefined') {
-  process.on('SIGINT', () => {
-    memoryCache.destroy();
-    process.exit(0);
-  });
+// Cleanup on process exit (Node.js only)
+if (typeof process !== 'undefined' && process.on && typeof process.exit === 'function') {
+  try {
+    process.on('SIGINT', () => {
+      memoryCache.destroy();
+      process.exit(0);
+    });
 
-  process.on('SIGTERM', () => {
-    memoryCache.destroy();
-    process.exit(0);
-  });
+    process.on('SIGTERM', () => {
+      memoryCache.destroy();
+      process.exit(0);
+    });
+  } catch {
+    // Edge runtime doesn't support process events - ignore
+  }
 }
 
 const cacheModule = {

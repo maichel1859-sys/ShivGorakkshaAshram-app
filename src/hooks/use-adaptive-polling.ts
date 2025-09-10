@@ -33,6 +33,25 @@ export function useAdaptivePolling(config: PollingConfig) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isVisibleRef = useRef(true);
 
+  // Function to determine appropriate polling interval based on user state
+  const getAdaptiveInterval = useCallback((userState?: 'IDLE' | 'WAITING' | 'NEAR_FRONT' | 'CONSULTATION') => {
+    if (!isVisibleRef.current) {
+      return adaptiveIntervals.BACKGROUND || interval;
+    }
+    
+    switch (userState) {
+      case 'CONSULTATION':
+        return adaptiveIntervals.CONSULTATION || interval;
+      case 'NEAR_FRONT':
+        return adaptiveIntervals.NEAR_FRONT || interval;
+      case 'WAITING':
+        return adaptiveIntervals.WAITING || interval;
+      case 'IDLE':
+      default:
+        return adaptiveIntervals.IDLE || interval;
+    }
+  }, [adaptiveIntervals, interval]);
+
   const executePoll = useCallback(async () => {
     if (!enabled || !isVisibleRef.current) return;
 
@@ -46,6 +65,19 @@ export function useAdaptivePolling(config: PollingConfig) {
       setIsPolling(false);
     }
   }, [enabled, onPoll, onError]);
+
+  // Method to update polling interval based on user state
+  const updatePollingInterval = useCallback((userState?: 'IDLE' | 'WAITING' | 'NEAR_FRONT' | 'CONSULTATION') => {
+    const newInterval = getAdaptiveInterval(userState);
+    if (newInterval !== currentInterval) {
+      setCurrentInterval(newInterval);
+      if (intervalRef.current) {
+        // Restart polling with new interval
+        clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(executePoll, newInterval);
+      }
+    }
+  }, [getAdaptiveInterval, currentInterval, executePoll]);
 
   const startPolling = useCallback(() => {
     if (!enabled || intervalRef.current) return;
@@ -113,5 +145,7 @@ export function useAdaptivePolling(config: PollingConfig) {
     stopPolling,
     restartPolling,
     updateInterval,
+    updatePollingInterval,
+    getAdaptiveInterval,
   };
 }

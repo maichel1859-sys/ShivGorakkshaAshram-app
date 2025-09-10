@@ -7,10 +7,22 @@ import { z } from "zod";
 // Common field validations
 export const emailSchema = z.string().email("Invalid email address");
 
-export const phoneSchema = z.string().regex(
-  /^[\+]?[1-9][\d]{0,15}$/,
-  "Invalid phone number format"
-);
+// Enhanced phone validation with Indian mobile support
+export const phoneSchema = z.string()
+  .min(10, "Phone number must be at least 10 digits")
+  .max(15, "Phone number must be at most 15 digits")
+  .refine((phone) => {
+    // Clean the phone number
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // Indian mobile number validation (10 digits starting with 6-9)
+    const indianMobile = /^[6-9]\d{9}$/.test(cleaned);
+    
+    // International format validation
+    const international = /^[\+]?[1-9][\d]{6,14}$/.test(phone.replace(/\s/g, ''));
+    
+    return indianMobile || international;
+  }, "Invalid phone number format. Must be a valid Indian mobile number (10 digits starting with 6-9) or international format");
 
 export const strongPasswordSchema = z.string()
   .min(8, "Password must be at least 8 characters")
@@ -402,6 +414,50 @@ export const auditLogSchema = z.object({
   ipAddress: z.string().optional(),
   userAgent: z.string().optional(),
 });
+
+// ========================================
+// PHONE NUMBER UTILITIES
+// ========================================
+
+export const normalizePhoneNumber = (phone: string): string => {
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // If it starts with +91, remove it for Indian numbers
+  if (phone.startsWith('+91')) {
+    return cleaned.substring(2);
+  }
+  
+  // If it starts with 91 and has 12 digits total, remove 91
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    return cleaned.substring(2);
+  }
+  
+  // If it starts with 0 and has 11 digits, remove the leading 0
+  if (cleaned.startsWith('0') && cleaned.length === 11) {
+    return cleaned.substring(1);
+  }
+  
+  return cleaned;
+};
+
+export const formatPhoneForDisplay = (phone: string): string => {
+  const normalized = normalizePhoneNumber(phone);
+  
+  if (normalized.length === 10 && /^[6-9]\d{9}$/.test(normalized)) {
+    // Format Indian mobile as +91 XXXXX XXXXX
+    return `+91 ${normalized.substring(0, 5)} ${normalized.substring(5)}`;
+  }
+  
+  return phone; // Return original if can't format
+};
+
+export const validateIndianMobile = (phone: string): boolean => {
+  const normalized = normalizePhoneNumber(phone);
+  return /^[6-9]\d{9}$/.test(normalized);
+};
+
+// Enhanced phone schema with normalization
+export const normalizedPhoneSchema = phoneSchema.transform((phone) => normalizePhoneNumber(phone));
 
 // ========================================
 // VALIDATION UTILITIES

@@ -15,7 +15,6 @@ import {
   User,
   Calendar,
   FileText,
-  Clock,
   Edit,
   Download,
   Share2,
@@ -167,7 +166,7 @@ export default function RemedyDetailsPage() {
       
       toast.success("Remedy updated successfully");
       setIsEditing(false);
-    } catch (error) {
+    } catch {
       toast.error("Failed to update remedy");
     }
   };
@@ -255,7 +254,7 @@ export default function RemedyDetailsPage() {
             Remedy Not Found
           </h3>
           <p className="text-muted-foreground mb-4">
-            The remedy you're looking for doesn't exist or you don't have permission to view it.
+            The remedy you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.
           </p>
           <Button onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />

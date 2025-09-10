@@ -56,9 +56,10 @@ interface QueueEntry {
 export default function AdminQueuePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Use React Query for data fetching
-  const { data: queueEntries = [], isLoading, error } = useAdminQueue();
+  const { data: queueEntries = [], isLoading, error, refetch } = useAdminQueue();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -107,6 +108,34 @@ export default function AdminQueuePage() {
   const inProgressCount = queueEntries.filter(
     (entry: QueueEntry) => entry.status === "IN_PROGRESS"
   ).length;
+
+  const handleQueueAction = async (action: string, queueEntryId: string) => {
+    try {
+      setActionLoading(true);
+      // TODO: Implement queue action logic
+      console.log('Queue action:', action, queueEntryId);
+      // Refresh the queue data
+      await refetch();
+    } catch (error) {
+      console.error('Queue action error:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkAction = async (action: string, selectedIds: string[]) => {
+    try {
+      setActionLoading(true);
+      // TODO: Implement bulk action logic
+      console.log('Bulk action:', action, selectedIds);
+      // Refresh the queue data
+      await refetch();
+    } catch (error) {
+      console.error('Bulk action error:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -236,10 +265,28 @@ export default function AdminQueuePage() {
                   {filteredQueueEntries.length} entries found
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkAction("start", filteredQueueEntries.filter(e => e.status === "WAITING").map(e => e.id))}
+                  disabled={actionLoading || filteredQueueEntries.filter(e => e.status === "WAITING").length === 0}
+                >
+                  Start All Waiting
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkAction("complete", filteredQueueEntries.filter(e => e.status === "IN_PROGRESS").map(e => e.id))}
+                  disabled={actionLoading || filteredQueueEntries.filter(e => e.status === "IN_PROGRESS").length === 0}
+                >
+                  Complete All In Progress
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -301,11 +348,38 @@ export default function AdminQueuePage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
+                      {entry.status === "WAITING" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQueueAction("start", entry.id)}
+                          disabled={actionLoading}
+                        >
+                          Start
+                        </Button>
+                      )}
+                      {entry.status === "IN_PROGRESS" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQueueAction("complete", entry.id)}
+                          disabled={actionLoading}
+                        >
+                          Complete
+                        </Button>
+                      )}
+                      {entry.status === "WAITING" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQueueAction("cancel", entry.id)}
+                          disabled={actionLoading}
+                        >
+                          Cancel
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm">
                         View
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        Edit
                       </Button>
                     </div>
                   </div>

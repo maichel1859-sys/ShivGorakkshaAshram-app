@@ -1,15 +1,33 @@
-const CACHE_NAME = "aashram-v1.0.0";
-const STATIC_CACHE = "aashram-static-v1.0.0";
-const DYNAMIC_CACHE = "aashram-dynamic-v1.0.0";
+const CACHE_NAME = "ashram-v1.1.0";
+const STATIC_CACHE = "ashram-static-v1.1.0";
+const DYNAMIC_CACHE = "ashram-dynamic-v1.1.0";
+const API_CACHE = "ashram-api-v1.1.0";
+const IMAGE_CACHE = "ashram-images-v1.1.0";
 
 // Files to cache immediately
 const STATIC_FILES = [
   "/",
   "/manifest.json",
   "/offline.html",
+  "/browserconfig.xml",
+  "/icons/icon-72x72.png",
+  "/icons/icon-96x96.png",
+  "/icons/icon-128x128.png",
+  "/icons/icon-144x144.png",
+  "/icons/icon-152x152.png",
   "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
+  "/icons/icon-384x384.png",
+  "/icons/icon-512x512.png"
 ];
+
+// Cache strategies
+const CACHE_STRATEGIES = {
+  NETWORK_FIRST: 'network-first',
+  CACHE_FIRST: 'cache-first',
+  STALE_WHILE_REVALIDATE: 'stale-while-revalidate',
+  NETWORK_ONLY: 'network-only',
+  CACHE_ONLY: 'cache-only'
+};
 
 // Install event - cache static files
 self.addEventListener("install", (event) => {
@@ -40,8 +58,13 @@ self.addEventListener("activate", (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-              console.log("Deleting old cache:", cacheName);
+            if ([
+              STATIC_CACHE, 
+              DYNAMIC_CACHE, 
+              API_CACHE, 
+              IMAGE_CACHE
+            ].indexOf(cacheName) === -1) {
+              console.log('Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -64,11 +87,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Handle different types of requests
-  if (
-    url.pathname.startsWith("/_next/") ||
-    url.pathname.includes(".") ||
-    url.pathname.startsWith("/icons/")
+  // Handle different types of requests with improved strategies
+  if (url.pathname.startsWith('/api/')) {
+    // API requests - Network first with short cache fallback
+    event.respondWith(handleAPIRequest(request));
+  } else if (
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.includes('.') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname.startsWith('/images/')
   ) {
     // Static assets - Cache first with network fallback
     event.respondWith(handleStaticRequest(request));
@@ -78,23 +105,48 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Handle static assets
+// Handle static assets with improved caching
 async function handleStaticRequest(request) {
+  const url = new URL(request.url);
+  
+  // Check cache first for static assets
   const cachedResponse = await caches.match(request);
   if (cachedResponse) {
+    // Return cached version immediately
     return cachedResponse;
   }
 
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      const cache = await caches.open(STATIC_CACHE);
+      // Determine which cache to use based on content type
+      let targetCache = STATIC_CACHE;
+      const contentType = networkResponse.headers.get('content-type') || '';
+      
+      if (contentType.startsWith('image/')) {
+        targetCache = IMAGE_CACHE;
+      }
+      
+      const cache = await caches.open(targetCache);
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
-    console.log("Static asset not found:", request.url);
-    return new Response("Not found", { status: 404 });
+    console.log('Static asset not available offline:', request.url);
+    
+    // For images, return a placeholder
+    if (url.pathname.includes('image') || url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) {
+      return new Response(
+        '<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f0f0f0"/><text x="50%" y="50%" text-anchor="middle" dy=".3em">Image Offline</text></svg>',
+        {
+          headers: new Headers({
+            'Content-Type': 'image/svg+xml'
+          })
+        }
+      );
+    }
+    
+    return new Response('Not found', { status: 404 });
   }
 }
 
@@ -121,7 +173,84 @@ async function handlePageRequest(request) {
     }
 
     // Return offline page
-    return caches.match("/offline.html");
+    // Return offline page for navigation requests
+    if (request.mode === 'navigate') {
+      return caches.match('/offline.html');
+    }
+    
+    // For other requests, return a generic offline response
+    return new Response('Offline', {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: new Headers({
+        'Content-Type': 'text/plain'
+      })
+    });
+  }
+}
+
+// Handle API requests with network-first strategy and short cache
+async function handleAPIRequest(request) {
+  const url = new URL(request.url);
+  
+  try {
+    // Always try network first for API requests
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      // Cache successful API responses for short duration
+      const cache = await caches.open(API_CACHE);
+      const responseToCache = networkResponse.clone();
+      
+      // Add timestamp for cache invalidation
+      const headers = new Headers(responseToCache.headers);
+      headers.set('sw-cache-timestamp', Date.now().toString());
+      
+      const modifiedResponse = new Response(responseToCache.body, {
+        status: responseToCache.status,
+        statusText: responseToCache.statusText,
+        headers: headers
+      });
+      
+      cache.put(request, modifiedResponse);
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    // Network failed, try cache
+    const cachedResponse = await caches.match(request);
+    
+    if (cachedResponse) {
+      // Check if cached response is still valid (within 5 minutes)
+      const cacheTimestamp = cachedResponse.headers.get('sw-cache-timestamp');
+      const now = Date.now();
+      const maxAge = 5 * 60 * 1000; // 5 minutes
+      
+      if (cacheTimestamp && (now - parseInt(cacheTimestamp)) < maxAge) {
+        // Add offline indicator header
+        const headers = new Headers(cachedResponse.headers);
+        headers.set('sw-offline-response', 'true');
+        
+        return new Response(cachedResponse.body, {
+          status: cachedResponse.status,
+          statusText: cachedResponse.statusText,
+          headers: headers
+        });
+      }
+    }
+    
+    // Return offline API response
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: 'Offline - Please try again when connected',
+      offline: true 
+    }), {
+      status: 503,
+      headers: new Headers({
+        'Content-Type': 'application/json',
+        'sw-offline-response': 'true'
+      })
+    });
   }
 }
 

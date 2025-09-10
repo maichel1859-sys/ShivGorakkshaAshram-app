@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Clock, Users, CheckCircle, AlertCircle, User, Phone, MessageSquare, Pill } from 'lucide-react';
 import { getGurujiQueueEntries, startConsultation, updateQueueStatus, getConsultationSessionId } from '@/lib/actions/queue-actions';
 import { useAdaptivePolling } from '@/hooks/use-adaptive-polling';
-import { useLoadingStore } from '@/lib/stores/loading-store';
+import { useAppStore } from '@/store/app-store';
 import { PageSpinner } from '@/components/ui/global-spinner';
 import { ErrorBoundary, QueueErrorFallback } from '@/components/error-boundary';
 import { PrescribeRemedyModal } from '@/components/guruji/prescribe-remedy-modal';
@@ -42,15 +42,15 @@ interface GurujiQueueStatus {
 function GurujiQueuePageContent() {
   const [queueStatus, setQueueStatus] = useState<GurujiQueueStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const { setGurujiQueueLoading } = useLoadingStore();
+  const { setLoadingState } = useAppStore();
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
 
-  const loadQueueStatus = async () => {
+  const loadQueueStatus = useCallback(async () => {
     try {
       setLoading(true);
-      setGurujiQueueLoading(true);
+      setLoadingState("guruji-queue-loading", true);
       const result = await getGurujiQueueEntries();
       
               if (result.success && result.queueEntries) {
@@ -95,9 +95,9 @@ function GurujiQueuePageContent() {
       toast.error('Error loading queue data');
     } finally {
       setLoading(false);
-      setGurujiQueueLoading(false);
+      setLoadingState("guruji-queue-loading", false);
     }
-  };
+  }, [setLoadingState]);
 
   // Use adaptive polling instead of fixed interval
   const { isPolling } = useAdaptivePolling({
@@ -111,8 +111,7 @@ function GurujiQueuePageContent() {
 
   const handleStartConsultation = async (entry: QueueEntry) => {
     try {
-      const { setConsultationLoading } = useLoadingStore.getState();
-      setConsultationLoading(true);
+      setLoadingState("consultation-loading", true);
       
       const formData = new FormData();
       formData.append('queueEntryId', entry.id);
@@ -132,8 +131,7 @@ function GurujiQueuePageContent() {
       console.error('Error starting consultation:', error);
       toast.error('Error starting consultation');
     } finally {
-      const { setConsultationLoading } = useLoadingStore.getState();
-      setConsultationLoading(false);
+      setLoadingState("consultation-loading", false);
     }
   };
 
@@ -236,7 +234,7 @@ function GurujiQueuePageContent() {
   // Load queue status on component mount
   useEffect(() => {
     loadQueueStatus();
-  }, []);
+  }, [loadQueueStatus]);
 
   if (loading) {
     return <PageSpinner message="Loading queue..." />;
@@ -396,7 +394,7 @@ function GurujiQueuePageContent() {
               </CardContent>
             </Card>
           ) : (
-            queueStatus.currentQueue.map((entry: QueueEntry, index: number) => (
+            queueStatus.currentQueue.map((entry: QueueEntry) => (
               <Card key={entry.id} className={`hover:shadow-md transition-shadow ${
                 entry.status === 'IN_PROGRESS' ? 'ring-2 ring-primary' : ''
               }`}>

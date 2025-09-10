@@ -10,8 +10,6 @@ export * from './actions';
 export { authOptions } from './core/auth';
 
 // External Services
-export { sendEmail } from './external/email';
-export { sendSMS, generateOTP } from './external/sms';
 export * from './external/rate-limit';
 
 // Services

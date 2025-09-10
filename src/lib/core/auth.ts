@@ -9,6 +9,37 @@ import { authRateLimiter, loginBackoffLimiter } from "@/lib/external/rate-limit"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+  // Enable CSRF protection
+  useSecureCookies: process.env.NODE_ENV === 'production',
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+    callbackUrl: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+    csrfToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Host-' : ''}next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -39,14 +70,14 @@ export const authOptions: NextAuthOptions = {
           const identifier = `login:${credentials.email}`;
           
           // Check rate limiting
-          const rateLimitResult = authRateLimiter.check(identifier);
+          const rateLimitResult = await authRateLimiter.check(identifier);
           if (!rateLimitResult.allowed) {
             console.log(`Rate limit exceeded for ${credentials.email}`);
             return null;
           }
 
           // Check exponential backoff for failed attempts
-          const backoffResult = loginBackoffLimiter.check(identifier);
+          const backoffResult = await loginBackoffLimiter.check(identifier);
           if (!backoffResult.allowed) {
             console.log(`Login blocked due to too many failed attempts: ${credentials.email}`);
             return null;
@@ -103,6 +134,10 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 7 * 24 * 60 * 60, // 7 days
+    updateAge: 24 * 60 * 60, // 24 hours - how frequently to update the session
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   pages: {
     signIn: "/signin",
@@ -136,17 +171,21 @@ export const authOptions: NextAuthOptions = {
   events: {
     async signIn({ user }) {
       try {
-        // Log sign in events for audit
-        await prisma.auditLog.create({
-          data: {
-            userId: user.id,
-            action: "SIGN_IN",
-            resource: "USER",
-            resourceId: user.id,
-            newData: {
-              provider: "credentials",
-              timestamp: new Date().toISOString(),
-            },
+        // Use enhanced audit logging
+        const { createAuditLog } = await import('@/lib/audit/enhanced-audit');
+        await createAuditLog({
+          userId: user.id,
+          action: "SIGN_IN",
+          resource: "USER",
+          resourceId: user.id,
+          metadata: {
+            severity: 'LOW',
+            category: 'authentication',
+            details: 'User signed in successfully'
+          },
+          newData: {
+            provider: "credentials",
+            timestamp: new Date().toISOString(),
           },
         });
         console.log("User signed in:", user.email);

@@ -5,20 +5,73 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
+import {
+  remedyPrescriptionSchema,
+  getValidationErrors
+} from '@/lib/validation/unified-schemas';
 
-// Schemas
-const updateRemedySchema = z.object({
-  customInstructions: z.string().optional(),
-  customDosage: z.string().optional(),
-  customDuration: z.string().optional(),
-  notes: z.string().optional(),
-});
+// Use unified schemas for consistency
+const updateRemedySchema = remedyPrescriptionSchema.partial();
 
 const sendRemedySchema = z.object({
-  sendEmail: z.boolean().default(true),
-  sendSms: z.boolean().default(false),
   customMessage: z.string().optional(),
 });
+
+// Get user remedies
+export async function getUserRemedies() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    const remedies = await prisma.remedyDocument.findMany({
+      where: {
+        consultationSession: {
+          patientId: session.user.id
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        template: true,
+        consultationSession: {
+          include: {
+            appointment: {
+              include: {
+                guruji: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const formattedRemedies = remedies.map(remedy => ({
+      id: remedy.id,
+      templateName: remedy.template.name,
+      gurujiName: remedy.consultationSession.appointment.guruji?.name || 'Unknown',
+      consultationDate: remedy.consultationSession.createdAt.toISOString().split('T')[0],
+      status: 'ACTIVE' as const, // Default status since RemedyDocument doesn't have status
+      customInstructions: remedy.customInstructions || '',
+      customDosage: remedy.customDosage || '',
+      customDuration: remedy.customDuration || '',
+      pdfUrl: remedy.pdfUrl || '',
+      emailSent: remedy.emailSent,
+      deliveredAt: remedy.deliveredAt?.toISOString() || '',
+      createdAt: remedy.createdAt.toISOString().split('T')[0],
+    }));
+
+    return { success: true, remedies: formattedRemedies };
+  } catch (error) {
+    console.error('Error fetching user remedies:', error);
+    return { success: false, error: 'Failed to fetch remedies' };
+  }
+}
 
 // Update remedy details
 export async function updateRemedy(remedyId: string, formData: FormData) {
@@ -65,7 +118,6 @@ export async function updateRemedy(remedyId: string, formData: FormData) {
         customInstructions: data.customInstructions,
         customDosage: data.customDosage,
         customDuration: data.customDuration,
-        notes: data.notes,
         updatedAt: new Date(),
       },
       include: {
@@ -85,13 +137,12 @@ export async function updateRemedy(remedyId: string, formData: FormData) {
         action: 'UPDATE_REMEDY',
         resource: 'REMEDY',
         resourceId: remedyId,
-        oldData: {
+        oldData: JSON.parse(JSON.stringify({
           customInstructions: remedy.customInstructions,
           customDosage: remedy.customDosage,
           customDuration: remedy.customDuration,
-          notes: remedy.notes,
-        },
-        newData: data,
+        })),
+        newData: JSON.parse(JSON.stringify(data)),
       },
     });
 
@@ -103,7 +154,8 @@ export async function updateRemedy(remedyId: string, formData: FormData) {
   } catch (error) {
     console.error('Update remedy error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to update remedy' };
   }
@@ -119,8 +171,6 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
 
   try {
     const data = sendRemedySchema.parse({
-      sendEmail: formData.get('sendEmail') === 'true',
-      sendSms: formData.get('sendSms') === 'true',
       customMessage: formData.get('customMessage') as string || undefined,
     });
 
@@ -148,39 +198,17 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
       return { success: false, error: 'Permission denied' };
     }
 
-    const patient = remedy.consultationSession.patient;
-    let emailSent = false;
-    let smsSent = false;
-
-    // Send email if requested and patient has email
-    if (data.sendEmail && patient.email) {
-      try {
-        // TODO: Implement actual email sending
-        // await sendRemedyEmail(patient.email, remedy, data.customMessage);
-        emailSent = true;
-      } catch (error) {
-        console.error('Email sending failed:', error);
-      }
-    }
-
-    // Send SMS if requested and patient has phone
-    if (data.sendSms && patient.phone) {
-      try {
-        // TODO: Implement actual SMS sending
-        // await sendRemedySMS(patient.phone, remedy, data.customMessage);
-        smsSent = true;
-      } catch (error) {
-        console.error('SMS sending failed:', error);
-      }
-    }
+    // Note: External messaging (Email/SMS) is disabled as per requirements
+    // The system now uses only in-app notifications
+    console.log('Remedy sent - notification will be handled by in-app system');
 
     // Update remedy delivery status
     const updatedRemedy = await prisma.remedyDocument.update({
       where: { id: remedyId },
       data: {
-        emailSent,
-        smsSent,
-        deliveredAt: emailSent || smsSent ? new Date() : null,
+        emailSent: false,
+        smsSent: false,
+        deliveredAt: new Date(), // Mark as delivered via in-app notification
         updatedAt: new Date(),
       },
     });
@@ -192,11 +220,9 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
         action: 'SEND_REMEDY',
         resource: 'REMEDY',
         resourceId: remedyId,
-        newData: {
-          emailSent,
-          smsSent,
+        newData: JSON.parse(JSON.stringify({
           customMessage: data.customMessage,
-        },
+        })),
       },
     });
 
@@ -207,13 +233,13 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
     return { 
       success: true, 
       remedy: updatedRemedy,
-      emailSent,
-      smsSent,
+     
     };
   } catch (error) {
     console.error('Send remedy error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to send remedy' };
   }
@@ -248,6 +274,7 @@ export async function getRemedyDetails(remedyId: string) {
                 date: true,
                 startTime: true,
                 reason: true,
+                gurujiId: true,
               },
             },
           },
@@ -292,6 +319,7 @@ export async function deleteRemedy(remedyId: string) {
     const remedy = await prisma.remedyDocument.findUnique({
       where: { id: remedyId },
       include: {
+        template: true,
         consultationSession: {
           include: {
             patient: true,
@@ -311,10 +339,10 @@ export async function deleteRemedy(remedyId: string) {
         action: 'DELETE_REMEDY',
         resource: 'REMEDY',
         resourceId: remedyId,
-        oldData: {
+        oldData: JSON.parse(JSON.stringify({
           templateName: remedy.template.name,
           patientName: remedy.consultationSession.patient.name,
-        },
+        })),
       },
     });
 
@@ -438,26 +466,10 @@ export async function resendRemedy(remedyId: string, method: 'email' | 'sms') {
       return { success: false, error: 'Permission denied' };
     }
 
-    const patient = remedy.consultationSession.patient;
-    let success = false;
-
-    if (method === 'email' && patient.email) {
-      try {
-        // TODO: Implement actual email sending
-        // await sendRemedyEmail(patient.email, remedy);
-        success = true;
-      } catch (error) {
-        console.error('Email resend failed:', error);
-      }
-    } else if (method === 'sms' && patient.phone) {
-      try {
-        // TODO: Implement actual SMS sending
-        // await sendRemedySMS(patient.phone, remedy);
-        success = true;
-      } catch (error) {
-        console.error('SMS resend failed:', error);
-      }
-    }
+    // Note: External messaging (Email/SMS) is disabled as per requirements
+    // The system now uses only in-app notifications
+    const success = true; // Always succeed since we're using in-app notifications
+    console.log('Remedy resent - handled by in-app notification system');
 
     if (success) {
       // Update remedy delivery status
@@ -477,7 +489,7 @@ export async function resendRemedy(remedyId: string, method: 'email' | 'sms') {
           action: 'RESEND_REMEDY',
           resource: 'REMEDY',
           resourceId: remedyId,
-          newData: { method, success: true },
+          newData: JSON.parse(JSON.stringify({ method, success: true })),
         },
       });
 

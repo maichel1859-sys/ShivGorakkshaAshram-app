@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -28,7 +27,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { sendRemedy } from "@/lib/actions/remedy-management-actions";
 
 interface ContactHistory {
   id: string;
@@ -70,13 +68,7 @@ export function ContactHistoryModal({
     message: '',
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchContactHistory();
-    }
-  }, [isOpen]);
-
-  const fetchContactHistory = async () => {
+  const fetchContactHistory = useCallback(async () => {
     try {
       setIsLoading(true);
       // TODO: Replace with actual API call
@@ -124,7 +116,13 @@ export function ContactHistoryModal({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [patient.email, patient.phone]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchContactHistory();
+    }
+  }, [isOpen, fetchContactHistory]);
 
   const handleSendMessage = async () => {
     if (!newMessage.message.trim()) {
@@ -137,7 +135,7 @@ export function ContactHistoryModal({
       
       // For now, we'll use a mock API call since we don't have a direct contact API
       // TODO: Create a dedicated contact API endpoint
-      const mockResponse = await new Promise(resolve => 
+      const mockResponse = await new Promise<{ success: boolean }>(resolve => 
         setTimeout(() => resolve({ success: true }), 1000)
       );
 
@@ -174,7 +172,7 @@ export function ContactHistoryModal({
 
       // TODO: Implement resend functionality
       toast.success('Message resent successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to resend message');
     }
   };

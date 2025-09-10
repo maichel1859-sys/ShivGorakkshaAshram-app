@@ -70,11 +70,13 @@ export const metadata: Metadata = {
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": "Shivgoraksha Ashram",
     "mobile-web-app-capable": "yes",
     "msapplication-config": "/browserconfig.xml",
     "msapplication-TileColor": "#0f172a",
+    "msapplication-tap-highlight": "no",
+    "format-detection": "telephone=no",
   },
 };
 
@@ -83,6 +85,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
@@ -101,7 +104,6 @@ export default function RootLayout({
           <TopProgressBar />
           {children}
           <PWAInstallPrompt />
-          <TopProgressBar />
         </AppProviders>
       </body>
     </html>

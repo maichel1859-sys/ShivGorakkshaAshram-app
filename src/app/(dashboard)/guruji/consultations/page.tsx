@@ -37,12 +37,29 @@ import { getGurujiQueueEntries, startConsultation, updateQueueStatus } from "@/l
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/ui/global-spinner";
 import React from "react";
+import { RemedyType } from "@prisma/client";
 
 interface Patient {
   id: string;
   name: string | null;
   email: string | null;
   phone: string | null;
+}
+
+interface RemedyItem {
+  id: string;
+  template: {
+    id: string;
+    name: string;
+    type: string;
+    category: string;
+    instructions: string;
+    dosage?: string | null;
+    duration?: string | null;
+  };
+  customInstructions?: string | null;
+  customDosage?: string | null;
+  customDuration?: string | null;
 }
 
 interface ConsultationSession {
@@ -66,21 +83,7 @@ interface ConsultationSession {
     startTime: string;
     reason: string | null;
   };
-  remedies?: Array<{
-    id: string;
-    template: {
-      id: string;
-      name: string;
-      type: string;
-      category: string;
-      instructions: string;
-      dosage?: string | null;
-      duration?: string | null;
-    };
-    customInstructions?: string | null;
-    customDosage?: string | null;
-    customDuration?: string | null;
-  }>;
+  remedies?: RemedyItem[];
 }
 
 interface QueueEntry {
@@ -124,9 +127,30 @@ export default function GurujiConsultationsPage() {
 
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [selectedRemedy, setSelectedRemedy] = useState<{
-    remedy: any;
+    remedy: RemedyItem;
     consultation: ConsultationSession;
   } | null>(null);
+
+  // Transform RemedyItem to match the modal's local RemedyDocument interface
+  const transformRemedyForModal = (remedy: RemedyItem) => ({
+    id: remedy.id,
+    template: {
+      id: remedy.template.id,
+      name: remedy.template.name,
+      type: remedy.template.type as RemedyType,
+      category: remedy.template.category,
+      instructions: remedy.template.instructions,
+      dosage: remedy.template.dosage,
+      duration: remedy.template.duration,
+    },
+    customInstructions: remedy.customInstructions,
+    customDosage: remedy.customDosage,
+    customDuration: remedy.customDuration,
+    createdAt: new Date().toISOString(),
+    pdfUrl: null,
+    emailSent: false,
+    smsSent: false,
+  });
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -743,7 +767,7 @@ export default function GurujiConsultationsPage() {
             setRemedyDetailsModalOpen(false);
             setSelectedRemedy(null);
           }}
-          remedy={selectedRemedy.remedy}
+          remedy={transformRemedyForModal(selectedRemedy.remedy)}
           consultation={selectedRemedy.consultation}
         />
       )}

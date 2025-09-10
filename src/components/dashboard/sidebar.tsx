@@ -19,8 +19,6 @@ import {
   UserCheck,
   Shield,
   BarChart3,
-  Activity,
-  FileText,
   Database,
   Monitor,
   Bell,

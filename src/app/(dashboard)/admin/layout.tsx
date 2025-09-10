@@ -9,11 +9,13 @@ export default async function AdminLayout({
   modal,
   stats,
   alerts,
+  recent,
 }: {
   children: React.ReactNode;
   modal: React.ReactNode;
   stats: React.ReactNode;
   alerts: React.ReactNode;
+  recent: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
 
@@ -35,6 +37,7 @@ export default async function AdminLayout({
       <Suspense fallback={null}>{modal}</Suspense>
       <Suspense fallback={null}>{stats}</Suspense>
       <Suspense fallback={null}>{alerts}</Suspense>
+      <Suspense fallback={null}>{recent}</Suspense>
     </DashboardLayout>
   );
 }

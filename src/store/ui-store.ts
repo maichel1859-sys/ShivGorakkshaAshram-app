@@ -51,11 +51,6 @@ interface UIState {
   removeToast: (toastId: string) => void;
   clearToasts: () => void;
   
-  // Loading actions
-  setLoading: (key: string, loading: boolean) => void;
-  clearLoading: (key: string) => void;
-  clearAllLoading: () => void;
-  
   // Theme actions
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setLanguage: (language: string) => void;
@@ -119,17 +114,6 @@ export const useUIStore = create<UIState>()(
       })),
       clearToasts: () => set({ toasts: [] }),
       
-      // Loading actions
-      setLoading: (key, loading) => set((state) => ({
-        loadingStates: { ...state.loadingStates, [key]: loading }
-      })),
-      clearLoading: (key) => set((state) => {
-        const newLoadingStates = { ...state.loadingStates };
-        delete newLoadingStates[key];
-        return { loadingStates: newLoadingStates };
-      }),
-      clearAllLoading: () => set({ loadingStates: {} }),
-      
       // Theme actions
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
@@ -152,6 +136,6 @@ export const useUIStore = create<UIState>()(
 export const useSidebarCollapsed = () => useUIStore((state) => state.sidebarCollapsed);
 export const useModalState = (modalId: string) => useUIStore((state) => state.modals[modalId] || false);
 export const useDrawerState = (drawerId: string) => useUIStore((state) => state.drawers[drawerId] || false);
-export const useLoadingState = (key: string) => useUIStore((state) => state.loadingStates[key] || false);
+export const useLoadingState = () => useUIStore((state) => state.loadingStates);
 export const useTheme = () => useUIStore((state) => state.theme);
 export const useLanguage = () => useUIStore((state) => state.language); 

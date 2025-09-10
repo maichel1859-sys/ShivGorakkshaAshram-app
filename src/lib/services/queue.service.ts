@@ -72,7 +72,7 @@ export const getCachedQueueStatus = cache(
   ['queue-status'],
   {
     tags: [CACHE_TAGS.queue],
-    revalidate: CACHE_TIMES.short, // 1 minute cache
+    revalidate: CACHE_TIMES.SHORT, // 1 minute cache
   }
 );
 
@@ -104,7 +104,7 @@ export const getCachedUserQueueStatus = cache(
   ['user-queue-status'],
   {
     tags: [CACHE_TAGS.queue],
-    revalidate: CACHE_TIMES.short, // 1 minute cache
+    revalidate: CACHE_TIMES.SHORT, // 1 minute cache
   }
 );
 
@@ -137,7 +137,7 @@ export const getCachedGurujiQueueEntries = cache(
   ['guruji-queue-entries'],
   {
     tags: [CACHE_TAGS.queue],
-    revalidate: CACHE_TIMES.short, // 1 minute cache
+    revalidate: CACHE_TIMES.SHORT, // 1 minute cache
   }
 );
 
@@ -145,4 +145,15 @@ export const getCachedGurujiQueueEntries = cache(
 export const invalidateQueueCache = async (userId?: string, gurujiId?: string) => {
   revalidateTag(CACHE_TAGS.queue);
   revalidateTag(CACHE_TAGS.dashboard);
+  
+  // Invalidate specific user and guruji cache tags if provided
+  if (userId) {
+    revalidateTag(`${CACHE_TAGS.queue}-user-${userId}`);
+    revalidateTag(`${CACHE_TAGS.dashboard}-user-${userId}`);
+  }
+  
+  if (gurujiId) {
+    revalidateTag(`${CACHE_TAGS.queue}-guruji-${gurujiId}`);
+    revalidateTag(`${CACHE_TAGS.dashboard}-guruji-${gurujiId}`);
+  }
 };

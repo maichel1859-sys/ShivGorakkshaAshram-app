@@ -20,7 +20,7 @@ export function validateLocationQRData(qrData: string): { valid: boolean; data?:
     }
 
     return { valid: true, data: parsedData };
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Invalid QR code format' };
   }
 }

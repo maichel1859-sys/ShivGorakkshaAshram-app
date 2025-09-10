@@ -5,31 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
-import { z } from 'zod';
 import { AppointmentStatus } from '@prisma/client';
+import { 
+  appointmentBookingSchema
+} from '@/lib/validation/unified-schemas';
 
-
-const appointmentSchema = z.object({
-  gurujiId: z.string().min(1).optional(),
-  date: z.string().min(1, "Date is required"),
-  time: z.string().min(1, "Time is required"),
-  reason: z.string().max(500, "Reason must be less than 500 characters").optional(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
-  isRecurring: z.boolean().default(false),
-  recurringPattern: z.object({
-    frequency: z.enum(["daily", "weekly", "monthly"]).optional(),
-    interval: z.number().min(1).max(12).optional(),
-    endDate: z.string().optional(),
-  }).optional(),
-}).refine((data) => {
-  if (data.isRecurring && !data.recurringPattern) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Recurring pattern is required for recurring appointments",
-  path: ["recurringPattern"],
-});
+// Use unified schemas for consistency
+const appointmentSchema = appointmentBookingSchema;
 
 // Get appointments for current user or all appointments (for admin)
 export async function getAppointments(options?: {
@@ -211,7 +193,7 @@ export async function bookAppointment(formData: FormData) {
     }
 
     // Validate date and time
-    const appointmentDateTime = new Date(`${data.date}T${data.time}:00`);
+    const appointmentDateTime = new Date(`${data.timeSlot.date}T${data.timeSlot.startTime}:00`);
     
     // For development: Allow any date/time (no restrictions)
     // In production, you would add time restrictions here
@@ -251,7 +233,7 @@ export async function bookAppointment(formData: FormData) {
         reason: data.reason,
         priority: data.priority,
         isRecurring: data.isRecurring,
-        recurringPattern: data.recurringPattern ? JSON.stringify(data.recurringPattern) : undefined,
+        recurringPattern: data.recurrencePattern ? JSON.stringify(data.recurrencePattern) : undefined,
         // No individual QR code - users will scan location QR code
         status: 'BOOKED',
       },
@@ -368,7 +350,7 @@ export async function checkInAppointment(appointmentId: string) {
     const nextPosition = (lastQueueEntry?.position || 0) + 1;
 
     // Update appointment status and create queue entry in a transaction
-    const [updatedAppointment, queueEntry] = await prisma.$transaction([
+    const [, queueEntry] = await prisma.$transaction([
       prisma.appointment.update({
         where: { id: appointmentId },
         data: {

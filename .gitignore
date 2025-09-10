@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .claude
+claude
+dist 
+# socket server (separate project)
+/ashram-queue-socket-server-main/
+settings.local.json

@@ -7,6 +7,7 @@ interface EditAppointmentPageProps {
 }
 
 export default async function EditAppointmentPage({ params }: EditAppointmentPageProps) {
-  await params;
+  const resolvedParams = await params;
+  console.log('Redirecting from appointment edit:', resolvedParams.id);
   redirect(`/admin/appointments`);
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useFormState } from "react-dom";
+import { useState } from "react";
 import { prescribeRemedyDuringConsultation } from "@/lib/actions/remedy-actions";
 import { useRemedyTemplates } from "@/hooks/queries/use-remedies";
 import {
@@ -23,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pill, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, Pill, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface PrescribeRemedyModalProps {
@@ -81,7 +80,7 @@ export function PrescribeRemedyModal({
       } else {
         toast.error(result.error || "Failed to prescribe remedy");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while prescribing the remedy");
     }
   };

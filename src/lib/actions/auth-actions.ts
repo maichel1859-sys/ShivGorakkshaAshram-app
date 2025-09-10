@@ -7,40 +7,40 @@ import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { sendSMS, generateOTP } from '@/lib/external/sms';
-import { sendEmail } from '@/lib/external/email';
+import { 
+  phoneSchema,
+  phoneLoginSchema,
+  otpVerificationSchema,
+  userRegistrationSchema,
+  normalizePhoneNumber
+} from '@/lib/validation/unified-schemas';
 
-// Schemas
-const phoneLoginSchema = z.object({
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-});
-
-const otpVerificationSchema = z.object({
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  otp: z.string().length(6, "OTP must be 6 digits"),
-});
-
-const userRegistrationSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  dateOfBirth: z.string().optional(),
-  role: z.enum(["USER", "COORDINATOR", "GURUJI", "ADMIN"]).default("USER"),
-});
-
-const familyContactSchema = z.object({
-  familyContactId: z.string().min(1, "Family contact ID is required"),
-  relationship: z.string().min(1, "Relationship is required"),
-  canBookAppointments: z.boolean().default(true),
-  canViewRemedies: z.boolean().default(true),
-  canReceiveUpdates: z.boolean().default(true),
-  notes: z.string().optional(),
-});
-
-// Helper function to clean phone number
-function cleanPhone(phone: string): string {
-  return phone.replace(/\D/g, '');
+// Helper function to clean and validate phone number using unified schemas
+function cleanAndValidatePhone(phone: string): { phone: string; isValid: boolean; error?: string } {
+  try {
+    // Validate using the unified phone schema
+    const validatedPhone = phoneSchema.parse(phone);
+    const normalizedPhone = normalizePhoneNumber(validatedPhone);
+    
+    return {
+      phone: normalizedPhone,
+      isValid: true
+    };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        phone: '',
+        isValid: false,
+        error: error.errors[0]?.message || 'Invalid phone number'
+      };
+    }
+    
+    return {
+      phone: '',
+      isValid: false,
+      error: 'Invalid phone number format'
+    };
+  }
 }
 
 // Send OTP to phone number
@@ -50,7 +50,11 @@ export async function sendPhoneOTP(formData: FormData) {
       phone: formData.get('phone'),
     });
 
-    const cleanPhoneNumber = cleanPhone(data.phone);
+    const phoneValidation = cleanAndValidatePhone(data.phone);
+    if (!phoneValidation.isValid) {
+      return { success: false, error: phoneValidation.error || 'Invalid phone number' };
+    }
+    const cleanPhoneNumber = phoneValidation.phone;
 
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
@@ -66,26 +70,10 @@ export async function sendPhoneOTP(formData: FormData) {
       return { success: false, error: 'No account found with this phone number' };
     }
 
-    // Generate OTP
-    const otp = generateOTP(6);
-
-    // Store OTP in database (you'll need to create an OTP table)
-    // For now, we'll use a simple in-memory store
-    // await prisma.otpCode.create({
-    //   data: {
-    //     phone: cleanPhoneNumber,
-    //     code: otp,
-    //     expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-    //   },
-    // });
-
-    // Send SMS
-    await sendSMS({
-      to: cleanPhoneNumber,
-      message: `Your OTP for Aashram app login is: ${otp}. Valid for 10 minutes.`
-    });
-
-    return { success: true, message: 'OTP sent successfully' };
+    // Note: OTP functionality is disabled as per requirements
+    // The system now relies only on in-app notifications
+    
+    return { success: false, error: 'Phone OTP login is currently disabled. Please use email/password login.' };
   } catch (error) {
     console.error('Send OTP error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to send OTP' };
@@ -100,7 +88,11 @@ export async function verifyPhoneOTP(formData: FormData) {
       otp: formData.get('otp'),
     });
 
-    const cleanPhoneNumber = cleanPhone(data.phone);
+    const phoneValidation = cleanAndValidatePhone(data.phone);
+    if (!phoneValidation.isValid) {
+      return { success: false, error: phoneValidation.error || 'Invalid phone number' };
+    }
+    const cleanPhoneNumber = phoneValidation.phone;
 
     // Verify OTP from database
     // const otpRecord = await prisma.otpCode.findFirst({
@@ -166,7 +158,11 @@ export async function registerUser(formData: FormData) {
       role: formData.get('role') || 'USER',
     });
 
-    const cleanPhoneNumber = cleanPhone(data.phone);
+    const phoneValidation = cleanAndValidatePhone(data.phone);
+    if (!phoneValidation.isValid) {
+      return { success: false, error: phoneValidation.error || 'Invalid phone number' };
+    }
+    const cleanPhoneNumber = phoneValidation.phone;
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
@@ -208,23 +204,8 @@ export async function registerUser(formData: FormData) {
       }
     });
 
-    // Send welcome email
-    try {
-      await sendEmail({
-        to: data.email,
-        subject: 'Welcome to Aashram App',
-        html: `
-          <h1>Welcome to Aashram App!</h1>
-          <p>Dear ${data.name},</p>
-          <p>Thank you for registering with us. Your account has been created successfully.</p>
-          <p>You can now log in to your account and start using our services.</p>
-          <p>Best regards,<br>Aashram Team</p>
-        `
-      });
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Don't fail the registration if email fails
-    }
+    // Note: Email functionality is disabled as per requirements
+    // The system now relies only on in-app notifications
 
     // Create audit log
     await prisma.auditLog.create({
@@ -257,20 +238,25 @@ export async function addFamilyContact(formData: FormData) {
   }
 
   try {
-    const data = familyContactSchema.parse({
-      familyContactId: formData.get('familyContactId'),
-      relationship: formData.get('relationship'),
-      canBookAppointments: formData.get('canBookAppointments') === 'true',
-      canViewRemedies: formData.get('canViewRemedies') === 'true',
-      canReceiveUpdates: formData.get('canReceiveUpdates') === 'true',
-      notes: formData.get('notes'),
-    });
+    // Extract form data
+    const familyContactId = formData.get('familyContactId') as string;
+    const relationship = formData.get('relationship') as string;
+    const canBookAppointments = formData.get('canBookAppointments') === 'true';
+    const canViewRemedies = formData.get('canViewRemedies') === 'true';
+    const canReceiveUpdates = formData.get('canReceiveUpdates') === 'true';
+    const notes = formData.get('notes') as string || undefined;
+    
+    if (!familyContactId || !relationship) {
+      return { success: false, error: 'Family contact ID and relationship are required' };
+    }
 
     // Find existing family contact
-    const existingContact = await prisma.familyContact.findFirst({
+    const existingContact = await prisma.familyContact.findUnique({
       where: {
-        elderlyUserId: session.user.id,
-        familyContactId: data.familyContactId,
+        elderlyUserId_familyContactId: {
+          elderlyUserId: session.user.id,
+          familyContactId: familyContactId,
+        },
       },
     });
 
@@ -282,12 +268,12 @@ export async function addFamilyContact(formData: FormData) {
     const familyContact = await prisma.familyContact.create({
       data: {
         elderlyUserId: session.user.id,
-        familyContactId: data.familyContactId,
-        relationship: data.relationship,
-        canBookAppointments: data.canBookAppointments,
-        canViewRemedies: data.canViewRemedies,
-        canReceiveUpdates: data.canReceiveUpdates,
-        notes: data.notes,
+        familyContactId: familyContactId,
+        relationship: relationship,
+        canBookAppointments: canBookAppointments,
+        canViewRemedies: canViewRemedies,
+        canReceiveUpdates: canReceiveUpdates,
+        notes: notes,
       },
       include: {
         familyContact: {
@@ -304,8 +290,8 @@ export async function addFamilyContact(formData: FormData) {
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
-        action: "FAMILY_CONTACT_ADDED",
-        resource: "FAMILY_CONTACT",
+        action: 'FAMILY_CONTACT_ADDED',
+        resource: 'FAMILY_CONTACT',
         resourceId: familyContact.id,
         newData: {
           name: familyContact.familyContact.name,
@@ -373,14 +359,16 @@ export async function updateFamilyContact(contactId: string, formData: FormData)
   }
 
   try {
-    const data = familyContactSchema.parse({
-      familyContactId: formData.get('familyContactId'),
-      relationship: formData.get('relationship'),
-      canBookAppointments: formData.get('canBookAppointments') === 'true',
-      canViewRemedies: formData.get('canViewRemedies') === 'true',
-      canReceiveUpdates: formData.get('canReceiveUpdates') === 'true',
-      notes: formData.get('notes'),
-    });
+    // Extract form data directly (not using familyContactSchema as it's for different purpose)
+    const relationship = formData.get('relationship') as string;
+    const canBookAppointments = formData.get('canBookAppointments') === 'true';
+    const canViewRemedies = formData.get('canViewRemedies') === 'true';
+    const canReceiveUpdates = formData.get('canReceiveUpdates') === 'true';
+    const notes = formData.get('notes') as string || undefined;
+    
+    if (!relationship) {
+      return { success: false, error: 'Relationship is required' };
+    }
 
 
 
@@ -410,11 +398,11 @@ export async function updateFamilyContact(contactId: string, formData: FormData)
     const updatedContact = await prisma.familyContact.update({
       where: { id: contactId },
       data: {
-        relationship: data.relationship,
-        canBookAppointments: data.canBookAppointments,
-        canViewRemedies: data.canViewRemedies,
-        canReceiveUpdates: data.canReceiveUpdates,
-        notes: data.notes,
+        relationship: relationship,
+        canBookAppointments: canBookAppointments,
+        canViewRemedies: canViewRemedies,
+        canReceiveUpdates: canReceiveUpdates,
+        notes: notes,
       },
       include: {
         familyContact: {
@@ -579,9 +567,17 @@ export async function registerFamilyContact(formData: FormData) {
       return { success: false, error: 'All required fields must be provided' };
     }
 
-    // Clean phone numbers
-    const cleanElderlyPhone = cleanPhone(data.elderlyPhone);
-    const cleanFamilyContactPhone = cleanPhone(data.familyContactPhone);
+    // Clean and validate phone numbers
+    const elderlyPhoneValidation = cleanAndValidatePhone(data.elderlyPhone);
+    if (!elderlyPhoneValidation.isValid) {
+      return { success: false, error: `Elderly person phone: ${elderlyPhoneValidation.error}` };
+    }
+    const cleanElderlyPhone = elderlyPhoneValidation.phone;
+    const familyPhoneValidation = cleanAndValidatePhone(data.familyContactPhone);
+    if (!familyPhoneValidation.isValid) {
+      return { success: false, error: `Family contact phone: ${familyPhoneValidation.error}` };
+    }
+    const cleanFamilyContactPhone = familyPhoneValidation.phone;
 
     // Check if elderly user exists, if not create a placeholder
     let elderlyUser = await prisma.user.findUnique({

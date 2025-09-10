@@ -4,18 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
-import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-
-// Schemas
-const qrCheckinSchema = z.object({
-  qrCode: z.string().min(1, "QR code is required"),
-});
-
-const manualCheckinSchema = z.object({
-  appointmentId: z.string().min(1, "Appointment ID is required"),
-  notes: z.string().optional(),
-});
+import {
+  qrCheckinSchema,
+  manualCheckinSchema
+} from '@/lib/validation/unified-schemas';
 
 // Check-in via QR code
 export async function checkInWithQR(formData: FormData) {

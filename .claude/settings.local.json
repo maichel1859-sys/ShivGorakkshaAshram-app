@@ -15,7 +15,11 @@
       "Bash(find:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx tsx:*)",
+      "Bash(timeout 300 npm run build)",
+      "Bash(timeout 300 npm run build -- --no-lint)"
     ],
     "deny": []
   }

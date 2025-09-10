@@ -1,6 +1,6 @@
-import { withAuth } from "next-auth/middleware"
 import { NextResponse, type NextRequest } from "next/server"
-import { apiRateLimiter, getClientIdentifier, applyRateLimit } from "@/lib/external/rate-limit"
+import { apiRateLimiter, getClientIdentifier } from "@/lib/external/rate-limit"
+import { getToken } from "next-auth/jwt"
 
 // Define Role enum locally to avoid Prisma import issues in middleware
 enum Role {
@@ -13,14 +13,18 @@ enum Role {
 // Enhanced CSP for better security
 const CSP_HEADER = `
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: https:;
-  font-src 'self' data:;
-  connect-src 'self' https://vitals.vercel-insights.com;
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://vercel.live;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: https: blob:;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' https://vitals.vercel-insights.com wss: ws:;
+  media-src 'self' blob: data:;
+  object-src 'none';
+  child-src 'none';
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
+  manifest-src 'self';
   upgrade-insecure-requests;
 `.replace(/\s{2,}/g, ' ').trim()
 
@@ -31,25 +35,32 @@ function addSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=()')
   response.headers.set('Content-Security-Policy', CSP_HEADER)
+  response.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
+  response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin')
   
-  // HSTS for HTTPS
+  // HSTS for HTTPS with stronger settings
   if (process.env.NODE_ENV === 'production') {
-    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
   }
   
-  // Remove server header for security
+  // Remove server headers for security
   response.headers.delete('Server')
   response.headers.delete('X-Powered-By')
+  response.headers.delete('X-AspNet-Version')
+  response.headers.delete('X-AspNetMvc-Version')
 }
 
 // Rate limiting configuration
-function handleRateLimit(req: NextRequest) {
+async function handleRateLimit(req: NextRequest) {
   const identifier = getClientIdentifier(req)
   
   try {
-    const result = applyRateLimit(apiRateLimiter, identifier)
+    // Use the persistent rate limiter which returns a promise
+    const result = await apiRateLimiter.check(identifier)
     
     if (!result.allowed) {
       return NextResponse.json(
@@ -62,13 +73,16 @@ function handleRateLimit(req: NextRequest) {
           status: 429,
           headers: {
             'X-RateLimit-Limit': (result.totalRequests + result.remaining).toString(),
-            'X-RateLimit-Remaining': result.remaining.toString(),
+            'X-RateLimit-Remaining': result.remaining?.toString() || '0',
             'X-RateLimit-Reset': Math.ceil(result.resetTime / 1000).toString(),
             'Retry-After': Math.round((result.resetTime - Date.now()) / 1000).toString(),
           }
         }
       )
     }
+    
+    // Increment the rate limiter if request is allowed
+    await apiRateLimiter.increment(identifier)
   } catch (error) {
     console.error('Rate limiting error:', error)
     // Continue without rate limiting if there's an error
@@ -77,14 +91,17 @@ function handleRateLimit(req: NextRequest) {
   return null
 }
 
-export default withAuth(
-  async function middleware(req) {
-    const token = req.nextauth.token
-    const { pathname } = req.nextUrl
+export default async function middleware(req: NextRequest) {
+  console.log('🚨 MIDDLEWARE TRIGGERED FOR:', req.nextUrl.pathname)
+  
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  const { pathname } = req.nextUrl
+  
+  console.log('Middleware triggered for path:', pathname, 'Token exists:', !!token)
 
     // Apply rate limiting to API routes
     if (pathname.startsWith('/api/')) {
-      const rateLimitResponse = handleRateLimit(req)
+      const rateLimitResponse = await handleRateLimit(req)
       if (rateLimitResponse) {
         return rateLimitResponse
       }
@@ -94,10 +111,11 @@ export default withAuth(
     const publicRoutes = [
       '/api/auth',
       '/',
-      '/auth',
       '/signin',
       '/signup',
+      '/phone-login',
       '/error',
+      '/unauthorized',
       '/api/health',
       '/api/docs',
       '/api/metrics',
@@ -116,6 +134,7 @@ export default withAuth(
 
     // Require authentication for all other routes
     if (!token) {
+      console.log('No token found, redirecting to signin for path:', pathname)
       return NextResponse.redirect(new URL('/signin', req.url))
     }
 
@@ -136,6 +155,12 @@ export default withAuth(
 
     if (pathname.startsWith('/guruji')) {
       if (userRole !== Role.ADMIN && userRole !== Role.GURUJI) {
+        return NextResponse.redirect(new URL('/unauthorized', req.url))
+      }
+    }
+
+    if (pathname.startsWith('/user')) {
+      if (userRole !== Role.ADMIN && userRole !== Role.USER) {
         return NextResponse.redirect(new URL('/unauthorized', req.url))
       }
     }
@@ -168,40 +193,21 @@ export default withAuth(
       }
     }
 
-    // Add security headers to all responses
-    const response = NextResponse.next()
-    addSecurityHeaders(response)
+    if (pathname.startsWith('/api/user')) {
+      if (userRole !== Role.ADMIN && userRole !== Role.USER) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'User access required' }, 
+          { status: 403 }
+        )
+      }
+    }
 
-    return response
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const { pathname } = req.nextUrl
-        
-        // Allow public routes
-        const publicRoutes = [
-          '/api/auth',
-          '/',
-          '/auth',
-          '/signin',
-          '/signup',
-          '/error',
-          '/api/health',
-          '/api/docs',
-          '/api/metrics',
-        ]
+  // Add security headers to all responses
+  const response = NextResponse.next()
+  addSecurityHeaders(response)
 
-        if (publicRoutes.some(route => pathname.startsWith(route))) {
-          return true
-        }
-
-        // Require token for all other routes
-        return !!token
-      },
-    },
-  }
-)
+  return response
+}
 
 export const config = {
   matcher: [

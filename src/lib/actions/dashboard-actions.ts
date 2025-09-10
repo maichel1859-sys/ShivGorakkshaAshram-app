@@ -5,6 +5,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { subDays, format } from 'date-fns';
+import { CACHE_TAGS, CACHE_TIMES } from '@/lib/cache';
+import { unstable_cache as cache } from 'next/cache';
 
 // Helper function to check admin permissions
 async function requireAdminAccess() {
@@ -21,19 +23,18 @@ async function requireAdminAccess() {
   return session;
 }
 
-// Get admin dashboard statistics
-export async function getAdminDashboardStats() {
-  await requireAdminAccess();
-
-  try {
-    // Get total counts
-    const [
-      totalUsers,
-      totalAppointments,
-      totalRemedies,
-      activeQueues,
-      recentActivity
-    ] = await Promise.all([
+// Internal cached function without auth check  
+const _getAdminDashboardStatsInternal = cache(
+  async () => {
+    try {
+      // Get total counts
+      const [
+        totalUsers,
+        totalAppointments,
+        totalRemedies,
+        activeQueues,
+        recentActivity
+      ] = await Promise.all([
       prisma.user.count(),
       prisma.appointment.count(),
       prisma.remedyTemplate.count({ where: { isActive: true } }),
@@ -79,36 +80,48 @@ export async function getAdminDashboardStats() {
       type: getActivityType(log.action)
     }));
 
-    return {
-      success: true,
-      data: {
-        totalUsers,
-        totalAppointments,
-        totalRemedies,
-        activeQueues,
-        systemHealth,
-        recentActivity: formattedActivity
-      }
-    };
-  } catch (error) {
-    console.error("Get admin dashboard stats error:", error);
-    return { success: false, error: 'Failed to fetch dashboard statistics' };
+      return {
+        success: true,
+        data: {
+          totalUsers,
+          totalAppointments,
+          totalRemedies,
+          activeQueues,
+          systemHealth,
+          recentActivity: formattedActivity
+        }
+      };
+    } catch (error) {
+      console.error("Get admin dashboard stats error:", error);
+      return { success: false, error: 'Failed to fetch dashboard statistics' };
+    }
+  },
+  [CACHE_TAGS.users, CACHE_TAGS.dashboard, CACHE_TAGS.appointments],
+  {
+    revalidate: CACHE_TIMES.DASHBOARD,
   }
+);
+
+// Public wrapper that includes auth check
+export async function getAdminDashboardStats() {
+  await requireAdminAccess();
+  return _getAdminDashboardStatsInternal();
 }
 
 // Get coordinator dashboard data
-export async function getCoordinatorDashboard() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
-  }
+export const getCoordinatorDashboard = cache(
+  async () => {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
 
-  if (session.user.role !== 'COORDINATOR' && session.user.role !== 'ADMIN') {
-    return { success: false, error: 'Insufficient permissions' };
-  }
+    if (session.user.role !== 'COORDINATOR' && session.user.role !== 'ADMIN') {
+      return { success: false, error: 'Insufficient permissions' };
+    }
 
-  try {
+    try {
     const [
       todayAppointments,
       pendingAppointments,
@@ -160,49 +173,57 @@ export async function getCoordinatorDashboard() {
       }),
     ]);
 
-    return {
-      success: true,
-      data: {
-        todayAppointments,
-        pendingAppointments,
-        activeQueue,
-        recentCheckins,
-      },
-    };
-  } catch (error) {
-    console.error("Get coordinator dashboard error:", error);
-    return { success: false, error: 'Failed to fetch coordinator dashboard' };
+      return {
+        success: true,
+        data: {
+          todayAppointments,
+          pendingAppointments,
+          activeQueue,
+          recentCheckins,
+        },
+      };
+    } catch (error) {
+      console.error("Get coordinator dashboard error:", error);
+      return { success: false, error: 'Failed to fetch coordinator dashboard' };
+    }
+  },
+  [CACHE_TAGS.coordinator, CACHE_TAGS.dashboard, CACHE_TAGS.appointments, CACHE_TAGS.queue],
+  {
+    revalidate: CACHE_TIMES.DASHBOARD,
   }
-}
+);
 
 // Get guruji dashboard data
-export async function getGurujiDashboard() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
-  }
+export const getGurujiDashboard = cache(
+  async (gurujiId?: string) => {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
 
-  if (session.user.role !== 'GURUJI' && session.user.role !== 'ADMIN') {
-    return { success: false, error: 'Insufficient permissions' };
-  }
+    if (session.user.role !== 'GURUJI' && session.user.role !== 'ADMIN') {
+      return { success: false, error: 'Insufficient permissions' };
+    }
 
-  try {
+    const targetGurujiId = gurujiId || session.user.id;
+
+    try {
     const [
       todayAppointments,
       completedToday,
       pendingConsultations,
       recentPatients
     ] = await Promise.all([
-      // Today's appointments
-      prisma.appointment.findMany({
-        where: {
-          gurujiId: session.user.id,
-          date: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            lt: new Date(new Date().setHours(23, 59, 59, 999)),
+        // Today's appointments
+        prisma.appointment.findMany({
+          where: {
+            gurujiId: targetGurujiId,
+            date: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+              lt: new Date(new Date().setHours(23, 59, 59, 999)),
+            },
           },
-        },
         include: {
           user: {
             select: { name: true, phone: true },
@@ -210,28 +231,28 @@ export async function getGurujiDashboard() {
         },
         orderBy: { startTime: 'asc' },
       }),
-      // Completed today
-      prisma.appointment.count({
-        where: {
-          gurujiId: session.user.id,
-          status: 'COMPLETED',
+        // Completed today
+        prisma.appointment.count({
+          where: {
+            gurujiId: targetGurujiId,
+            status: 'COMPLETED',
           updatedAt: {
             gte: new Date(new Date().setHours(0, 0, 0, 0)),
           },
         },
       }),
-      // Pending consultations
-      prisma.consultationSession.count({
-        where: {
-          gurujiId: session.user.id,
-          endTime: null, // Pending consultations are those without end time
-        },
-      }),
-      // Recent patients
-      prisma.appointment.findMany({
-        where: {
-          gurujiId: session.user.id,
-          status: 'COMPLETED',
+        // Pending consultations
+        prisma.consultationSession.count({
+          where: {
+            gurujiId: targetGurujiId,
+            endTime: null, // Pending consultations are those without end time
+          },
+        }),
+        // Recent patients
+        prisma.appointment.findMany({
+          where: {
+            gurujiId: targetGurujiId,
+            status: 'COMPLETED',
         },
         include: {
           user: {
@@ -244,26 +265,30 @@ export async function getGurujiDashboard() {
       }),
     ]);
 
-    return {
-      success: true,
-      data: {
-        todayAppointments,
-        completedToday,
-        pendingConsultations,
-        recentPatients,
-      },
-    };
-  } catch (error) {
-    console.error("Get guruji dashboard error:", error);
-    return { success: false, error: 'Failed to fetch guruji dashboard' };
+      return {
+        success: true,
+        data: {
+          todayAppointments,
+          completedToday,
+          pendingConsultations,
+          recentPatients,
+        },
+      };
+    } catch (error) {
+      console.error("Get guruji dashboard error:", error);
+      return { success: false, error: 'Failed to fetch guruji dashboard' };
+    }
+  },
+  [CACHE_TAGS.guruji, CACHE_TAGS.dashboard, CACHE_TAGS.appointments, CACHE_TAGS.consultations],
+  {
+    revalidate: CACHE_TIMES.DASHBOARD,
   }
-}
+);
 
-// Get system alerts
-export async function getSystemAlerts() {
-  await requireAdminAccess();
-
-  try {
+// Internal cached function without auth check
+const _getSystemAlertsInternal = cache(
+  async () => {
+    try {
     const [recentErrors, failedLogins, systemHealth] = await Promise.all([
       prisma.auditLog.findMany({
         where: {
@@ -289,18 +314,29 @@ export async function getSystemAlerts() {
       Promise.resolve({ status: "healthy", uptime: process.uptime() }),
     ]);
 
-    return {
-      success: true,
-      data: {
-        recentErrors,
-        failedLogins,
-        systemHealth,
-      },
-    };
-  } catch (error) {
-    console.error("Get system alerts error:", error);
-    return { success: false, error: 'Failed to fetch system alerts' };
+      return {
+        success: true,
+        data: {
+          recentErrors,
+          failedLogins,
+          systemHealth,
+        },
+      };
+    } catch (error) {
+      console.error("Get system alerts error:", error);
+      return { success: false, error: 'Failed to fetch system alerts' };
+    }
+  },
+  [CACHE_TAGS.admin, CACHE_TAGS.system, CACHE_TAGS.audit],
+  {
+    revalidate: CACHE_TIMES.ALERTS,
   }
+);
+
+// Public wrapper that includes auth check
+export async function getSystemAlerts() {
+  await requireAdminAccess();
+  return _getSystemAlertsInternal();
 }
 
 // Get usage reports
@@ -586,11 +622,10 @@ function getActivityType(action: string): 'user' | 'appointment' | 'remedy' | 's
   return 'system';
 } 
 
-// Get system status for admin monitoring
-export async function getSystemStatus() {
-  await requireAdminAccess();
-
-  try {
+// Internal cached function without auth check
+const _getSystemStatusInternal = cache(
+  async () => {
+    try {
     // Get basic system metrics
     const [
       activeQueues,
@@ -658,59 +693,80 @@ export async function getSystemStatus() {
     // Get last backup time (simulated)
     const lastBackup = "2 hours ago";
 
-    return {
-      success: true,
-      systemStatus: {
-        status,
-        uptime,
-        cpuUsage,
-        memoryUsage,
-        diskUsage,
-        activeConnections: databaseConnections,
-        databaseStatus: "connected" as const,
-        lastBackup,
-        errors,
-        warnings
-      }
-    };
-  } catch (error) {
-    console.error("Get system status error:", error);
-    return { 
-      success: false, 
-      error: 'Failed to fetch system status',
-      systemStatus: {
-        status: "critical" as const,
-        uptime: "Unknown",
-        cpuUsage: 0,
-        memoryUsage: 0,
-        diskUsage: 0,
-        activeConnections: 0,
-        databaseStatus: "error" as const,
-        lastBackup: "Unknown",
-        errors: ["Failed to fetch system status"],
-        warnings: []
-      }
-    };
+      return {
+        success: true,
+        systemStatus: {
+          status,
+          uptime,
+          cpuUsage,
+          memoryUsage,
+          diskUsage,
+          activeConnections: databaseConnections,
+          databaseStatus: "connected" as const,
+          lastBackup,
+          errors,
+          warnings
+        }
+      };
+    } catch (error) {
+      console.error("Get system status error:", error);
+      return { 
+        success: false, 
+        error: 'Failed to fetch system status',
+        systemStatus: {
+          status: "critical" as const,
+          uptime: "Unknown",
+          cpuUsage: 0,
+          memoryUsage: 0,
+          diskUsage: 0,
+          activeConnections: 0,
+          databaseStatus: "error" as const,
+          lastBackup: "Unknown",
+          errors: ["Failed to fetch system status"],
+          warnings: []
+        }
+      };
+    }
+  },
+  [CACHE_TAGS.admin, CACHE_TAGS.system],
+  {
+    revalidate: CACHE_TIMES.SYSTEM_STATUS,
   }
-} 
+); 
 
-// Get system settings
-export async function getSystemSettings() {
+// Public wrapper that includes auth check
+export async function getSystemStatus() {
   await requireAdminAccess();
+  return _getSystemStatusInternal();
+}
 
-  try {
+// Internal cached function without auth check
+const _getSystemSettingsInternal = cache(
+  async () => {
+    try {
     const settings = await prisma.systemSetting.findMany({
       orderBy: { key: 'asc' },
     });
 
-    return {
-      success: true,
-      settings,
-    };
-  } catch (error) {
-    console.error("Get system settings error:", error);
-    return { success: false, error: 'Failed to fetch system settings' };
+      return {
+        success: true,
+        settings,
+      };
+    } catch (error) {
+      console.error("Get system settings error:", error);
+      return { success: false, error: 'Failed to fetch system settings' };
+    }
+  },
+  [CACHE_TAGS.admin, CACHE_TAGS.settings],
+  {
+    revalidate: CACHE_TIMES.SETTINGS,
   }
+);
+
+// Public wrapper that includes auth check
+export async function getSystemSettings() {
+  await requireAdminAccess();
+  return _getSystemSettingsInternal();
 }
 
 // Update system settings

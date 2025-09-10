@@ -9,6 +9,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { useAppStore } from "@/store/app-store";
 import { useOfflineSync, useNetworkStatus, usePWA } from "@/hooks";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { NetworkStatus } from "@/components/ui/network-status";
+import { IOSPWAPrompt } from "@/components/ui/ios-pwa-prompt";
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -16,36 +18,31 @@ interface AppProvidersProps {
 
 // App Initializer Component
 function AppInitializer({ children }: { children: React.ReactNode }) {
-  const setLoading = useAppStore((state) => state.setLoading);
-  const { isOnline } = useNetworkStatus();
+  const { setLoading, setAuthLoading } = useAppStore();
+  useNetworkStatus(); // Initialize network status tracking
   const { isInstalled, canInstall } = usePWA();
   useOfflineSync(); // Initialize offline sync
 
   useEffect(() => {
     // Initialize app state
     setLoading(false); // App is ready
+    setAuthLoading(false); // Auth is ready
 
     // Log PWA status for debugging
     if (process.env.NODE_ENV === "development") {
       console.log("PWA Status:", { isInstalled, canInstall });
     }
-  }, [setLoading, isInstalled, canInstall]);
+  }, [setLoading, setAuthLoading, isInstalled, canInstall]);
 
   return (
     <>
       {children}
-
-      {/* Network status indicator */}
-      {!isOnline && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <div className="bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-lg text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>Working offline</span>
-            </div>
-          </div>
-        </div>
-      )}
+      
+      {/* Enhanced Network Status Indicator */}
+      <NetworkStatus />
+      
+      {/* iOS PWA Installation Prompt */}
+      <IOSPWAPrompt />
     </>
   );
 }

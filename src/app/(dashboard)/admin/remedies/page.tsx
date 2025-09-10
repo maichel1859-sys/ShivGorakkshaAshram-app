@@ -57,7 +57,7 @@ interface Prescription {
 
 export default function AdminRemediesPage() {
   const [templates, setTemplates] = useState<RemedyTemplateUI[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [prescriptions] = useState<Prescription[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const { data, isLoading, error } = useRemedyTemplates();

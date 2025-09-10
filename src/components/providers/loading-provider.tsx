@@ -15,24 +15,31 @@ export function LoadingProvider({
   children,
   routeDelayMs = 200,
 }: LoadingProviderProps) {
-  const setLoading = useAppStore((s) => s.setLoading);
+  const { 
+    setLoading, 
+    setRouteLoading, 
+    setDataLoading
+  } = useAppStore();
   const pathname = usePathname();
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // React Query network activity → loading
+  // React Query network activity → data loading
   useEffect(() => {
     const active = isFetching + isMutating > 0;
+    setDataLoading(active);
+    
+    // Also set global loading for overall app state
     setLoading(active);
-  }, [isFetching, isMutating, setLoading]);
+  }, [isFetching, isMutating, setDataLoading, setLoading]);
 
-  // Route change hint → optimistic loading pulse
+  // Route change hint → route loading pulse
   useEffect(() => {
     // On pathname change, show a brief loading pulse to cover transitions
-    setLoading(true);
+    setRouteLoading(true);
     if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
-    routeTimerRef.current = setTimeout(() => setLoading(false), routeDelayMs);
+    routeTimerRef.current = setTimeout(() => setRouteLoading(false), routeDelayMs);
 
     return () => {
       if (routeTimerRef.current) clearTimeout(routeTimerRef.current);

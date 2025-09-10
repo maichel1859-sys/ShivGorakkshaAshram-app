@@ -8,9 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useSession } from "next-auth/react";
+import { useUser, useUserRedirect } from "@/store/auth-store";
 import Link from "next/link";
-import React, { Suspense } from "react";
+import React from "react";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   Clock,
@@ -19,9 +20,11 @@ import {
   AlertCircle,
   Activity,
 } from "lucide-react";
-import { useUserDashboard, useNotifications } from "@/hooks/queries";
-import { useLoadingStore } from "@/lib/stores/loading-store";
+import { useUserDashboard } from "@/hooks/queries";
+import { useAppStore } from "@/store/app-store";
 import { PageSpinner } from "@/components/ui/global-spinner";
+// LoadingSpinner available if needed
+// import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface Appointment {
   id: string;
@@ -33,26 +36,35 @@ interface Appointment {
   status: string;
 }
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  createdAt: string;
-}
 
 export default function UserDashboard() {
-  const { data: session } = useSession();
+  const user = useUser();
+  const router = useRouter();
+  const { isLoading: authLoading, shouldRedirect, redirectTo } = useUserRedirect();
   const { data: dashboardData, isLoading, error } = useUserDashboard();
+  const { setLoadingState } = useAppStore();
 
-  const { setDashboardLoading } = useLoadingStore();
-
-  // Update loading state
+  // Handle authentication redirect
   React.useEffect(() => {
-    setDashboardLoading(isLoading);
-  }, [isLoading, setDashboardLoading]);
+    if (shouldRedirect && redirectTo) {
+      console.log('🔀 UserDashboard: Redirecting to', redirectTo);
+      router.push(redirectTo);
+    }
+  }, [shouldRedirect, redirectTo, router]);
 
-  if (isLoading) {
+  // Update centralized loading state
+  React.useEffect(() => {
+    setLoadingState("dashboard-loading", isLoading || authLoading);
+  }, [isLoading, authLoading, setLoadingState]);
+
+  // Show loading while checking auth or loading data
+  if (isLoading || authLoading) {
     return <PageSpinner message="Loading dashboard..." />;
+  }
+
+  // Don't render anything while redirecting
+  if (shouldRedirect) {
+    return null;
   }
 
   if (error) {
@@ -81,7 +93,7 @@ export default function UserDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Welcome back, {session?.user.name?.split(" ")[0]}!
+            Welcome back, {user?.name?.split(" ")[0]}!
           </h2>
           <p className="text-muted-foreground">
             Here&apos;s what&apos;s happening with your appointments today.

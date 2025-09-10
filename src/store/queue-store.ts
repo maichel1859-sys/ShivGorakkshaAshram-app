@@ -124,3 +124,17 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
   setLastUpdate: (timestamp) => set({ lastUpdate: timestamp }),
 }));
+
+// Selector hooks for better performance
+export const useQueue = () => useQueueStore((state) => state.entries);
+export const useQueuePosition = (userId: string) => useQueueStore((state) => {
+  const entry = state.entries.find(e => e.userId === userId);
+  return entry?.position || null;
+});
+export const useQueueStatus = (userId: string) => useQueueStore((state) => {
+  const entry = state.entries.find(e => e.userId === userId);
+  return entry?.status || null;
+});
+export const useJoinQueue = () => useQueueStore((state) => state.addEntry);
+export const useLeaveQueue = () => useQueueStore((state) => state.removeEntry);
+export const useUpdateQueueStatus = () => useQueueStore((state) => state.updateEntry);

@@ -99,7 +99,7 @@ function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError
 }
 
 // Specialized error boundary for queue pages
-function QueueErrorFallback({ error, resetError }: { error?: Error; resetError: () => void }) {
+function QueueErrorFallback({ resetError }: { error?: Error; resetError: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">

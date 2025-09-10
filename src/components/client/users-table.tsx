@@ -6,7 +6,6 @@ import {
   useDeleteUser,
   useToggleUserStatus,
 } from "@/hooks/queries/use-users";
-import { useUIStore } from "@/store/ui-store";
 import { useAppStore } from "@/store/app-store";
 import {
   Table,
@@ -55,7 +54,6 @@ interface UsersTableProps {
 
 export function UsersTable({ initialFilters }: UsersTableProps) {
   // UI State (Zustand)
-  const { setLoading: setUILoading } = useUIStore();
   const { setError: setAppError } = useAppStore();
 
   // Local state for filters
@@ -86,22 +84,18 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
         "Are you sure you want to delete this user? This action cannot be undone."
       )
     ) {
-      setUILoading("delete-user", true);
       try {
         await deleteUserMutation.mutateAsync(userId);
         toast.success("User deleted successfully");
       } catch (error) {
         toast.error("Failed to delete user");
         setAppError(error instanceof Error ? error.message : "Unknown error");
-      } finally {
-        setUILoading("delete-user", false);
       }
     }
   };
 
   // Handle status toggle
   const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
-    setUILoading("toggle-status", true);
     try {
       await toggleStatusMutation.mutateAsync(userId);
       toast.success(
@@ -110,16 +104,12 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
     } catch (error) {
       toast.error("Failed to update user status");
       setAppError(error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setUILoading("toggle-status", false);
     }
   };
 
-  // Loading states
-  const isDeleting = useUIStore((state) => state.loadingStates["delete-user"]);
-  const isToggling = useUIStore(
-    (state) => state.loadingStates["toggle-status"]
-  );
+  // Loading states from React Query mutations
+  const isDeleting = deleteUserMutation.isPending;
+  const isToggling = toggleStatusMutation.isPending;
 
   if (error) {
     return (

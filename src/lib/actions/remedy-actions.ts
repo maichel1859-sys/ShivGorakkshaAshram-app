@@ -5,34 +5,15 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
+import { 
+  remedyTemplateSchema,
+  remedyPrescriptionSchema,
+  getValidationErrors
+} from '@/lib/validation/unified-schemas';
 
-// Schemas
-const remedyTemplateSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  type: z.enum(['HOMEOPATHIC', 'AYURVEDIC', 'SPIRITUAL', 'LIFESTYLE', 'DIETARY']),
-  category: z.string().min(1, 'Category is required'),
-  description: z.string().optional(),
-  instructions: z.string().min(1, 'Instructions are required'),
-  dosage: z.string().optional(),
-  duration: z.string().optional(),
-  language: z.string().default('en'),
-  tags: z.array(z.string()).default([]),
-  isActive: z.boolean().default(true),
-});
-
-const prescribeRemedySchema = z.object({
-  consultationId: z.string().min(1, 'Consultation ID is required'),
-  templateId: z.string().min(1, 'Template ID is required'),
-  customInstructions: z.string().optional(),
-  customDosage: z.string().optional(),
-  customDuration: z.string().optional(),
-});
-
-const updateRemedyStatusSchema = z.object({
-  customInstructions: z.string().optional(),
-  customDosage: z.string().optional(),
-  customDuration: z.string().optional(),
-});
+// Use unified schemas for consistency
+const prescribeRemedySchema = remedyPrescriptionSchema;
+const updateRemedyStatusSchema = remedyPrescriptionSchema.partial();
 
 // Get remedy templates
 export async function getRemedyTemplates(options?: {
@@ -178,7 +159,8 @@ export async function createRemedyTemplate(formData: FormData) {
   } catch (error) {
     console.error('Create remedy template error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to create remedy template' };
   }
@@ -229,7 +211,8 @@ export async function updateRemedyTemplate(formData: FormData) {
   } catch (error) {
     console.error('Update remedy template error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to update remedy template' };
   }
@@ -300,6 +283,25 @@ export async function prescribeRemedy(formData: FormData) {
     const customDosage = formData.get('customDosage') as string;
     const customDuration = formData.get('customDuration') as string;
 
+    // Validate input using the schema
+    const validationResult = prescribeRemedySchema.safeParse({
+      consultationId: patientId, // Using patientId as consultation reference
+      templateId,
+      customInstructions: customInstructions || undefined,
+      customDosage: customDosage || undefined,
+      customDuration: customDuration || undefined,
+    });
+
+    if (!validationResult.success) {
+      return { 
+        success: false, 
+        error: 'Invalid data provided', 
+        fieldErrors: validationResult.error.flatten().fieldErrors 
+      };
+    }
+
+    const validatedData = validationResult.data;
+
     if (!templateId || !patientId) {
       return { success: false, error: 'Template ID and Patient ID are required' };
     }
@@ -352,11 +354,11 @@ export async function prescribeRemedy(formData: FormData) {
     const remedy = await prisma.remedyDocument.create({
       data: {
         consultationSessionId: consultationSession.id,
-        templateId: templateId,
+        templateId: validatedData.templateId,
         userId: patientId,
-        customInstructions: customInstructions || undefined,
-        customDosage: customDosage || undefined,
-        customDuration: customDuration || undefined,
+        customInstructions: validatedData.customInstructions,
+        customDosage: validatedData.customDosage,
+        customDuration: validatedData.customDuration,
       },
       include: {
         template: true,
@@ -410,7 +412,8 @@ export async function prescribeRemedy(formData: FormData) {
   } catch (error) {
     console.error('Prescribe remedy error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to prescribe remedy' };
   }
@@ -704,7 +707,8 @@ export async function updateRemedyStatus(formData: FormData) {
   } catch (error) {
     console.error('Update remedy status error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to update remedy status' };
   }

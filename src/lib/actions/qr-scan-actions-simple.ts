@@ -80,7 +80,6 @@ export async function processQRScanSimple(qrData: string) {
     const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
 
     if (scanTime < timeWindowStart) {
-      const minutesEarly = Math.ceil((timeWindowStart.getTime() - scanTime.getTime()) / (60 * 1000));
       return { 
         success: false, 
         error: `Too early to check in. Please scan QR code ${TIME_WINDOW_CONFIG.beforeAppointment} minutes before your appointment time.` 
@@ -88,7 +87,6 @@ export async function processQRScanSimple(qrData: string) {
     }
 
     if (scanTime > timeWindowEnd) {
-      const minutesLate = Math.ceil((scanTime.getTime() - timeWindowEnd.getTime()) / (60 * 1000));
       return { 
         success: false, 
         error: `Too late to check in. You can only scan within ${TIME_WINDOW_CONFIG.afterAppointment} minutes after your appointment time.` 

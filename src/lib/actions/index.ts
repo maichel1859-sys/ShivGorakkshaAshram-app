@@ -29,6 +29,7 @@ export {
   sendPhoneOTP,
   verifyPhoneOTP,
   addFamilyContact,
+  getFamilyContacts,
   changePassword,
 } from './auth-actions';
 
@@ -92,11 +93,6 @@ export {
   updateUserSettings,
   getSystemSettings,
 } from './settings-actions';
-
-export {
-  // Auth actions
-  getFamilyContacts,
-} from './auth-actions';
 
 export {
   // Dashboard actions

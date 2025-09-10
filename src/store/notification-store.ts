@@ -104,5 +104,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 }));
 
 // Selector hooks for better performance
+export const useNotifications = () => useNotificationStore((state) => state.notifications);
+export const useUnreadCount = () => useNotificationStore((state) => state.unreadCount);
 export const useUnreadNotificationCount = () => useNotificationStore((state) => state.unreadCount);
 export const useNotificationLoading = () => useNotificationStore((state) => state.isLoading);
+export const useMarkAsRead = () => useNotificationStore((state) => state.markAsRead);
+export const useAddNotification = () => useNotificationStore((state) => state.addNotification);
+export const useClearNotifications = () => useNotificationStore((state) => state.markAllAsRead);

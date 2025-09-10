@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, FileText, Calendar, User, Download, Eye } from "lucide-react";
 import toast from "react-hot-toast";
+import { getUserRemedies } from "@/lib/actions/remedy-management-actions";
 
 interface RemedyDocument {
   id: string;
@@ -19,12 +21,12 @@ interface RemedyDocument {
   customDuration: string;
   pdfUrl: string;
   emailSent: boolean;
-  smsSent: boolean;
   deliveredAt: string;
   createdAt: string;
 }
 
 export default function UserRemediesPage() {
+  const router = useRouter();
   const [remedies, setRemedies] = useState<RemedyDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,13 +37,12 @@ export default function UserRemediesPage() {
 
   const fetchRemedies = async () => {
     try {
-      // Fetch real data from API
-      const response = await fetch("/api/user/remedies");
-      if (!response.ok) {
-        throw new Error("Failed to fetch remedies");
+      const result = await getUserRemedies();
+      if (result.success) {
+        setRemedies(result.remedies || []);
+      } else {
+        throw new Error(result.error || "Failed to fetch remedies");
       }
-      const data = await response.json();
-      setRemedies(data.remedies || []);
     } catch (error) {
       console.error("Failed to fetch remedies:", error);
       toast.error("Failed to load remedies");
@@ -164,7 +165,11 @@ export default function UserRemediesPage() {
                       </a>
                     </Button>
                   )}
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => router.push(`/user/remedies/${remedy.id}`)}
+                  >
                     <Eye className="mr-2 h-4 w-4" />
                     View Details
                   </Button>
@@ -178,12 +183,7 @@ export default function UserRemediesPage() {
                     <span
                       className={`flex items-center gap-1 ${remedy.emailSent ? "text-green-600" : "text-gray-400"}`}
                     >
-                      {remedy.emailSent ? "✓" : "○"} Email
-                    </span>
-                    <span
-                      className={`flex items-center gap-1 ${remedy.smsSent ? "text-green-600" : "text-gray-400"}`}
-                    >
-                      {remedy.smsSent ? "✓" : "○"} SMS
+                      {remedy.emailSent ? "✓" : "○"} Email Sent
                     </span>
                   </div>
                   {remedy.deliveredAt && (

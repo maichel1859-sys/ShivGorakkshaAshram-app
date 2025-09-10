@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { getGurujiQueueEntries, startConsultation, updateQueueStatus, getConsult
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/ui/global-spinner";
+import { useAppStore, useLoadingState } from "@/store/app-store";
 
 interface QueueEntry {
   id: string;
@@ -62,13 +63,13 @@ export default function GurujiDashboard() {
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { setLoadingState } = useAppStore();
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
 
   // Load queue entries
-  const loadQueueEntries = async () => {
+  const loadQueueEntries = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoadingState("queue-loading", true);
       const result = await getGurujiQueueEntries();
       
       if (result.success && result.queueEntries) {
@@ -97,14 +98,15 @@ export default function GurujiDashboard() {
       console.error('Error loading queue entries:', error);
       toast.error('Error loading queue data');
     } finally {
-      setLoading(false);
+      setLoadingState("queue-loading", false);
     }
-  };
+  }, [setLoadingState]);
 
   // Load queue entries on component mount
   useEffect(() => {
     loadQueueEntries();
-  }, []);
+  }, [loadQueueEntries]);
+  
 
   // Auto-refresh queue data every 30 seconds
   useEffect(() => {
@@ -112,7 +114,7 @@ export default function GurujiDashboard() {
       loadQueueEntries();
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadQueueEntries]);
 
   const handleStartConsultation = async (entry: QueueEntry) => {
     try {
@@ -234,7 +236,9 @@ export default function GurujiDashboard() {
     averageConsultationTime: 15,
   };
 
-  if (loading) {
+  const isLoading = useLoadingState("queue-loading");
+  
+  if (isLoading) {
     return <PageSpinner message="Loading dashboard..." />;
   }
 
@@ -392,7 +396,7 @@ export default function GurujiDashboard() {
         <CardContent>
           {waitingPatients.length > 0 ? (
             <div className="space-y-3">
-              {waitingPatients.map((patient, index) => (
+              {waitingPatients.map((patient) => (
                 <div
                   key={patient.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"

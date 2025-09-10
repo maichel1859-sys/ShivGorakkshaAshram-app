@@ -6,22 +6,14 @@ import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import {
+  notificationSchema
+} from '@/lib/validation/unified-schemas';
 
-// Schemas
-const createNotificationSchema = z.object({
-  userId: z.string().min(1, 'User ID is required'),
-  title: z.string().min(1, 'Title is required'),
-  message: z.string().min(1, 'Message is required'),
-  type: z.enum(['info', 'success', 'warning', 'error', 'appointment', 'remedy', 'queue', 'system']).default('info'),
-  data: z.record(z.any()).optional(),
-});
+// Use unified schemas
+const createNotificationSchema = notificationSchema;
 
-const updateNotificationSchema = z.object({
-  title: z.string().min(1, 'Title is required').optional(),
-  message: z.string().min(1, 'Message is required').optional(),
-  type: z.enum(['info', 'success', 'warning', 'error', 'appointment', 'remedy', 'queue', 'system']).optional(),
-  data: z.record(z.any()).optional(),
-});
+const updateNotificationSchema = notificationSchema.partial();
 
 // Get user notifications
 export async function getUserNotifications(options?: {

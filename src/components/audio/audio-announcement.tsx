@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Volume2, VolumeX, Play, Pause } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { usePollingNotifications } from "@/hooks/use-polling-notifications";
 
 interface AudioAnnouncementProps {
@@ -30,8 +29,7 @@ export function AudioAnnouncement({ className = "" }: AudioAnnouncementProps) {
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const queueRef = useRef<AnnouncementMessage[]>([]);
 
-  const { data: session } = useSession();
-  const { isPolling, currentInterval } = usePollingNotifications();
+  usePollingNotifications();
 
   useEffect(() => {
     // Initialize Web Audio API for sound effects

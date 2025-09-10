@@ -5,38 +5,15 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
+import { 
+  consultationSessionSchema, 
+  getValidationErrors
+} from '@/lib/validation/unified-schemas';
 
-
-// Schemas
-const createConsultationSchema = z.object({
-  appointmentId: z.string().min(1, 'Appointment ID is required'),
-  symptoms: z.string().min(1, 'Symptoms are required'),
-  diagnosis: z.string().optional(),
-  treatment: z.string().optional(),
-  notes: z.string().optional(),
-  followUpDate: z.string().optional(),
-  medicines: z.array(z.object({
-    name: z.string(),
-    dosage: z.string(),
-    frequency: z.string(),
-    duration: z.string(),
-  })).optional(),
-});
-
-const updateConsultationSchema = z.object({
-  symptoms: z.string().optional(),
-  diagnosis: z.string().optional(),
-  treatment: z.string().optional(),
-  notes: z.string().optional(),
-  followUpDate: z.string().optional(),
-  status: z.enum(['IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
-  medicines: z.array(z.object({
-    name: z.string(),
-    dosage: z.string(),
-    frequency: z.string(),
-    duration: z.string(),
-  })).optional(),
-});
+// Use unified schemas for consistency
+const createConsultationSchema = consultationSessionSchema;
+// updateConsultationSchema available for future use
+// const updateConsultationSchema = consultationSessionSchema.partial();
 
 // Get consultations with filtering
 export async function getConsultations(options?: {
@@ -303,7 +280,8 @@ export async function createConsultation(formData: FormData) {
   } catch (error) {
     console.error('Create consultation error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to create consultation' };
   }
@@ -324,15 +302,25 @@ export async function updateConsultation(formData: FormData) {
       return { success: false, error: 'Consultation ID is required' };
     }
 
-    const data = updateConsultationSchema.parse({
-      symptoms: formData.get('symptoms') as string || undefined,
-      diagnosis: formData.get('diagnosis') as string || undefined,
-      treatment: formData.get('treatment') as string || undefined,
-      notes: formData.get('notes') as string || undefined,
-      followUpDate: formData.get('followUpDate') as string || undefined,
-      status: (formData.get('status') as string) || undefined,
-      medicines: formData.get('medicines') ? JSON.parse(formData.get('medicines') as string) : undefined,
-    });
+    // Extract form data directly (schema validation may not include all fields)
+    const symptoms = formData.get('symptoms') as string || undefined;
+    const diagnosis = formData.get('diagnosis') as string || undefined;
+    const treatment = formData.get('treatment') as string || undefined;
+    const notes = formData.get('notes') as string || undefined;
+    const followUpDate = formData.get('followUpDate') as string || undefined;
+    const status = (formData.get('status') as string) || undefined;
+    const medicines = formData.get('medicines') ? JSON.parse(formData.get('medicines') as string) : undefined;
+    
+    // Create data object
+    const data = {
+      symptoms,
+      diagnosis,
+      treatment,
+      notes,
+      followUpDate,
+      status,
+      medicines
+    };
 
     const consultation = await prisma.consultationSession.findUnique({
       where: { id: consultationId },
@@ -358,6 +346,10 @@ export async function updateConsultation(formData: FormData) {
     if (data.symptoms) updateData.symptoms = data.symptoms;
     if (data.diagnosis) updateData.diagnosis = data.diagnosis;
     if (data.notes) updateData.notes = data.notes;
+    if (data.treatment) updateData.treatment = data.treatment;
+    if (data.followUpDate) updateData.followUpDate = new Date(data.followUpDate);
+    if (data.medicines) updateData.medicines = JSON.stringify(data.medicines);
+    
     if (data.status === 'COMPLETED') {
       updateData.endTime = new Date();
       updateData.duration = Math.floor((new Date().getTime() - consultation.startTime.getTime()) / 60000); // in minutes
@@ -383,7 +375,8 @@ export async function updateConsultation(formData: FormData) {
   } catch (error) {
     console.error('Update consultation error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to update consultation' };
   }

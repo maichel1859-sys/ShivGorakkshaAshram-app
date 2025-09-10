@@ -18,7 +18,6 @@ import {
   User,
   Calendar,
   FileText,
-  Clock,
   Edit,
   Download,
   Share2,
@@ -510,7 +509,7 @@ export function RemedyDetailsModal({
                             } else {
                               toast.error(result.error || "Failed to resend email");
                             }
-                          } catch (error) {
+                          } catch {
                             toast.error("Failed to resend email");
                           }
                         }}
@@ -531,7 +530,7 @@ export function RemedyDetailsModal({
                             } else {
                               toast.error(result.error || "Failed to resend SMS");
                             }
-                          } catch (error) {
+                          } catch {
                             toast.error("Failed to resend SMS");
                           }
                         }}

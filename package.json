@@ -83,6 +83,7 @@
     "react-resizable-panels": "^3.0.4",
     "recharts": "^2.15.4",
     "resend": "^4.7.0",
+    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "twilio": "^5.8.0",

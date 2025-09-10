@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { signIn, signOut, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { useLoadingStore } from '@/lib/stores/loading-store';
+import { useAppStore } from '@/store/app-store';
 
 interface AuthCredentials {
   email: string;
@@ -20,7 +20,7 @@ interface SignUpData {
 
 export function useAuthToast() {
   const [isLoading, setIsLoading] = useState(false);
-  const { setAuthLoading } = useLoadingStore();
+  const { setAuthLoading } = useAppStore();
   const router = useRouter();
 
   const signInWithToast = async (credentials: AuthCredentials) => {

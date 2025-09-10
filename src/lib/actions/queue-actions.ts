@@ -5,6 +5,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
+import {
+  QueueStatusEnum,
+  getValidationErrors
+} from '@/lib/validation/unified-schemas';
 import { 
   invalidateQueueCache, 
   getCachedQueueStatus, 
@@ -12,9 +16,9 @@ import {
   getCachedGurujiQueueEntries 
 } from '@/lib/services/queue.service';
 
-// Schemas
+// Use unified schemas for consistency
 const queueStatusSchema = z.object({
-  status: z.enum(['WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
+  status: QueueStatusEnum,
   estimatedWait: z.number().optional(),
   notes: z.string().optional(),
 });
@@ -353,7 +357,8 @@ export async function updateQueueStatus(formData: FormData) {
   } catch (error) {
     console.error('Update queue status error:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     return { success: false, error: 'Failed to update queue status' };
   }
