@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardLayout } from "@/components/dashboard/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardLayout } from "@/components/dashboard/layout";
 import { 
   Bell, 
   User,
@@ -61,7 +61,7 @@ export default function CoordinatorSettingsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Coordinator Settings" allowedRoles={["COORDINATOR"]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

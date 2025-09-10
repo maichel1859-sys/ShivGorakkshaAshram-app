@@ -33,6 +33,7 @@ import { useGurujiConsultations } from "@/hooks/queries/use-guruji";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
 import { RemedyDetailsModal } from "@/components/guruji/remedy-details-modal";
 import { ContactHistoryModal } from "@/components/guruji/contact-history-modal";
+import { ConsultationTimer } from "@/components/guruji/consultation-timer";
 import { getGurujiQueueEntries, startConsultation, updateQueueStatus } from "@/lib/actions/queue-actions";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/ui/global-spinner";
@@ -530,90 +531,124 @@ export default function GurujiConsultationsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {filteredQueueEntries
                 .filter(entry => entry.status === 'IN_PROGRESS')
-                .map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 border-blue-200"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold">{entry.user.name || 'Unknown User'}</h3>
-                          <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                .map((entry) => {
+                  // Find matching consultation session for this entry
+                  const activeConsultation = filteredConsultations.find(consultation => 
+                    consultation.patientId === entry.user.id && 
+                    !consultation.endTime
+                  );
+
+                  return (
+                    <div key={entry.id} className="space-y-4">
+                      {/* Real-time Timer */}
+                      {activeConsultation && (
+                        <div className="flex justify-center">
+                          <ConsultationTimer
+                            consultation={{
+                              id: activeConsultation.id,
+                              appointmentId: activeConsultation.appointmentId,
+                              patientId: activeConsultation.patientId,
+                              gurujiId: activeConsultation.gurujiId,
+                              startTime: activeConsultation.startTime,
+                              endTime: activeConsultation.endTime,
+                              duration: activeConsultation.duration || undefined,
+                              patient: {
+                                id: activeConsultation.patient.id,
+                                name: activeConsultation.patient.name,
+                                phone: activeConsultation.patient.phone
+                              }
+                            }}
+                            onUpdate={() => {
+                              // Refresh data when consultation is updated
+                              loadQueueEntries();
+                            }}
+                          />
                         </div>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <Phone className="mr-1 h-3 w-3" />
-                            {entry.user.phone || 'No phone'}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="mr-1 h-3 w-3" />
-                            Started: {new Date(entry.checkedInAt).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        {/* Enhanced contact display */}
-                        <div className="mt-2 p-2 bg-green-50 rounded border-l-4 border-green-200">
-                          <div className="text-xs font-medium text-green-800 mb-1">Contact Information</div>
-                          <div className="text-xs text-green-700">
-                            {entry.user.phone ? (
+                      )}
+                      
+                      {/* Patient Info and Controls */}
+                      <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 border-blue-200">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <h3 className="font-semibold">{entry.user.name || 'Unknown User'}</h3>
+                              <Badge className="bg-blue-100 text-blue-800">IN PROGRESS</Badge>
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                               <span className="flex items-center">
                                 <Phone className="mr-1 h-3 w-3" />
-                                {entry.user.phone}
+                                {entry.user.phone || 'No phone'}
                               </span>
-                            ) : (
-                              <span className="text-red-600">No phone number available</span>
+                              <span className="flex items-center">
+                                <Clock className="mr-1 h-3 w-3" />
+                                Started: {new Date(entry.checkedInAt).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            {/* Enhanced contact display */}
+                            <div className="mt-2 p-2 bg-green-50 rounded border-l-4 border-green-200">
+                              <div className="text-xs font-medium text-green-800 mb-1">Contact Information</div>
+                              <div className="text-xs text-green-700">
+                                {entry.user.phone ? (
+                                  <span className="flex items-center">
+                                    <Phone className="mr-1 h-3 w-3" />
+                                    {entry.user.phone}
+                                  </span>
+                                ) : (
+                                  <span className="text-red-600">No phone number available</span>
+                                )}
+                              </div>
+                            </div>
+                            {entry.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                <strong>Reason:</strong> {entry.notes}
+                              </p>
                             )}
                           </div>
                         </div>
-                        {entry.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            <strong>Reason:</strong> {entry.notes}
-                          </p>
-                        )}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              if (entry.user.phone) {
+                                window.open(`tel:${entry.user.phone}`, '_blank');
+                              } else {
+                                toast.info('No phone number available');
+                              }
+                            }}
+                            className="flex-1 sm:flex-none"
+                          >
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            Contact
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handlePrescribeRemedy(entry)}
+                            className="flex-1 sm:flex-none"
+                          >
+                            <Pill className="h-3 w-3 mr-1" />
+                            Prescribe Remedy
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            onClick={() => handleCompleteConsultation(entry)}
+                            className="flex-1 sm:flex-none"
+                          >
+                            Complete Consultation
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => {
-                          if (entry.user.phone) {
-                            window.open(`tel:${entry.user.phone}`, '_blank');
-                          } else {
-                            toast.info('No phone number available');
-                          }
-                        }}
-                        className="flex-1 sm:flex-none"
-                      >
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        Contact
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handlePrescribeRemedy(entry)}
-                        className="flex-1 sm:flex-none"
-                      >
-                        <Pill className="h-3 w-3 mr-1" />
-                        Prescribe Remedy
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="secondary"
-                        onClick={() => handleCompleteConsultation(entry)}
-                        className="flex-1 sm:flex-none"
-                      >
-                        Complete Consultation
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           )}
         </CardContent>

@@ -826,4 +826,70 @@ export async function getAdminQueueEntries() {
     console.error('Get admin queue entries error:', error);
     return { success: false, error: 'Failed to fetch queue entries' };
   }
+}
+
+// Get coordinator queue entries - all queues across gurujis
+export async function getCoordinatorQueueEntries() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  // Only coordinators and admins can access all queue entries
+  if (!['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
+    return { success: false, error: 'Access denied' };
+  }
+
+  try {
+    const queueEntries = await prisma.queueEntry.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        appointment: {
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            reason: true,
+          },
+        },
+      },
+      orderBy: [
+        { gurujiId: 'asc' }, // Group by guruji
+        { status: 'asc' }, // IN_PROGRESS first, then WAITING
+        { createdAt: 'asc' },
+      ],
+    });
+
+    return {
+      success: true,
+      queueEntries: queueEntries.map(entry => ({
+        ...entry,
+        checkedInAt: entry.checkedInAt.toISOString(),
+        startedAt: entry.startedAt?.toISOString(),
+        completedAt: entry.completedAt?.toISOString(),
+        appointment: {
+          ...entry.appointment,
+          date: entry.appointment.date.toISOString(),
+        },
+      })),
+    };
+  } catch (error) {
+    console.error('Get coordinator queue entries error:', error);
+    return { success: false, error: 'Failed to fetch queue entries' };
+  }
 } 

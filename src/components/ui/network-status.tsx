@@ -13,6 +13,12 @@ export function NetworkStatus() {
   const { isSyncing, pendingActions, syncPendingActions, lastSync } = useOfflineSync();
   const [showDetails, setShowDetails] = useState(false);
   const [justWentOnline, setJustWentOnline] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering after client-side mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Track when user comes back online
   useEffect(() => {
@@ -48,6 +54,11 @@ export function NetworkStatus() {
     }
     return "Offline";
   };
+
+  // Don't render on server-side or during initial hydration
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 left-4 z-50">

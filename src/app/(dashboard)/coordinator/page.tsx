@@ -1,20 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// import { Button } from "@/components/ui/button"; // Temporarily unused
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
   Users,
   CheckCircle,
   AlertTriangle,
-  // Phone, // Temporarily unused
+  Clock,
   Activity,
+  Plus,
+  UserPlus,
+  ListChecks,
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
 import { PageSpinner } from "@/components/ui/global-spinner";
+import Link from "next/link";
 
 export default function CoordinatorDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -78,7 +83,7 @@ export default function CoordinatorDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Time */}
+      {/* Header with Time and Actions */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
@@ -88,12 +93,28 @@ export default function CoordinatorDashboard() {
             Manage appointments and patient flow
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-mono font-semibold">
-            {currentTime.toLocaleTimeString()}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-2xl font-mono font-semibold">
+              {currentTime.toLocaleTimeString()}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {currentTime.toLocaleDateString()}
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {currentTime.toLocaleDateString()}
+          <div className="flex gap-2">
+            <Link href="/coordinator/appointments">
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Book Appointment
+              </Button>
+            </Link>
+            <Link href="/coordinator/queue">
+              <Button variant="outline">
+                <ListChecks className="h-4 w-4 mr-2" />
+                Manage Queue
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -159,47 +180,143 @@ export default function CoordinatorDashboard() {
         </Card>
       </div>
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Current Queue Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Current Queue Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats?.queueSummary && stats.queueSummary.length > 0 ? (
+                stats.queueSummary.slice(0, 3).map((queue: { gurujiName: string; waitingCount: number; inProgressCount: number; averageWaitTime: number }, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{queue.gurujiName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {queue.waitingCount} waiting • {queue.inProgressCount} in progress
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">~{queue.averageWaitTime}min</p>
+                      <p className="text-xs text-muted-foreground">avg wait</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No active queues</p>
+                </div>
+              )}
+              <Link href="/coordinator/queue">
+                <Button variant="outline" className="w-full">
+                  <ListChecks className="h-4 w-4 mr-2" />
+                  View Full Queue
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Today's Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Today&apos;s Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.todayStats?.appointments || 0}</p>
+                  <p className="text-sm text-muted-foreground">Appointments</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats?.todayStats?.checkins || 0}</p>
+                  <p className="text-sm text-muted-foreground">Check-ins</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats?.todayStats?.completions || 0}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats?.todayStats?.cancellations || 0}</p>
+                  <p className="text-sm text-muted-foreground">Cancelled</p>
+                </div>
+              </div>
+              <Separator />
+              <Link href="/coordinator/appointments">
+                <Button variant="outline" className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Book New Appointment
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Recent Activity */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Recent Activity
+            <Clock className="h-5 w-5" />
+            Upcoming Appointments
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {stats?.upcomingAppointments
-              ?.slice(0, 5)
-              .map((appointment: { id: string; patientName: string; gurujiName: string; time: string; status: string; priority: string }) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>
-                        {appointment.patientName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{appointment.patientName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {appointment.gurujiName} •{" "}
-                        {new Date(appointment.time).toLocaleTimeString()}
-                      </p>
+            {stats?.upcomingAppointments && stats.upcomingAppointments.length > 0 ? (
+              stats.upcomingAppointments
+                .slice(0, 5)
+                .map((appointment: { id: string; patientName: string; gurujiName: string; time: string; status: string; priority: string }) => (
+                  <div
+                    key={appointment.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>
+                          {appointment.patientName.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{appointment.patientName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.gurujiName} •{" "}
+                          {new Date(appointment.time).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getStatusColor(appointment.status)}>
+                        {appointment.status}
+                      </Badge>
+                      <Badge className={getPriorityColor(appointment.priority)}>
+                        {appointment.priority}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getStatusColor(appointment.status)}>
-                      {appointment.status}
-                    </Badge>
-                    <Badge className={getPriorityColor(appointment.priority)}>
-                      {appointment.priority}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                ))
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No upcoming appointments</p>
+                <Link href="/coordinator/appointments" className="inline-block mt-2">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Book First Appointment
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -17,22 +17,38 @@ export function useCoordinatorDashboard() {
         throw new Error(result.error || 'Failed to fetch coordinator dashboard data');
       }
       
-      // Transform the data to match the expected format
-      if (!result.success || !result.data) {
-        throw new Error('No data received from coordinator dashboard');
-      }
-      
-      const data = result.data;
+      const data = (result as { 
+        success: true; 
+        data: {
+          todayAppointments: number;
+          pendingAppointments: number;
+          activeQueue: Array<{
+            status: string;
+            gurujiId?: string;
+          }>;
+          recentCheckins: Array<{
+            id: string;
+            user?: { name?: string };
+            date?: Date;
+            status?: string;
+          }>;
+        }
+      }).data;
       
       // Calculate stats
       const totalAppointmentsToday = data.todayAppointments || 0;
       const checkedInToday = data.recentCheckins?.length || 0;
-      const waitingInQueue = data.activeQueue?.filter(entry => entry.status === 'WAITING').length || 0;
+      const waitingInQueue = data.activeQueue?.filter((entry: { status: string }) => entry.status === 'WAITING').length || 0;
       const completedToday = 0; // Would need to calculate from completed appointments
       const pendingApprovals = data.pendingAppointments || 0;
       
       // Transform upcoming appointments
-      const upcomingAppointments = (data.recentCheckins || []).map(appointment => ({
+      const upcomingAppointments = (data.recentCheckins || []).map((appointment: {
+        id: string;
+        user?: { name?: string };
+        date?: Date;
+        status?: string;
+      }) => ({
         id: appointment.id,
         patientName: appointment.user?.name || 'Unknown',
         gurujiName: 'Unknown', // Would need to include guruji data
@@ -42,9 +58,18 @@ export function useCoordinatorDashboard() {
       }));
       
       // Transform queue summary
-      const queueSummary = (data.activeQueue || []).reduce((acc, entry) => {
+      const queueSummary = (data.activeQueue || []).reduce((acc: Array<{
+        gurujiId: string;
+        gurujiName: string;
+        waitingCount: number;
+        inProgressCount: number;
+        averageWaitTime: number;
+      }>, entry: {
+        gurujiId?: string;
+        status: string;
+      }) => {
         const gurujiId = entry.gurujiId || 'unknown';
-        const existing = acc.find(summary => summary.gurujiId === gurujiId);
+        const existing = acc.find((summary) => summary.gurujiId === gurujiId);
         
         if (existing) {
           if (entry.status === 'WAITING') {

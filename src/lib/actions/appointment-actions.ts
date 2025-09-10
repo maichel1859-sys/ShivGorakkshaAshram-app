@@ -1,17 +1,31 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { AppointmentStatus } from '@prisma/client';
+import { z } from 'zod';
 import { 
-  appointmentBookingSchema
+  appointmentBookingSchema,
+  getValidationErrors
 } from '@/lib/validation/unified-schemas';
 
 // Use unified schemas for consistency
 const appointmentSchema = appointmentBookingSchema;
+
+// Schema for creating appointments for other users
+const createAppointmentSchema = z.object({
+  patientName: z.string().min(1, 'Patient name is required'),
+  patientPhone: z.string().min(10, 'Valid phone number is required'),
+  patientEmail: z.string().email().optional().or(z.literal('')),
+  gurujiId: z.string().min(1, 'Guruji selection is required'),
+  date: z.string().min(1, 'Date is required'),
+  startTime: z.string().min(1, 'Start time is required'),
+  reason: z.string().optional(),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
+  notes: z.string().optional(),
+});
 
 // Get appointments for current user or all appointments (for admin)
 export async function getAppointments(options?: {
@@ -833,6 +847,160 @@ export async function getAppointment(id: string) {
       success: false,
       error: 'Failed to fetch appointment'
     };
+  }
+}
+
+// Create appointment for another user (Coordinator/Admin only)
+export async function createAppointmentForUser(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  // Only Coordinators and Admins can book for others
+  if (!['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
+    return { success: false, error: 'Access denied' };
+  }
+
+  try {
+    const data = createAppointmentSchema.parse({
+      patientName: formData.get('patientName') as string,
+      patientPhone: formData.get('patientPhone') as string,
+      patientEmail: formData.get('patientEmail') as string || undefined,
+      gurujiId: formData.get('gurujiId') as string,
+      date: formData.get('date') as string,
+      startTime: formData.get('startTime') as string,
+      reason: formData.get('reason') as string || undefined,
+      priority: (formData.get('priority') as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT') || 'NORMAL',
+      notes: formData.get('notes') as string || undefined,
+    });
+
+    // Check if patient exists, if not create them
+    let patient = await prisma.user.findUnique({
+      where: { phone: data.patientPhone },
+    });
+
+    if (!patient) {
+      // Create new patient user
+      patient = await prisma.user.create({
+        data: {
+          name: data.patientName,
+          phone: data.patientPhone,
+          email: data.patientEmail,
+          role: 'USER',
+          emailVerified: null,
+        },
+      });
+    } else if (patient.name !== data.patientName) {
+      // Update patient name if different
+      patient = await prisma.user.update({
+        where: { id: patient.id },
+        data: { name: data.patientName },
+      });
+    }
+
+    // Check guruji availability
+    const appointmentDate = new Date(data.date);
+    const startTime = new Date(`${data.date}T${data.startTime}`);
+    const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes duration
+
+    const conflictingAppointment = await prisma.appointment.findFirst({
+      where: {
+        gurujiId: data.gurujiId,
+        date: appointmentDate,
+        OR: [
+          {
+            AND: [
+              { startTime: { lte: startTime } },
+              { endTime: { gt: startTime } }
+            ]
+          },
+          {
+            AND: [
+              { startTime: { lt: endTime } },
+              { endTime: { gte: endTime } }
+            ]
+          }
+        ],
+        status: { notIn: ['CANCELLED'] }
+      }
+    });
+
+    if (conflictingAppointment) {
+      return { success: false, error: 'Time slot not available' };
+    }
+
+    // Create appointment
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId: patient.id,
+        gurujiId: data.gurujiId,
+        date: appointmentDate,
+        startTime,
+        endTime,
+        reason: data.reason,
+        priority: data.priority,
+        notes: data.notes,
+        status: 'BOOKED',
+        // Note: Add bookedById field to schema if tracking who booked is needed
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: 'CREATE_APPOINTMENT_FOR_USER',
+        resource: 'APPOINTMENT',
+        resourceId: appointment.id,
+        newData: {
+          patientName: data.patientName,
+          patientPhone: data.patientPhone,
+          gurujiId: data.gurujiId,
+          date: data.date,
+          startTime: data.startTime,
+          bookedBy: session.user.role,
+        },
+      },
+    });
+
+    revalidatePath('/coordinator/appointments');
+    revalidatePath('/admin/appointments');
+    
+    return { 
+      success: true, 
+      appointment: {
+        ...appointment,
+        date: appointment.date.toISOString(),
+        startTime: appointment.startTime.toISOString(),
+        endTime: appointment.endTime.toISOString(),
+      }
+    };
+  } catch (error) {
+    console.error('Create appointment for user error:', error);
+    if (error instanceof z.ZodError) {
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
+    }
+    return { success: false, error: 'Failed to create appointment' };
   }
 }
 

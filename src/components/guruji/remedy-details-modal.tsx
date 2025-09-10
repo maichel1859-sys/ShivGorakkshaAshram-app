@@ -17,7 +17,6 @@ import {
   Pill,
   User,
   Calendar,
-  FileText,
   Edit,
   Download,
   Share2,
@@ -264,11 +263,10 @@ export function RemedyDetailsModal({
           </div>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-1">
               <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
               <TabsTrigger value="patient" className="text-xs sm:text-sm">Patient</TabsTrigger>
               <TabsTrigger value="consultation" className="text-xs sm:text-sm">Consultation</TabsTrigger>
-              <TabsTrigger value="delivery" className="text-xs sm:text-sm">Delivery</TabsTrigger>
             </TabsList>
 
             {/* Remedy Details Tab */}
@@ -477,28 +475,6 @@ export function RemedyDetailsModal({
               </Card>
             </TabsContent>
 
-            {/* Delivery Tab */}
-            <TabsContent value="delivery" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    In-App Delivery
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-center py-8">
-                    <div className="text-sm text-muted-foreground mb-2">
-                      📱 In-App Notification System
-                    </div>
-                    <p className="text-sm">
-                      All remedy notifications are delivered through the in-app notification system.
-                      Patients are automatically notified when remedies are prescribed.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </DialogContent>

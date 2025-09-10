@@ -17,8 +17,6 @@ import {
   ArrowLeft,
   Mail,
   Phone,
-  CheckCircle,
-  XCircle,
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -44,9 +42,6 @@ interface RemedyDocument {
   customDosage?: string | null;
   customDuration?: string | null;
   createdAt: string;
-  emailSent: boolean;
-  smsSent: boolean;
-  deliveredAt?: string | null;
 }
 
 interface ConsultationSession {
@@ -95,9 +90,6 @@ export default function UserRemedyDetailsPage() {
           customDosage: result.remedy.customDosage,
           customDuration: result.remedy.customDuration,
           createdAt: result.remedy.createdAt instanceof Date ? result.remedy.createdAt.toISOString() : result.remedy.createdAt,
-          emailSent: result.remedy.emailSent,
-          smsSent: result.remedy.smsSent,
-          deliveredAt: result.remedy.deliveredAt instanceof Date ? result.remedy.deliveredAt.toISOString() : result.remedy.deliveredAt,
         };
         // Transform consultation session to match local interface
         const transformedConsultation: ConsultationSession = {
@@ -224,15 +216,12 @@ Om Shanti 🙏
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 gap-1">
+          <TabsList className="grid w-full grid-cols-2 gap-1">
             <TabsTrigger value="details" className="text-xs sm:text-sm">
               Remedy Details
             </TabsTrigger>
             <TabsTrigger value="consultation" className="text-xs sm:text-sm">
               Consultation Info
-            </TabsTrigger>
-            <TabsTrigger value="delivery" className="text-xs sm:text-sm">
-              Delivery Status
             </TabsTrigger>
           </TabsList>
 
@@ -394,89 +383,6 @@ Om Shanti 🙏
             </Card>
           </TabsContent>
 
-          {/* Delivery Status Tab */}
-          <TabsContent value="delivery" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Delivery Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  {/* Delivery Methods */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Delivery Methods</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Mail className="h-5 w-5 text-muted-foreground" />
-                          <span>Email Delivery</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {remedy.emailSent ? (
-                            <>
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                              <span className="text-sm text-green-600">Delivered</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-5 w-5 text-red-500" />
-                              <span className="text-sm text-red-600">Not Sent</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Phone className="h-5 w-5 text-muted-foreground" />
-                          <span>SMS Delivery</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {remedy.smsSent ? (
-                            <>
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                              <span className="text-sm text-green-600">Delivered</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-5 w-5 text-red-500" />
-                              <span className="text-sm text-red-600">Not Sent</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Delivery Timeline */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold">Delivery Timeline</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Prescription Created</span>
-                        <span className="text-muted-foreground">
-                          {new Date(remedy.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      {remedy.deliveredAt && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Delivered</span>
-                          <span className="text-muted-foreground">
-                            {new Date(remedy.deliveredAt).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
