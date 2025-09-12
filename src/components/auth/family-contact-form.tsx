@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAppStore } from '@/store/app-store';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -78,7 +79,8 @@ export function FamilyContactForm({
   onSuccess,
   className = "",
 }: FamilyContactFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['family-contact-form'] || false;
   const [isSuccess, setIsSuccess] = useState(false);
 
   const form = useForm<FamilyContactData>({
@@ -91,7 +93,7 @@ export function FamilyContactForm({
   });
 
   const onSubmit = async (data: FamilyContactData) => {
-    setIsLoading(true);
+    setLoadingState('family-contact-form', true);
 
     try {
       // Convert form data to FormData for Server Action
@@ -120,7 +122,7 @@ export function FamilyContactForm({
           : "Failed to register family contact";
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      setLoadingState('family-contact-form', false);
     }
   };
 

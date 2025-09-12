@@ -22,7 +22,15 @@
       "Bash(timeout 300 npm run build -- --no-lint)",
       "Bash(npm run lint:*)",
       "Bash(timeout 120 npm run build)",
-      "Bash(timeout 60 npm run build)"
+      "Bash(timeout 60 npm run build)",
+      "Bash(timeout 30 npm run lint)",
+      "Bash(grep:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npx:*)",
+      "Bash(timeout 600 npm run build)",
+      "Bash(git checkout:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": []
   }

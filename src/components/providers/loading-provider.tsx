@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { useAppStore } from "@/store/app-store";
 
 interface LoadingProviderProps {
@@ -18,11 +19,13 @@ export function LoadingProvider({
   const { 
     setLoading, 
     setRouteLoading, 
-    setDataLoading
+    setDataLoading,
+    setAuthLoading
   } = useAppStore();
   const pathname = usePathname();
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
+  const { status } = useSession();
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // React Query network activity → data loading
@@ -33,6 +36,12 @@ export function LoadingProvider({
     // Also set global loading for overall app state
     setLoading(active);
   }, [isFetching, isMutating, setDataLoading, setLoading]);
+
+  // Authentication status → auth loading
+  useEffect(() => {
+    const isAuthLoading = status === 'loading';
+    setAuthLoading(isAuthLoading);
+  }, [status, setAuthLoading]);
 
   // Route change hint → route loading pulse
   useEffect(() => {

@@ -18,7 +18,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
-import { PageSpinner } from "@/components/ui/global-spinner";
+import { PageSpinner } from "@/components/loading";
 import Link from "next/link";
 
 export default function CoordinatorDashboard() {
@@ -84,7 +84,7 @@ export default function CoordinatorDashboard() {
   return (
     <div className="space-y-6">
       {/* Header with Time and Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
             Coordinator Dashboard
@@ -93,26 +93,32 @@ export default function CoordinatorDashboard() {
             Manage appointments and patient flow
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-2xl font-mono font-semibold">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="text-left sm:text-right">
+            <div className="text-xl lg:text-2xl font-mono font-semibold">
               {currentTime.toLocaleTimeString()}
             </div>
             <div className="text-sm text-muted-foreground">
               {currentTime.toLocaleDateString()}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/coordinator/reception">
+              <Button className="text-sm">
+                <Users className="h-4 w-4 mr-2" />
+                Reception
+              </Button>
+            </Link>
             <Link href="/coordinator/appointments">
-              <Button>
+              <Button variant="outline" className="text-sm">
                 <UserPlus className="h-4 w-4 mr-2" />
-                Book Appointment
+                <span className="hidden sm:inline">Book </span>Appointment
               </Button>
             </Link>
             <Link href="/coordinator/queue">
-              <Button variant="outline">
+              <Button variant="outline" className="text-sm">
                 <ListChecks className="h-4 w-4 mr-2" />
-                Manage Queue
+                <span className="hidden sm:inline">Manage </span>Queue
               </Button>
             </Link>
           </div>
@@ -120,8 +126,8 @@ export default function CoordinatorDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="spiritual-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Today&apos;s Appointments
@@ -181,7 +187,7 @@ export default function CoordinatorDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Current Queue Status */}
         <Card>
           <CardHeader>

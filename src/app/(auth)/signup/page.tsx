@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useAuthToast } from "@/hooks/use-auth-toast";
-import { FullScreenSpinner } from "@/components/ui/global-spinner";
+import { FullScreenSpinner } from "@/components/loading";
 
 const signupSchema = z
   .object({

@@ -14,7 +14,6 @@ interface Notification {
 interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
-  isLoading: boolean;
   lastFetch: number | null;
 
   // Actions
@@ -23,7 +22,6 @@ interface NotificationState {
   markAsRead: (notificationId: string) => void;
   markAllAsRead: () => void;
   removeNotification: (notificationId: string) => void;
-  setLoading: (loading: boolean) => void;
   updateUnreadCount: () => void;
   setLastFetch: (timestamp: number) => void;
 }
@@ -31,7 +29,6 @@ interface NotificationState {
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
-  isLoading: false,
   lastFetch: null,
 
   setNotifications: (notifications) => {
@@ -92,8 +89,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     });
   },
 
-  setLoading: (loading) => set({ isLoading: loading }),
-
   updateUnreadCount: () => {
     const { notifications } = get();
     const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -107,7 +102,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 export const useNotifications = () => useNotificationStore((state) => state.notifications);
 export const useUnreadCount = () => useNotificationStore((state) => state.unreadCount);
 export const useUnreadNotificationCount = () => useNotificationStore((state) => state.unreadCount);
-export const useNotificationLoading = () => useNotificationStore((state) => state.isLoading);
 export const useMarkAsRead = () => useNotificationStore((state) => state.markAsRead);
 export const useAddNotification = () => useNotificationStore((state) => state.addNotification);
 export const useClearNotifications = () => useNotificationStore((state) => state.markAllAsRead);

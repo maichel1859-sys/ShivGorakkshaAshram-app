@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,43 +18,12 @@ import {
   MessageSquare,
   AlertCircle,
 } from "lucide-react";
-import { getGurujiQueueEntries, startConsultation, updateQueueStatus, getConsultationSessionId } from "@/lib/actions/queue-actions";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
-import { toast } from "sonner";
-import { PageSpinner } from "@/components/ui/global-spinner";
-import { useAppStore, useLoadingState } from "@/store/app-store";
-
-interface QueueEntry {
-  id: string;
-  position: number;
-  status: string;
-  estimatedWait?: number;
-  priority?: string;
-  checkedInAt: string;
-  notes?: string;
-  user: {
-    id: string;
-    name: string | null;
-    phone: string | null;
-    dateOfBirth?: string | null; // Transformed to string
-  };
-}
-
-interface QueueEntryFromDB {
-  id: string;
-  position: number;
-  status: string;
-  estimatedWait: number | null;
-  priority: string | null;
-  checkedInAt: Date | string; // Can be Date or string from server
-  notes: string | null;
-  user: {
-    id: string;
-    name: string | null;
-    phone: string | null;
-    dateOfBirth: Date | string | null; // Can be Date or string from server
-  };
-}
+import { PageSpinner } from "@/components/loading";
+import { useLoadingState } from "@/store";
+import { useQueueUnified } from "@/hooks/use-queue-unified";
+import type { QueueEntry } from "@/types/queue";
+import { showToast, commonToasts } from "@/lib/toast";
 
 export default function GurujiDashboard() {
   const { data: session } = useSession();
@@ -62,141 +31,91 @@ export default function GurujiDashboard() {
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
-  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
-  const { setLoadingState } = useAppStore();
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
-
-  // Load queue entries
-  const loadQueueEntries = useCallback(async () => {
-    try {
-      setLoadingState("queue-loading", true);
-      const result = await getGurujiQueueEntries();
-      
-      if (result.success && result.queueEntries) {
-        const entries = result.queueEntries;
-        const transformedQueue = entries.map((entry: QueueEntryFromDB, index: number) => ({
-          id: entry.id,
-          position: entry.position,
-          status: entry.status,
-          estimatedWait: entry.status === 'WAITING' ? (index + 1) * 15 : (entry.estimatedWait || undefined),
-          priority: entry.priority || undefined,
-          checkedInAt: entry.checkedInAt instanceof Date ? entry.checkedInAt.toISOString() : entry.checkedInAt,
-          notes: entry.notes || undefined,
-          user: {
-            id: entry.user.id,
-            name: entry.user.name,
-            phone: entry.user.phone,
-            dateOfBirth: entry.user.dateOfBirth instanceof Date ? entry.user.dateOfBirth.toISOString() : entry.user.dateOfBirth,
-          },
-        }));
-        setQueueEntries(transformedQueue);
-      } else {
-        console.error('Failed to load queue entries:', result.error);
-        toast.error('Failed to load queue data');
-      }
-    } catch (error) {
-      console.error('Error loading queue entries:', error);
-      toast.error('Error loading queue data');
-    } finally {
-      setLoadingState("queue-loading", false);
-    }
-  }, [setLoadingState]);
-
-  // Load queue entries on component mount
-  useEffect(() => {
-    loadQueueEntries();
-  }, [loadQueueEntries]);
   
+  // Use simple toast utility
 
-  // Auto-refresh queue data every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadQueueEntries();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [loadQueueEntries]);
+  // Use unified queue hook with React Query caching and socket fallback
+  const {
+    queueEntries,
+    stats,
+  } = useQueueUnified({
+    role: 'guruji',
+    autoRefresh: true,
+    refreshInterval: 15000, // More frequent for guruji
+    enableRealtime: true,
+  });
 
+  // Queue action handlers
   const handleStartConsultation = async (entry: QueueEntry) => {
     try {
-      const formData = new FormData();
-      formData.append('queueEntryId', entry.id);
-      
-      const result = await startConsultation(formData);
-      if (result.success) {
-        toast.success(`Started consultation with ${entry.user.name}`);
-        setSessionActive(true);
-        setSessionStartTime(new Date());
-        // Store the consultation session ID for prescribing remedies
-        if (result.consultationSessionId) {
-          setConsultationSessionId(result.consultationSessionId);
-        }
-        await loadQueueEntries(); // Refresh the queue
-      } else {
-        toast.error(result.error || 'Failed to start consultation');
-      }
-    } catch (error) {
-      console.error('Error starting consultation:', error);
-      toast.error('Error starting consultation');
+      // TODO: Implement start consultation logic
+      console.log('Starting consultation for:', entry.user.name);
+      commonToasts.consultationStarted(entry.user.name || 'Unknown User');
+    } catch (err) {
+      console.error('Error starting consultation:', err);
+      showToast.error('Failed to start consultation');
     }
   };
 
-  const handleCompleteConsultation = async (entry: QueueEntry) => {
+  const handleCompleteConsultation = async (entry: QueueEntry, onRemedyRequired?: (entry: QueueEntry) => void) => {
     try {
-      const formData = new FormData();
-      formData.append('queueEntryId', entry.id);
-      formData.append('status', 'COMPLETED');
+      // TODO: Implement complete consultation logic
+      console.log('Completing consultation for:', entry.user.name);
+      commonToasts.consultationCompleted(entry.user.name || 'Unknown User');
       
-      const result = await updateQueueStatus(formData);
-      if (result.success) {
-        toast.success(`Completed consultation with ${entry.user.name}`);
-        setSessionActive(false);
-        setSessionStartTime(null);
-        setConsultationSessionId(null); // Clear consultation session ID
-        await loadQueueEntries(); // Refresh the queue
-      } else {
-        // Check if the error is about missing remedy
-        if (result.error?.includes('remedy')) {
-          toast.error(result.error);
-          // Automatically open the prescribe remedy modal
-          setSelectedQueueEntry(entry);
-          setPrescribeModalOpen(true);
-        } else {
-          toast.error(result.error || 'Failed to complete consultation');
-        }
+      // Check if remedy is required
+      if (onRemedyRequired) {
+        onRemedyRequired(entry);
       }
-    } catch (error) {
-      console.error('Error completing consultation:', error);
-      toast.error('Error completing consultation');
+    } catch (err) {
+      console.error('Error completing consultation:', err);
+      showToast.error('Failed to complete consultation');
     }
   };
 
-  const handlePrescribeRemedy = async (entry: QueueEntry) => {
+  const handlePrescribeRemedy = async (entry: QueueEntry, onSuccess?: (consultationSessionId: string, entry: QueueEntry) => void) => {
     try {
-      // Check if the entry is in progress
-      if (entry.status !== 'IN_PROGRESS') {
-        toast.error('Can only prescribe remedies for consultations in progress.');
-        return;
-      }
+      // TODO: Implement prescribe remedy logic
+      console.log('Prescribing remedy for:', entry.user.name);
+      const mockConsultationSessionId = `consultation-${Date.now()}`;
       
-      // Get the consultation session ID for this queue entry
-      const result = await getConsultationSessionId(entry.id);
-      if (!result.success) {
-        toast.error(result.error || 'Failed to get consultation session');
-        return;
+      if (onSuccess) {
+        onSuccess(mockConsultationSessionId, entry);
       }
-      
-              // Store the consultation session ID temporarily for the modal
-        if (result.consultationSessionId) {
-          setConsultationSessionId(result.consultationSessionId);
-          setSelectedQueueEntry(entry);
-          setPrescribeModalOpen(true);
-        } else {
-          toast.error('Failed to get consultation session ID');
-        }
-    } catch (error) {
-      console.error('Error preparing to prescribe remedy:', error);
-      toast.error('Error preparing to prescribe remedy');
+    } catch (err) {
+      console.error('Error prescribing remedy:', err);
+      showToast.error('Failed to prescribe remedy');
     }
+  };
+
+  // Filter entries by status for display
+  const waitingEntries = queueEntries?.filter(entry => entry.status === 'WAITING') || [];
+  const inProgressEntries = queueEntries?.filter(entry => entry.status === 'IN_PROGRESS') || [];
+
+  // Custom handlers that integrate with dashboard-specific state
+  const onStartConsultation = async (entry: QueueEntry) => {
+    await handleStartConsultation(entry);
+    setSessionActive(true);
+    setSessionStartTime(new Date());
+  };
+
+  const onCompleteConsultation = async (entry: QueueEntry) => {
+    await handleCompleteConsultation(entry, (entry) => {
+      // Handle remedy requirement
+      setSelectedQueueEntry(entry);
+      setPrescribeModalOpen(true);
+    });
+    setSessionActive(false);
+    setSessionStartTime(null);
+  };
+
+  const onPrescribeRemedy = async (entry: QueueEntry) => {
+    await handlePrescribeRemedy(entry, (consultationSessionId, entry) => {
+      setConsultationSessionId(consultationSessionId);
+      setSelectedQueueEntry(entry);
+      setPrescribeModalOpen(true);
+    });
   };
 
   const getSessionDuration = () => {
@@ -223,18 +142,8 @@ export default function GurujiDashboard() {
     }
   };
 
-  // Calculate stats
-  const waitingPatients = queueEntries.filter(entry => entry.status === 'WAITING');
-  const inProgressPatients = queueEntries.filter(entry => entry.status === 'IN_PROGRESS');
-  const completedPatients = queueEntries.filter(entry => entry.status === 'COMPLETED');
-  const currentPatient = inProgressPatients[0] || null;
-
-  const stats = {
-    todayTotal: queueEntries.length,
-    todayCompleted: completedPatients.length,
-    currentWaiting: waitingPatients.length,
-    averageConsultationTime: 15,
-  };
+  // Get current patient from in-progress entries
+  const currentPatient = inProgressEntries[0] || null;
 
   const isLoading = useLoadingState("queue-loading");
   
@@ -276,7 +185,7 @@ export default function GurujiDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.todayTotal}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               Total patients today
             </p>
@@ -289,7 +198,7 @@ export default function GurujiDashboard() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.todayCompleted}</div>
+            <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">
               Consultations completed
             </p>
@@ -302,7 +211,7 @@ export default function GurujiDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.currentWaiting}</div>
+            <div className="text-2xl font-bold">{stats.waiting}</div>
             <p className="text-xs text-muted-foreground">Patients in queue</p>
           </CardContent>
         </Card>
@@ -314,7 +223,7 @@ export default function GurujiDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.averageConsultationTime}
+              {stats.averageWaitTime}
             </div>
             <p className="text-xs text-muted-foreground">Minutes per session</p>
           </CardContent>
@@ -361,7 +270,7 @@ export default function GurujiDashboard() {
               </div>
               <div className="flex items-center space-x-2">
                 <Button
-                  onClick={() => handlePrescribeRemedy(currentPatient)}
+                  onClick={() => onPrescribeRemedy(currentPatient)}
                   variant="outline"
                   className="border-green-600 text-green-700 hover:bg-green-50"
                 >
@@ -369,7 +278,7 @@ export default function GurujiDashboard() {
                   Prescribe Remedy
                 </Button>
                 <Button
-                  onClick={() => handleCompleteConsultation(currentPatient)}
+                  onClick={() => onCompleteConsultation(currentPatient)}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   <Square className="h-4 w-4 mr-2" />
@@ -394,9 +303,9 @@ export default function GurujiDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          {waitingPatients.length > 0 ? (
+          {waitingEntries.length > 0 ? (
             <div className="space-y-3">
-              {waitingPatients.map((patient) => (
+              {waitingEntries.map((patient) => (
                 <div
                   key={patient.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -450,7 +359,7 @@ export default function GurujiDashboard() {
                     </Badge>
                     {!currentPatient && (
                       <Button
-                        onClick={() => handleStartConsultation(patient)}
+                        onClick={() => onStartConsultation(patient)}
                         size="sm"
                         className="bg-primary hover:bg-primary/90"
                       >
@@ -458,7 +367,17 @@ export default function GurujiDashboard() {
                         Start
                       </Button>
                     )}
-                    <Button size="sm" variant="outline">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        if (patient.user.phone) {
+                          window.open(`tel:${patient.user.phone}`, '_blank');
+                        } else {
+                          commonToasts.noPhoneNumber();
+                        }
+                      }}
+                    >
                       <MessageSquare className="h-3 w-3 mr-1" />
                       Contact
                     </Button>

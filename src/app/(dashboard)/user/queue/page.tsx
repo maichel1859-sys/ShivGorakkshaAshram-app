@@ -1,36 +1,105 @@
-import { Metadata } from 'next';
-import { Suspense } from 'react';
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Clock, Users, CheckCircle, AlertCircle, QrCode } from 'lucide-react';
+import { Clock, Users, CheckCircle, AlertCircle, QrCode, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { getUserQueueStatusSimple } from '@/lib/actions/qr-scan-actions-simple';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
-import { redirect } from 'next/navigation';
-
-export const metadata: Metadata = {
-  title: 'My Queue Status',
-  description: 'Check your current position in the queue',
-  keywords: ['queue', 'wait time', 'appointment', 'shivgoraksha ashram'],
-  openGraph: {
-    title: 'My Queue Status',
-    description: 'Check your current position in the queue',
-    type: 'website',
-  },
+import { useSession } from 'next-auth/react';
+import { PageSpinner } from '@/components/loading';
+import { showToast } from '@/lib/toast';
+import { useQueueUnified } from '@/hooks/use-queue-unified';
+// Simple queue entry type for the simplified queue status function
+type SimpleQueueEntry = {
+  id: string;
+  status: string;
+  priority: string;
+  position: number;
+  estimatedWait?: number | null;
+  checkedInAt: Date;
+  notes?: string | null;
+  guruji: {
+    name: string | null;
+  } | null;
 };
 
-async function QueueStatusContent() {
-  const session = await getServerSession(authOptions);
+
+function QueueStatusContent() {
+  const { data: session, status } = useSession();
+  const [queueEntry, setQueueEntry] = useState<SimpleQueueEntry | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   
-  if (!session?.user?.id) {
-    redirect('/auth/signin');
+  // Use unified queue hook for general queue data (even though user sees limited data)
+  const {
+    loading: queueLoading,
+    refetch: refetchQueue
+  } = useQueueUnified({
+    role: 'user',
+    autoRefresh: false, // We'll handle auto-refresh manually
+    enableRealtime: false, // Users don't need real-time updates
+  });
+
+  const loadQueueStatus = useCallback(async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setRefreshing(true);
+      const queueResult = await getUserQueueStatusSimple();
+      
+      if (queueResult.success) {
+        setQueueEntry(queueResult.data || null);
+      } else {
+        setQueueEntry(null);
+        if (queueResult.error) {
+          console.error('Queue status error:', queueResult.error);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading queue status:', error);
+      showToast.error('Failed to load queue status');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      loadQueueStatus();
+    }
+  }, [status, loadQueueStatus]);
+
+  // Auto-refresh every 30 seconds when user is in queue
+  useEffect(() => {
+    if (!queueEntry || status !== 'authenticated') return;
+    
+    const interval = setInterval(() => {
+      loadQueueStatus();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [queueEntry, status, loadQueueStatus]);
+
+  if (status === 'loading' || (queueLoading && !queueEntry && status === 'authenticated')) {
+    return <PageSpinner message="Loading queue status..." />;
   }
 
-  const queueResult = await getUserQueueStatusSimple();
-  const queueEntry = queueResult.success ? queueResult.data : null;
+  if (status === 'unauthenticated') {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+        <p className="text-muted-foreground mb-4">
+          Please sign in to check your queue status.
+        </p>
+        <Button asChild>
+          <Link href="/auth/signin">Sign In</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -43,6 +112,10 @@ async function QueueStatusContent() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { loadQueueStatus(); refetchQueue(); }} disabled={refreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/user/qr-scanner">
               <QrCode className="h-4 w-4 mr-2" />
@@ -130,7 +203,7 @@ async function QueueStatusContent() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm">Average consultation time: <strong>30 minutes</strong></span>
+                  <span className="text-sm">Average consultation time: <strong>5 minutes</strong></span>
                 </div>
               </div>
             </CardContent>
@@ -247,24 +320,5 @@ async function QueueStatusContent() {
 }
 
 export default function QueuePage() {
-  return (
-    <Suspense fallback={
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Queue Status</h1>
-            <p className="text-muted-foreground mt-2">Loading...</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground animate-pulse" />
-            <p className="text-sm text-muted-foreground">Loading queue status...</p>
-          </div>
-        </div>
-      </div>
-    }>
-      <QueueStatusContent />
-    </Suspense>
-  );
+  return <QueueStatusContent />;
 }

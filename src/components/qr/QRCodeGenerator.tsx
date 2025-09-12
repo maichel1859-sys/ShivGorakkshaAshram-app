@@ -49,8 +49,8 @@ export function QRCodeGenerator({
         width: 300,
         margin: 2,
         color: {
-          dark: "#000000",
-          light: "#FFFFFF",
+          dark: "hsl(var(--foreground))",
+          light: "hsl(var(--background))",
         },
         errorCorrectionLevel: "H",
       });
@@ -111,7 +111,7 @@ export function QRCodeGenerator({
           {/* QR Code Display */}
           <div className="flex justify-center">
             {isGenerating ? (
-              <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+              <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
             ) : qrCodeDataUrl ? (
@@ -121,17 +121,17 @@ export function QRCodeGenerator({
                   alt="Appointment QR Code"
                   width={256}
                   height={256}
-                  className="border-2 border-gray-200 rounded-lg"
+                  className="border-2 border-border rounded-lg"
                   objectFit="contain"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-white px-2 py-1 rounded text-xs text-gray-600">
+                  <div className="bg-background px-2 py-1 rounded text-xs text-muted-foreground">
                     {appointmentId.slice(-6)}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
+              <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
                 QR Code not available
               </div>
             )}
@@ -229,8 +229,8 @@ export function QRCodeDisplay({
         width: size,
         margin: 2,
         color: {
-          dark: "#000000",
-          light: "#FFFFFF",
+          dark: "hsl(var(--foreground))",
+          light: "hsl(var(--background))",
         },
         errorCorrectionLevel: "H",
       });
@@ -255,7 +255,7 @@ export function QRCodeDisplay({
       <div className="flex justify-center mb-4">
         {isGenerating ? (
           <div
-            className="bg-gray-100 rounded-lg flex items-center justify-center"
+            className="bg-muted rounded-lg flex items-center justify-center"
             style={{ width: size, height: size }}
           >
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -266,13 +266,13 @@ export function QRCodeDisplay({
             <img
               src={qrCodeDataUrl}
               alt="QR Code"
-              className="border-2 border-gray-200 rounded-lg"
+              className="border-2 border-border rounded-lg"
               style={{ width: size, height: size }}
             />
           </>
         ) : (
           <div
-            className="bg-gray-100 rounded-lg flex items-center justify-center text-gray-500"
+            className="bg-muted rounded-lg flex items-center justify-center text-muted-foreground"
             style={{ width: size, height: size }}
           >
             QR Code not available

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useAppStore } from '@/store/app-store';
 import Image from 'next/image';
 import { cn } from '@/lib/utils/helpers';
 import { getOptimizedImageProps, DEFAULT_IMAGES } from '@/lib/image-optimization';
@@ -39,17 +40,18 @@ export function OptimizedImage({
   onError,
 }: OptimizedImageProps) {
   const [imageSrc, setImageSrc] = useState(src);
-  const [isLoading, setIsLoading] = useState(true);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['optimized-image'] || false;
   const [hasError, setHasError] = useState(false);
 
   const handleLoad = () => {
-    setIsLoading(false);
+    setLoadingState('optimized-image', false);
     onLoad?.();
   };
 
   const handleError = () => {
     setHasError(true);
-    setIsLoading(false);
+    setLoadingState('optimized-image', false);
     setImageSrc(fallbackSrc);
     onError?.();
   };

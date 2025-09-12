@@ -115,7 +115,7 @@ export async function joinQueue(formData: FormData) {
          gurujiId,
          date: new Date(),
          startTime: new Date(),
-         endTime: new Date(new Date().getTime() + 30 * 60000), // 30 minutes later
+         endTime: new Date(new Date().getTime() + 5 * 60000), // 5 minutes later
          reason,
          status: 'BOOKED',
          priority: 'NORMAL',
@@ -786,6 +786,7 @@ export async function getAdminQueueEntries() {
             name: true,
             email: true,
             phone: true,
+            dateOfBirth: true,
           },
         },
         guruji: {
@@ -850,6 +851,7 @@ export async function getCoordinatorQueueEntries() {
             name: true,
             email: true,
             phone: true,
+            dateOfBirth: true,
           },
         },
         guruji: {

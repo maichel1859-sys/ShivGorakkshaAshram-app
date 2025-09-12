@@ -1,6 +1,6 @@
 "use client";
 
-import { SkeletonDashboard } from "@/components/ui/skeleton";
+import { SkeletonDashboard } from "@/components/loading";
 import { useAppLoading, useRouteLoading, useDataLoading } from "@/store/app-store";
 
 export default function RootLoading() {

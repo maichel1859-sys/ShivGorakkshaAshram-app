@@ -130,36 +130,48 @@ export async function processQRScanSimple(qrData: string) {
 
     const queuePosition = currentQueueCount + 1;
 
-    // Calculate estimated wait time (30 minutes per person)
-    const estimatedWaitMinutes = queuePosition * 30;
+    // Calculate estimated wait time (5 minutes per person)
+    const estimatedWaitMinutes = queuePosition * 5;
 
-    // Create queue entry (simplified version)
-    // Note: Queue entry creation is temporarily disabled until database migration is complete
-    // const queueEntry = await prisma.queueEntry.create({
-    //   data: {
-    //     appointmentId: appointment.id,
-    //     userId: session.user.id,
-    //     gurujiId: appointment.gurujiId,
-    //     position: queuePosition,
-    //     status: 'WAITING',
-    //     priority: appointment.priority,
-    //     estimatedWait: estimatedWaitMinutes,
-    //     checkedInAt: scanTime
-    //   },
-    //   include: {
-    //     user: {
-    //       select: {
-    //         name: true,
-    //         email: true
-    //       }
-    //     },
-    //     guruji: {
-    //       select: {
-    //         name: true
-    //       }
-    //     }
-    //   }
-    // });
+    // Create queue entry
+    const queueEntry = await prisma.queueEntry.create({
+      data: {
+        appointmentId: appointment.id,
+        userId: session.user.id,
+        gurujiId: appointment.gurujiId,
+        position: queuePosition,
+        status: 'WAITING',
+        priority: appointment.priority || 'NORMAL',
+        estimatedWait: estimatedWaitMinutes,
+        checkedInAt: scanTime,
+        notes: `Checked in via QR scan at ${locationName}`
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        appointment: {
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            reason: true
+          }
+        }
+      }
+    });
 
     // Update appointment status
     await prisma.appointment.update({
@@ -176,16 +188,16 @@ export async function processQRScanSimple(qrData: string) {
     revalidatePath('/guruji/queue');
     revalidatePath('/user/appointments');
 
-          return {
-        success: true,
-        data: {
-          // queueEntry, // Temporarily disabled
-          queuePosition,
-          estimatedWaitMinutes,
-          locationName,
-          message: `Successfully checked in at ${locationName}! You are position ${queuePosition} in the queue. Estimated wait time: ${estimatedWaitMinutes} minutes.`
-        }
-      };
+    return {
+      success: true,
+      data: {
+        queueEntry,
+        queuePosition,
+        estimatedWaitMinutes,
+        locationName,
+        message: `Successfully checked in at ${locationName}! You are position ${queuePosition} in the queue. Estimated wait time: ${estimatedWaitMinutes} minutes.`
+      }
+    };
 
   } catch (error) {
     console.error('QR Scan error:', error);

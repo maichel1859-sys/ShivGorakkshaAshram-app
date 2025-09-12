@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,117 +8,37 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Globe, Check } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-
-interface Language {
-  code: string;
-  name: string;
-  nativeName: string;
-  flag: string;
-  rtl?: boolean;
-}
-
-const SUPPORTED_LANGUAGES: Language[] = [
-  {
-    code: 'en',
-    name: 'English',
-    nativeName: 'English',
-    flag: '🇺🇸',
-  },
-  {
-    code: 'hi',
-    name: 'Hindi',
-    nativeName: 'हिन्दी',
-    flag: '🇮🇳',
-  },
-  {
-    code: 'mr',
-    name: 'Marathi',
-    nativeName: 'मराठी',
-    flag: '🇮🇳',
-  },
-  {
-    code: 'sa',
-    name: 'Sanskrit',
-    nativeName: 'संस्कृतम्',
-    flag: '🕉️',
-  },
-  {
-    code: 'gu',
-    name: 'Gujarati',
-    nativeName: 'ગુજરાતી',
-    flag: '🇮🇳',
-  },
-  {
-    code: 'bn',
-    name: 'Bengali',
-    nativeName: 'বাংলা',
-    flag: '🇮🇳',
-  },
-  {
-    code: 'ta',
-    name: 'Tamil',
-    nativeName: 'தமிழ்',
-    flag: '🇮🇳',
-  },
-  {
-    code: 'te',
-    name: 'Telugu',
-    nativeName: 'తెలుగు',
-    flag: '🇮🇳',
-  },
-];
+import { Globe, Check, Languages } from 'lucide-react';
+import { cn } from '@/lib/utils/helpers';
+import { useLanguage, SUPPORTED_LANGUAGES } from '@/contexts/LanguageContext';
 
 interface LanguageSwitcherProps {
   variant?: 'default' | 'compact';
   showFlag?: boolean;
   showBadge?: boolean;
+  className?: string;
 }
 
 export function LanguageSwitcher({ 
   variant = 'default', 
   showFlag = true,
-  showBadge = false 
+  showBadge = false,
+  className 
 }: LanguageSwitcherProps) {
-  const { i18n, t } = useTranslation();
-  const [mounted, setMounted] = useState(false);
+  const { currentLanguage, changeLanguage, isLoading } = useLanguage();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const currentLanguage = SUPPORTED_LANGUAGES.find(
-    (lang) => lang.code === i18n.language
-  ) || SUPPORTED_LANGUAGES[0];
-
-  const changeLanguage = async (languageCode: string) => {
-    try {
-      await i18n.changeLanguage(languageCode);
-      
-      // Update document direction for RTL languages
-      const selectedLang = SUPPORTED_LANGUAGES.find(lang => lang.code === languageCode);
-      if (selectedLang?.rtl) {
-        document.documentElement.dir = 'rtl';
-      } else {
-        document.documentElement.dir = 'ltr';
-      }
-
-      // Store preference in localStorage
-      localStorage.setItem('preferred-language', languageCode);
-      
-      // Update HTML lang attribute
-      document.documentElement.lang = languageCode;
-      
-    } catch (error) {
-      console.error('Failed to change language:', error);
-    }
+  const getCurrentLanguageObj = () => {
+    return SUPPORTED_LANGUAGES.find(
+      (lang) => lang.code === currentLanguage
+    ) || SUPPORTED_LANGUAGES[0];
   };
 
-  if (!mounted) {
+  const currentLangObj = getCurrentLanguageObj();
+
+  if (isLoading) {
     return (
       <Button variant="ghost" size="icon" disabled>
-        <Globe className="h-5 w-5" />
+        <Globe className="h-5 w-5 animate-pulse" />
       </Button>
     );
   }
@@ -128,31 +47,54 @@ export function LanguageSwitcher({
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="relative">
-            <Globe className="h-5 w-5" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={cn(
+              "relative transition-all duration-200",
+              className
+            )}
+          >
+            {showFlag ? (
+              <span className="text-lg">{currentLangObj.flag}</span>
+            ) : (
+              <Globe className="h-5 w-5 text-primary" />
+            )}
             {showBadge && (
               <Badge 
                 variant="secondary" 
-                className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs"
+                className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs bg-primary text-primary-foreground"
               >
-                {currentLanguage.code.toUpperCase()}
+                {currentLangObj.code.toUpperCase()}
               </Badge>
             )}
             <span className="sr-only">Change language</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-48 rounded-xl border-border/50 shadow-lg">
+          <div className="p-2 text-xs text-muted-foreground border-b">
+            <Languages className="h-3 w-3 inline mr-1" />
+            Choose Language • भाषा चुनें • भाषा निवडा
+          </div>
           {SUPPORTED_LANGUAGES.map((language) => (
             <DropdownMenuItem
               key={language.code}
               onClick={() => changeLanguage(language.code)}
-              className="flex items-center justify-between"
+              className={cn(
+                "flex items-center justify-between p-3 cursor-pointer transition-colors",
+                "hover:bg-accent hover:text-accent-foreground",
+                currentLangObj.code === language.code && 
+                "bg-accent text-accent-foreground"
+              )}
             >
-              <div className="flex items-center space-x-2">
-                {showFlag && <span className="text-sm">{language.flag}</span>}
-                <span className="text-sm">{language.nativeName}</span>
+              <div className="flex items-center space-x-3">
+                {showFlag && <span className="text-lg">{language.flag}</span>}
+                <div>
+                  <span className="text-sm font-medium">{language.nativeName}</span>
+                  <div className="text-xs text-muted-foreground">{language.name}</div>
+                </div>
               </div>
-              {currentLanguage.code === language.code && (
+              {currentLangObj.code === language.code && (
                 <Check className="h-4 w-4 text-primary" />
               )}
             </DropdownMenuItem>
@@ -165,35 +107,73 @@ export function LanguageSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="gap-2">
-          <Globe className="h-4 w-4" />
-          {showFlag && <span>{currentLanguage.flag}</span>}
-          <span className="hidden sm:inline">{currentLanguage.nativeName}</span>
-          <span className="sm:hidden">{currentLanguage.code.toUpperCase()}</span>
+        <Button 
+          variant="outline" 
+          className={cn(
+            "gap-2 transition-colors duration-200",
+            className
+          )}
+        >
+          <Languages className="h-4 w-4 text-primary" />
+          {showFlag && <span>{currentLangObj.flag}</span>}
+          <span className="hidden sm:inline font-medium">{currentLangObj.nativeName}</span>
+          <span className="sm:hidden font-medium">{currentLangObj.code.toUpperCase()}</span>
+          {showBadge && (
+            <Badge 
+              variant="secondary" 
+              className="text-xs"
+            >
+              {currentLangObj.code.toUpperCase()}
+            </Badge>
+          )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <div className="px-2 py-1.5 text-sm font-semibold">
-          {t('common.selectLanguage', 'Select Language')}
+      <DropdownMenuContent align="end" className="w-64 rounded-xl border-border/50 shadow-lg">
+        <div className="p-3 border-b">
+          <div className="flex items-center space-x-2 text-sm font-medium text-primary">
+            <Languages className="h-4 w-4" />
+            <span>Select Language</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Choose your preferred language • अपनी भाषा चुनें • तुमची भाषा निवडा
+          </p>
         </div>
         {SUPPORTED_LANGUAGES.map((language) => (
           <DropdownMenuItem
             key={language.code}
             onClick={() => changeLanguage(language.code)}
-            className="flex items-center justify-between"
+            className={cn(
+              "flex items-center justify-between p-4 cursor-pointer",
+              "hover:bg-accent hover:text-accent-foreground transition-colors",
+              currentLangObj.code === language.code && 
+              "bg-accent text-accent-foreground"
+            )}
           >
-            <div className="flex items-center space-x-3">
-              <span className="text-lg">{language.flag}</span>
+            <div className="flex items-center space-x-4">
+              <span className="text-2xl">{language.flag}</span>
               <div className="flex flex-col">
-                <span className="text-sm font-medium">{language.nativeName}</span>
+                <span className="text-sm font-semibold">{language.nativeName}</span>
                 <span className="text-xs text-muted-foreground">{language.name}</span>
               </div>
             </div>
-            {currentLanguage.code === language.code && (
-              <Check className="h-4 w-4 text-primary" />
-            )}
+            <div className="flex items-center space-x-2">
+              <Badge 
+                variant="outline" 
+                className="text-xs"
+              >
+                {language.code.toUpperCase()}
+              </Badge>
+              {currentLangObj.code === language.code && (
+                <Check className="h-5 w-5 text-primary" />
+              )}
+            </div>
           </DropdownMenuItem>
         ))}
+        <div className="p-3 border-t bg-muted/30">
+          <p className="text-xs text-muted-foreground text-center">
+            ShivGoraksha Ashram
+          </p>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

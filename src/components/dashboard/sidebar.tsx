@@ -186,6 +186,13 @@ const navItems: NavItem[] = [
     roles: ["COORDINATOR"],
   },
   {
+    title: "Reception Desk",
+    href: "/coordinator/reception",
+    icon: Users,
+    roles: ["COORDINATOR"],
+    badge: "Live",
+  },
+  {
     title: "Queue Management",
     href: "/coordinator/queue",
     icon: Clock,
@@ -241,6 +248,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const { signOutWithToast } = useAuthToast();
+  // const { t } = useLanguage(); // Unused for now
 
   const handleSignOut = () => {
     signOutWithToast();
@@ -287,31 +295,38 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "flex h-full w-64 flex-col bg-background border-r",
+        "flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border",
+        "lg:w-72 xl:w-80", // Responsive widths
+        "rounded-r-xl lg:rounded-r-2xl", // Elegant rounded corners
+        "shadow-lg lg:shadow-xl", // Subtle shadows
         className
       )}
     >
       {/* Logo/Brand */}
-      <div className="flex h-16 items-center border-b px-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Heart className="w-5 h-5 text-primary-foreground" />
+      <div className="flex h-16 items-center border-b border-sidebar-border px-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-sidebar-primary rounded-xl flex items-center justify-center shadow-sm">
+            <span className="text-sidebar-primary-foreground text-lg font-bold">S</span>
           </div>
           <div>
-            <h1 className="font-bold text-lg">Ashram MS</h1>
-            <p className="text-xs text-muted-foreground">Management System</p>
+            <h1 className="font-bold text-lg text-sidebar-foreground">
+              ShivGoraksha Ashram
+            </h1>
+            <p className="text-xs text-sidebar-foreground/70">
+              Spiritual Management System
+            </p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
       <div className="flex-1 overflow-auto py-4">
-        <nav className="space-y-1 px-3">
+        <nav className="space-y-2 px-3">
           {/* Main Navigation */}
           {mainItems.length > 0 && (
             <>
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider px-3 mb-3">
                   Main
                 </h3>
                 {mainItems.map((item) => {
@@ -321,14 +336,18 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                       <Button
                         variant={isActive ? "secondary" : "ghost"}
                         className={cn(
-                          "w-full justify-start gap-3 h-10",
-                          isActive && "bg-secondary text-secondary-foreground"
+                          "w-full justify-start gap-3 h-11 rounded-xl",
+                          "transition-all duration-200",
+                          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          isActive 
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-accent/20" 
+                            : "hover:shadow-sm"
                         )}
                       >
                         <item.icon className="h-4 w-4" />
                         <span className="flex-1 text-left">{item.title}</span>
                         {item.badge && (
-                          <span className="ml-auto bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                          <span className="ml-auto bg-sidebar-primary text-sidebar-primary-foreground text-xs px-2 py-1 rounded-full shadow-sm">
                             {item.badge}
                           </span>
                         )}
@@ -344,8 +363,8 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
           {systemItems.length > 0 && (
             <>
               <Separator className="my-4" />
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider px-3 mb-3">
                   System & Technical
                 </h3>
                 {systemItems.map((item) => {
@@ -355,8 +374,12 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                       <Button
                         variant={isActive ? "secondary" : "ghost"}
                         className={cn(
-                          "w-full justify-start gap-3 h-10",
-                          isActive && "bg-secondary text-secondary-foreground"
+                          "w-full justify-start gap-3 h-11 rounded-xl",
+                          "transition-all duration-200",
+                          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          isActive 
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-accent/20" 
+                            : "hover:shadow-sm"
                         )}
                       >
                         <item.icon className="h-4 w-4" />
@@ -373,8 +396,8 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
           {configItems.length > 0 && (
             <>
               <Separator className="my-4" />
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider px-3 mb-3">
                   Configuration
                 </h3>
                 {configItems.map((item) => {
@@ -384,8 +407,12 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                       <Button
                         variant={isActive ? "secondary" : "ghost"}
                         className={cn(
-                          "w-full justify-start gap-3 h-10",
-                          isActive && "bg-secondary text-secondary-foreground"
+                          "w-full justify-start gap-3 h-11 rounded-xl",
+                          "transition-all duration-200",
+                          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          isActive 
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-accent/20" 
+                            : "hover:shadow-sm"
                         )}
                       >
                         <item.icon className="h-4 w-4" />
@@ -401,19 +428,19 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
       </div>
 
       {/* User Profile */}
-      <div className="border-t p-4">
+      <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-            <Users className="h-4 w-4 text-primary" />
+          <div className="w-10 h-10 bg-sidebar-primary/10 rounded-xl flex items-center justify-center shadow-sm">
+            <Users className="h-5 w-5 text-sidebar-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
+            <p className="text-sm font-medium truncate text-sidebar-foreground">
               {session.user.name || "User"}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-sidebar-foreground/70 truncate">
               {session.user.email}
             </p>
-            <Badge variant="outline" className="text-xs mt-1">
+            <Badge variant="outline" className="text-xs mt-1 border-sidebar-border text-sidebar-foreground/80">
               {session.user.role}
             </Badge>
           </div>
@@ -421,7 +448,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="h-8 w-8 p-0"
+            className="h-9 w-9 p-0 rounded-xl hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
           >
             <LogOut className="h-4 w-4" />
           </Button>

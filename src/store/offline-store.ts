@@ -71,7 +71,6 @@ interface OfflineState {
   
   // Pending actions
   pendingActions: PendingAction[];
-  isSyncing: boolean;
   syncProgress: number;
   
   // Configuration
@@ -98,7 +97,6 @@ interface OfflineState {
   clearPendingActions: () => void;
   
   // Sync management
-  setSyncing: (syncing: boolean) => void;
   setSyncProgress: (progress: number) => void;
   
   // Configuration
@@ -136,7 +134,6 @@ export const useOfflineStore = create<OfflineState>()(
       userProfile: null,
       
       pendingActions: [],
-      isSyncing: false,
       syncProgress: 0,
       
       enableOfflineMode: true,
@@ -224,7 +221,6 @@ export const useOfflineStore = create<OfflineState>()(
       clearPendingActions: () => set({ pendingActions: [] }),
       
       // Sync management
-      setSyncing: (isSyncing) => set({ isSyncing }),
       setSyncProgress: (syncProgress) => set({ syncProgress }),
       
       // Configuration
@@ -346,7 +342,6 @@ export const useOfflineStatus = () => useOfflineStore((state) => ({
   lastOnline: state.lastOnline,
   lastOffline: state.lastOffline,
   lastSync: state.lastSync,
-  isSyncing: state.isSyncing,
   syncProgress: state.syncProgress
 }));
 

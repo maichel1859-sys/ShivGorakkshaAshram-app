@@ -17,24 +17,19 @@ export function HeaderSimple({ title }: HeaderProps) {
   );
 
   return (
-    <div
-      style={{
-        backgroundColor: "red",
-        minHeight: "80px",
-        border: "5px solid blue",
-        zIndex: 9999,
-        position: "relative",
-        width: "100%",
-        display: "block",
-      }}
-    >
-      <div style={{ padding: "20px", color: "white", fontSize: "18px" }}>
-        🚨🚨🚨 DEBUG HEADER IS HERE 🚨🚨🚨
-        <br />
-        Title: {title || "Dashboard"}
-        <br />
-        Status: {status} | User: {session?.user?.name || "None"}
+    <header className="flex-shrink-0 z-40 w-full border-b bg-background backdrop-blur supports-[backdrop-filter]:bg-background/95">
+      <div className="flex h-14 items-center px-4 lg:px-6">
+        <div className="flex flex-1 items-center space-x-4 lg:space-x-6">
+          <h1 className="text-lg font-semibold lg:text-xl">
+            {title || "Dashboard"}
+          </h1>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="text-sm text-muted-foreground">
+            {session?.user?.name || "Guest"}
+          </div>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }

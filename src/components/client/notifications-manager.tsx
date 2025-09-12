@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useCallback } from "react";
+import { useAppStore } from '@/store/app-store';
 import Link from "next/link";
 import {
   Card,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/loading";
 import {
   Bell,
   Search,
@@ -70,14 +71,15 @@ export function NotificationsManager() {
     total: number;
     unreadCount: number;
   } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['notifications'] || false;
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setLoadingState('notifications', true);
       setError(null);
       const options: Record<string, unknown> = {};
       if (typeFilter !== "all") options.type = typeFilter;
@@ -102,9 +104,9 @@ export function NotificationsManager() {
         err instanceof Error ? err.message : "Failed to load notifications"
       );
     } finally {
-      setIsLoading(false);
+      setLoadingState('notifications', false);
     }
-  }, [typeFilter, statusFilter]);
+  }, [typeFilter, statusFilter, setLoadingState]);
 
   // Fetch notifications on mount and filter changes
   useEffect(() => {

@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
 import { PWAInstallPrompt } from "@/components/ui/pwa-install-prompt";
-import { TopProgressBar } from "@/components/ui/top-progress-bar";
+import { TopProgressBar } from "@/components/loading";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-title": "Shivgoraksha Ashram",
     "mobile-web-app-capable": "yes",
     "msapplication-config": "/browserconfig.xml",
-    "msapplication-TileColor": "#0f172a",
+    "msapplication-TileColor": "hsl(var(--background))",
     "msapplication-tap-highlight": "no",
     "format-detection": "telephone=no",
   },
@@ -87,8 +87,8 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "hsl(var(--background))" },
+    { media: "(prefers-color-scheme: dark)", color: "hsl(var(--background))" },
   ],
 };
 

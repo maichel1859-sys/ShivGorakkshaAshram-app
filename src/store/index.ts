@@ -25,7 +25,6 @@ export {
   useIsUser,
   useShowLoginModal,
   useShowSignupModal,
-  useIsAuthenticating,
   useAuthError,
   useSessionStatus,
   useHasRole,
@@ -38,7 +37,6 @@ export {
   useNotifications,
   useUnreadCount,
   useUnreadNotificationCount,
-  useNotificationLoading,
   useMarkAsRead,
   useAddNotification,
   useClearNotifications
@@ -59,7 +57,6 @@ export {
   useSidebarCollapsed,
   useModalState,
   useDrawerState,
-  useLoadingState as useUILoadingState,
   useTheme,
   useLanguage
 } from './ui-store';

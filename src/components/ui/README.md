@@ -14,7 +14,7 @@ This document describes the unified loading system used throughout the ShivGorak
   - High z-index to stay on top
 
 ### 2. GlobalSpinner
-- **Location**: `src/components/ui/global-spinner.tsx`
+- **Location**: `src/components/loading/spinners.tsx`
 - **Purpose**: Unified spinner component for all loading states
 - **Variants**:
   - `GlobalSpinner` - Base component with customizable size and message
@@ -24,7 +24,7 @@ This document describes the unified loading system used throughout the ShivGorak
   - `FullScreenSpinner` - Full screen overlay with spinner
 
 ### 3. Skeleton Components
-- **Location**: `src/components/ui/skeleton.tsx`
+- **Location**: `src/components/loading/skeletons.tsx`
 - **Purpose**: Content placeholders while loading
 - **Components**:
   - `Skeleton` - Base skeleton component
@@ -53,7 +53,7 @@ import {
   CardSpinner, 
   ButtonSpinner,
   FullScreenSpinner 
-} from "@/components/ui/global-spinner";
+} from "@/components/loading";
 
 // Basic spinner
 <GlobalSpinner size="md" />
@@ -81,7 +81,7 @@ import {
   SkeletonCard, 
   SkeletonDashboard,
   SkeletonList 
-} from "@/components/ui/skeleton";
+} from "@/components/loading";
 
 // Basic skeleton
 <Skeleton className="h-20 w-full" />

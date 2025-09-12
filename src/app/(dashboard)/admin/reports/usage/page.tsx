@@ -95,15 +95,15 @@ export default function UsageAnalyticsPage() {
   };
 
   const getGrowthIcon = (growth: number) => {
-    if (growth > 0) return <ArrowUp className="h-4 w-4 text-green-600" />;
-    if (growth < 0) return <ArrowDown className="h-4 w-4 text-red-600" />;
-    return <Minus className="h-4 w-4 text-gray-600" />;
+    if (growth > 0) return <ArrowUp className="h-4 w-4 text-green-600 dark:text-green-400" />;
+    if (growth < 0) return <ArrowDown className="h-4 w-4 text-red-600 dark:text-red-400" />;
+    return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getGrowthColor = (growth: number) => {
-    if (growth > 0) return "text-green-600";
-    if (growth < 0) return "text-red-600";
-    return "text-gray-600";
+    if (growth > 0) return "text-green-600 dark:text-green-400";
+    if (growth < 0) return "text-red-600 dark:text-red-400";
+    return "text-muted-foreground";
   };
 
   const setQuickDateRange = (days: number) => {
@@ -136,8 +136,8 @@ export default function UsageAnalyticsPage() {
       <DashboardLayout title="Usage Analytics" allowedRoles={["ADMIN"]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold text-red-600">
+            <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold text-destructive">
               Error loading usage data
             </h3>
             <p className="text-sm text-muted-foreground mt-2">
@@ -421,7 +421,7 @@ export default function UsageAnalyticsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">System Uptime</span>
-                  <Badge className="bg-green-100 text-green-700">
+                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                     {stats?.systemUptime || 99.9}%
                   </Badge>
                 </div>
@@ -435,7 +435,7 @@ export default function UsageAnalyticsPage() {
 
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Completion Rate</span>
-                  <Badge className="bg-blue-100 text-blue-700">
+                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                     {stats?.totalAppointments
                       ? Math.round(
                           (stats.completedAppointments /
@@ -449,7 +449,7 @@ export default function UsageAnalyticsPage() {
 
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Cancellation Rate</span>
-                  <Badge className="bg-red-100 text-red-700">
+                  <Badge className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
                     {stats?.totalAppointments
                       ? Math.round(
                           (stats.cancelledAppointments /
@@ -498,7 +498,7 @@ export default function UsageAnalyticsPage() {
                           {guruji.totalRemediesPrescribed}
                         </td>
                         <td className="text-center py-3">
-                          <Badge className="bg-green-100 text-green-700">
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                             {guruji.averageRating.toFixed(1)}★
                           </Badge>
                         </td>

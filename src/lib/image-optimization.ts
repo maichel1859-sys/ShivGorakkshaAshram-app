@@ -67,7 +67,7 @@ export const generateBlurDataURL = (width: number, height: number): string => {
   if (!canvas) {
     // Server-side fallback
     return `data:image/svg+xml;base64,${Buffer.from(
-      `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f3f4f6"/></svg>`
+      `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="hsl(var(--muted))"/></svg>`
     ).toString('base64')}`;
   }
 
@@ -77,8 +77,8 @@ export const generateBlurDataURL = (width: number, height: number): string => {
   
   // Create gradient blur effect
   const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, '#f3f4f6');
-  gradient.addColorStop(1, '#e5e7eb');
+  gradient.addColorStop(0, 'hsl(var(--muted))');
+  gradient.addColorStop(1, 'hsl(var(--muted-foreground))');
   
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);

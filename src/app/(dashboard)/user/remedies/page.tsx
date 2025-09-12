@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,15 +28,12 @@ interface RemedyDocument {
 export default function UserRemediesPage() {
   const router = useRouter();
   const [remedies, setRemedies] = useState<RemedyDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    fetchRemedies();
-  }, []);
-
-  const fetchRemedies = async () => {
+  const fetchRemedies = useCallback(async () => {
     try {
+      setIsLoading(true);
       const result = await getUserRemedies();
       if (result.success) {
         setRemedies(result.remedies || []);
@@ -49,7 +46,11 @@ export default function UserRemediesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchRemedies();
+  }, [fetchRemedies]);
 
   const filteredRemedies = remedies.filter(
     (remedy) =>

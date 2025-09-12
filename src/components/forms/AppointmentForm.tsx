@@ -141,7 +141,7 @@ export function AppointmentForm({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Book Appointment with Shivgoraksha Guruji
+            Book Appointment with ShivGoraksha Guruji
           </CardTitle>
           <CardDescription>
             Select your preferred date and time for your spiritual consultation
@@ -154,7 +154,7 @@ export function AppointmentForm({
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
                 <div>
-                  <h3 className="font-semibold">Shivgoraksha Guruji</h3>
+                  <h3 className="font-semibold">ShivGoraksha Guruji</h3>
                   <p className="text-sm text-muted-foreground">
                     Spiritual Guide and Healer
                   </p>

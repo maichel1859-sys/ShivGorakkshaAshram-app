@@ -225,7 +225,7 @@ export async function createNotification(formData: FormData) {
         title: data.title,
         message: data.message,
         type: data.type,
-        data: data.data,
+        data: JSON.parse(JSON.stringify(data.data)),
       },
     });
 
@@ -292,9 +292,14 @@ export async function updateNotification(formData: FormData) {
     }
 
     // Update notification
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { userId, ...updateData } = data;
     const updatedNotification = await prisma.notification.update({
       where: { id: notificationId },
-      data: data,
+      data: {
+        ...updateData,
+        data: updateData.data ? JSON.parse(JSON.stringify(updateData.data)) : undefined,
+      },
     });
 
     // Create audit log
@@ -309,7 +314,7 @@ export async function updateNotification(formData: FormData) {
           message: notification.message,
           type: notification.type,
         },
-        newData: data,
+        newData: JSON.parse(JSON.stringify(data)),
       },
     });
 

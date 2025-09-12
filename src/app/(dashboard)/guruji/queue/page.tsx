@@ -1,137 +1,58 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Clock, Users, CheckCircle, AlertCircle, User, Phone, MessageSquare, Pill } from 'lucide-react';
-import { getGurujiQueueEntries, startConsultation, updateQueueStatus, getConsultationSessionId } from '@/lib/actions/queue-actions';
-import { useAdaptivePolling } from '@/hooks/use-adaptive-polling';
-import { useAppStore } from '@/store/app-store';
-import { PageSpinner } from '@/components/ui/global-spinner';
+import { Clock, Users, CheckCircle, AlertCircle, User, Phone, MessageSquare, Pill, RefreshCw } from 'lucide-react';
+import { startConsultation, updateQueueStatus, getConsultationSessionId } from '@/lib/actions/queue-actions';
+import { PageSpinner } from '@/components/loading';
 import { ErrorBoundary, QueueErrorFallback } from '@/components/error-boundary';
 import { PrescribeRemedyModal } from '@/components/guruji/prescribe-remedy-modal';
-import { toast } from 'sonner';
+import { useQueueUnified } from '@/hooks/use-queue-unified';
+import { showToast, commonToasts } from '@/lib/toast';
+import type { QueueEntry } from '@/types/queue';
 
-interface QueueEntry {
-  id: string;
-  position: number;
-  status: string;
-  estimatedWait?: number;
-  priority?: string;
-  checkedInAt: string; // This comes as a string from the server
-  notes?: string;
-  user: {
-    id: string;
-    name: string | null;
-    phone: string | null;
-    dateOfBirth?: string | null; // Also comes as string from server
-  };
-}
-
-interface GurujiQueueStatus {
-  waiting: number;
-  inProgress: number;
-  completedToday: number;
-  totalToday: number;
-  averageWaitTime: number;
-  currentQueue: QueueEntry[];
-}
 
 function GurujiQueuePageContent() {
-  const [queueStatus, setQueueStatus] = useState<GurujiQueueStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { setLoadingState } = useAppStore();
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
-
-  const loadQueueStatus = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadingState("guruji-queue-loading", true);
-      const result = await getGurujiQueueEntries();
-      
-              if (result.success && result.queueEntries) {
-          const queueEntries = result.queueEntries;
-          const waiting = queueEntries.filter(entry => entry.status === 'WAITING').length;
-          const inProgress = queueEntries.filter(entry => entry.status === 'IN_PROGRESS').length;
-          const completedToday = queueEntries.filter(entry => entry.status === 'COMPLETED').length;
-          
-          // Transform the data to match our interface
-          const transformedQueue = queueEntries.map((entry, index) => ({
-            id: entry.id,
-            position: entry.position,
-            status: entry.status,
-            estimatedWait: entry.status === 'WAITING' ? (index + 1) * 15 : (entry.estimatedWait || undefined),
-            priority: entry.priority,
-            checkedInAt: entry.checkedInAt instanceof Date ? entry.checkedInAt.toISOString() : entry.checkedInAt,
-            notes: entry.notes || undefined,
-            user: {
-              id: entry.user.id,
-              name: entry.user.name,
-              phone: entry.user.phone,
-              dateOfBirth: entry.user.dateOfBirth instanceof Date ? entry.user.dateOfBirth.toISOString() : entry.user.dateOfBirth,
-            },
-          }));
-
-          const queueStatus: GurujiQueueStatus = {
-            waiting,
-            inProgress,
-            completedToday,
-            totalToday: queueEntries.length,
-            averageWaitTime: 25, // Default average wait time
-            currentQueue: transformedQueue,
-          };
-        
-        setQueueStatus(queueStatus);
-      } else {
-        console.error('Failed to load queue:', result.error);
-        toast.error('Failed to load queue data');
-      }
-    } catch (error) {
-      console.error('Error loading queue status:', error);
-      toast.error('Error loading queue data');
-    } finally {
-      setLoading(false);
-      setLoadingState("guruji-queue-loading", false);
-    }
-  }, [setLoadingState]);
-
-  // Use adaptive polling instead of fixed interval
-  const { isPolling } = useAdaptivePolling({
-    enabled: true,
-    interval: 15000, // Default 15 seconds
-    onPoll: loadQueueStatus,
-    onError: (error: Error) => {
-      console.error('Queue polling error:', error);
-    }
+  
+  // Use unified queue hook with React Query caching and socket fallback
+  const {
+    queueEntries,
+    loading,
+    stats,
+    refetch: loadQueueEntries,
+  } = useQueueUnified({
+    role: 'guruji',
+    autoRefresh: true,
+    refreshInterval: 15000, // Faster refresh for guruji
+    enableRealtime: true,
   });
+
 
   const handleStartConsultation = async (entry: QueueEntry) => {
     try {
-      setLoadingState("consultation-loading", true);
-      
       const formData = new FormData();
       formData.append('queueEntryId', entry.id);
       
       const result = await startConsultation(formData);
       if (result.success) {
-        toast.success(`Started consultation with ${entry.user.name}`);
+        commonToasts.consultationStarted(entry.user.name || 'Unknown User');
         // Store the consultation session ID for prescribing remedies
         if (result.consultationSessionId) {
           setConsultationSessionId(result.consultationSessionId);
         }
-        await loadQueueStatus(); // Refresh the queue
+        await loadQueueEntries(); // Refresh the queue
       } else {
-        toast.error(result.error || 'Failed to start consultation');
+        showToast.error(result.error || 'Failed to start consultation');
       }
     } catch (error) {
       console.error('Error starting consultation:', error);
-      toast.error('Error starting consultation');
-    } finally {
-      setLoadingState("consultation-loading", false);
+      showToast.error('Error starting consultation');
     }
   };
 
@@ -143,23 +64,23 @@ function GurujiQueuePageContent() {
       
       const result = await updateQueueStatus(formData);
       if (result.success) {
-        toast.success(`Completed consultation with ${entry.user.name}`);
+        commonToasts.consultationCompleted(entry.user.name || 'Unknown User');
         setConsultationSessionId(null); // Clear consultation session ID
-        await loadQueueStatus(); // Refresh the queue
+        await loadQueueEntries(); // Refresh the queue
       } else {
         // Check if the error is about missing remedy
         if (result.error?.includes('remedy')) {
-          toast.error(result.error);
+          showToast.error(result.error);
           // Automatically open the prescribe remedy modal
           setSelectedQueueEntry(entry);
           setPrescribeModalOpen(true);
         } else {
-          toast.error(result.error || 'Failed to complete consultation');
+          showToast.error(result.error || 'Failed to complete consultation');
         }
       }
     } catch (error) {
       console.error('Error completing consultation:', error);
-      toast.error('Error completing consultation');
+      showToast.error('Error completing consultation');
     }
   };
 
@@ -167,14 +88,14 @@ function GurujiQueuePageContent() {
     try {
       // Check if the entry is in progress
       if (entry.status !== 'IN_PROGRESS') {
-        toast.error('Can only prescribe remedies for consultations in progress.');
+        showToast.error('Can only prescribe remedies for consultations in progress.');
         return;
       }
       
       // Get the consultation session ID for this queue entry
       const result = await getConsultationSessionId(entry.id);
       if (!result.success) {
-        toast.error(result.error || 'Failed to get consultation session');
+        showToast.error(result.error || 'Failed to get consultation session');
         return;
       }
       
@@ -184,20 +105,20 @@ function GurujiQueuePageContent() {
         setSelectedQueueEntry(entry);
         setPrescribeModalOpen(true);
       } else {
-        toast.error('Failed to get consultation session ID');
+        showToast.error('Failed to get consultation session ID');
       }
     } catch (error) {
       console.error('Error preparing to prescribe remedy:', error);
-      toast.error('Error preparing to prescribe remedy');
+      showToast.error('Error preparing to prescribe remedy');
     }
   };
 
   const handleCallNext = () => {
-    const nextWaiting = queueStatus?.currentQueue.find((entry: QueueEntry) => entry.status === 'WAITING');
+    const nextWaiting = queueEntries.find((entry: QueueEntry) => entry.status === 'WAITING');
     if (nextWaiting) {
       handleStartConsultation(nextWaiting);
     } else {
-      toast.info('No patients waiting in queue');
+      showToast.info('No patients waiting in queue');
     }
   };
 
@@ -231,44 +152,11 @@ function GurujiQueuePageContent() {
     }
   };
 
-  // Load queue status on component mount
-  useEffect(() => {
-    loadQueueStatus();
-  }, [loadQueueStatus]);
 
   if (loading) {
     return <PageSpinner message="Loading queue..." />;
   }
 
-  if (!queueStatus) {
-    return (
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Queue Management</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage the queue of patients waiting for spiritual consultation
-            </p>
-          </div>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Queue Data</h3>
-              <p className="text-muted-foreground mb-4">
-                Unable to load queue data. Please try refreshing the page.
-              </p>
-              <Button onClick={loadQueueStatus}>
-                <Clock className="h-4 w-4 mr-2" />
-                Refresh Queue
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -281,13 +169,13 @@ function GurujiQueuePageContent() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={loadQueueStatus} disabled={isPolling} className="flex-1 sm:flex-none">
-            <Clock className="h-4 w-4 mr-2" />
-            {isPolling ? 'Refreshing...' : 'Refresh'}
+          <Button variant="outline" onClick={() => loadQueueEntries()} className="flex-1 sm:flex-none">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
           <Button 
             onClick={handleCallNext} 
-            disabled={!queueStatus.currentQueue.some((entry: QueueEntry) => entry.status === 'WAITING')}
+            disabled={!queueEntries.some((entry: QueueEntry) => entry.status === 'WAITING')}
             className="flex-1 sm:flex-none"
           >
             <Users className="h-4 w-4 mr-2" />
@@ -304,7 +192,7 @@ function GurujiQueuePageContent() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{queueStatus.waiting}</div>
+            <div className="text-2xl font-bold">{stats.waiting}</div>
             <p className="text-xs text-muted-foreground">Patients in queue</p>
           </CardContent>
         </Card>
@@ -315,7 +203,7 @@ function GurujiQueuePageContent() {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{queueStatus.inProgress}</div>
+            <div className="text-2xl font-bold">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">Currently consulting</p>
           </CardContent>
         </Card>
@@ -326,7 +214,7 @@ function GurujiQueuePageContent() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{queueStatus.completedToday}</div>
+            <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">Consultations finished</p>
           </CardContent>
         </Card>
@@ -337,7 +225,7 @@ function GurujiQueuePageContent() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{queueStatus.totalToday}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">All patients today</p>
           </CardContent>
         </Card>
@@ -352,14 +240,14 @@ function GurujiQueuePageContent() {
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span>Queue Progress</span>
-              <span>{queueStatus.completedToday} / {queueStatus.totalToday}</span>
+              <span>{stats.completed} / {stats.total}</span>
             </div>
             <Progress 
-              value={queueStatus.totalToday > 0 ? (queueStatus.completedToday / queueStatus.totalToday) * 100 : 0} 
+              value={stats.total > 0 ? (stats.completed / stats.total) * 100 : 0} 
               className="h-2" 
             />
             <p className="text-xs text-muted-foreground">
-              {queueStatus.totalToday - queueStatus.completedToday} consultations remaining today
+              {stats.total - stats.completed} consultations remaining today
             </p>
           </div>
         </CardContent>
@@ -379,7 +267,7 @@ function GurujiQueuePageContent() {
         </div>
         
         <div className="grid gap-4">
-          {queueStatus.currentQueue.length === 0 ? (
+          {queueEntries.length === 0 ? (
             <Card className="text-center py-12">
               <CardContent>
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -387,14 +275,14 @@ function GurujiQueuePageContent() {
                 <p className="text-muted-foreground mb-4">
                   No patients are currently waiting in the queue.
                 </p>
-                <Button variant="outline" onClick={loadQueueStatus}>
-                  <Clock className="h-4 w-4 mr-2" />
+                <Button variant="outline" onClick={() => loadQueueEntries()}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh Queue
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            queueStatus.currentQueue.map((entry: QueueEntry) => (
+            queueEntries.map((entry: QueueEntry) => (
               <Card key={entry.id} className={`hover:shadow-md transition-shadow ${
                 entry.status === 'IN_PROGRESS' ? 'ring-2 ring-primary' : ''
               }`}>

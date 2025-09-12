@@ -78,20 +78,30 @@ export async function checkInWithQR(formData: FormData) {
       },
     });
 
+    // Calculate position in queue for this guruji
+    const lastQueueEntry = await prisma.queueEntry.findFirst({
+      where: {
+        gurujiId: appointment.gurujiId!,
+        status: { in: ['WAITING', 'IN_PROGRESS'] },
+      },
+      orderBy: { position: 'desc' },
+    });
+
+    const nextPosition = (lastQueueEntry?.position || 0) + 1;
+
     // Create queue entry
-    // Note: Queue entry creation is temporarily disabled until database migration is complete
-    // const queueEntry = await prisma.queueEntry.create({
-    //   data: {
-    //     userId: session.user.id,
-    //     gurujiId: appointment.gurujiId,
-    //     appointmentId: appointment.id,
-    //     position: 1, // You might want to calculate this based on existing queue
-    //     status: 'WAITING',
-    //     estimatedWait: 15, // Default 15 minutes
-    //     notes: 'Checked in via QR code',
-    //     checkedInAt: new Date(),
-    //   },
-    // });
+    const queueEntry = await prisma.queueEntry.create({
+      data: {
+        userId: session.user.id,
+        gurujiId: appointment.gurujiId!,
+        appointmentId: appointment.id,
+        position: nextPosition,
+        status: 'WAITING',
+        estimatedWait: nextPosition * 15, // 15 minutes per position
+        notes: 'Checked in via QR code',
+        checkedInAt: new Date(),
+      },
+    });
 
     // Create notification for user
     await prisma.notification.create({
@@ -102,7 +112,9 @@ export async function checkInWithQR(formData: FormData) {
         type: 'appointment',
         data: {
           appointmentId: appointment.id,
-          // queueEntryId: queueEntry.id, // Temporarily disabled
+          queueEntryId: queueEntry.id,
+          position: queueEntry.position,
+          estimatedWait: queueEntry.estimatedWait,
         },
       },
     });
@@ -119,13 +131,18 @@ export async function checkInWithQR(formData: FormData) {
       },
     });
 
+    // Invalidate relevant caches
     revalidatePath('/coordinator');
     revalidatePath('/user/checkin');
+    revalidatePath('/user/queue');
+    revalidatePath('/guruji/queue');
+    revalidatePath('/coordinator/queue');
     
     return {
       success: true,
       message: 'Check-in successful',
       appointment: updatedAppointment,
+      queueEntry: queueEntry,
     };
   } catch (error) {
     console.error('QR check-in error:', error);
@@ -204,20 +221,30 @@ export async function manualCheckIn(formData: FormData) {
       },
     });
 
+    // Calculate position in queue for this guruji
+    const lastQueueEntry2 = await prisma.queueEntry.findFirst({
+      where: {
+        gurujiId: updatedAppointment.gurujiId!,
+        status: { in: ['WAITING', 'IN_PROGRESS'] },
+      },
+      orderBy: { position: 'desc' },
+    });
+
+    const nextPosition2 = (lastQueueEntry2?.position || 0) + 1;
+
     // Create queue entry
-    // Note: Queue entry creation is temporarily disabled until database migration is complete
-    // const queueEntry = await prisma.queueEntry.create({
-    //   data: {
-    //     userId: session.user.id,
-    //     gurujiId: appointment.gurujiId,
-    //     appointmentId: data.appointmentId,
-    //     position: 1, // You might want to calculate this based on existing queue
-    //     status: 'WAITING',
-    //     estimatedWait: 15, // Default 15 minutes
-    //     notes: 'Checked in manually',
-    //     checkedInAt: new Date(),
-    //   },
-    // });
+    const queueEntry2 = await prisma.queueEntry.create({
+      data: {
+        userId: session.user.id,
+        gurujiId: updatedAppointment.gurujiId!,
+        appointmentId: data.appointmentId,
+        position: nextPosition2,
+        status: 'WAITING',
+        estimatedWait: nextPosition2 * 15, // 15 minutes per position
+        notes: 'Checked in manually',
+        checkedInAt: new Date(),
+      },
+    });
 
     // Create notification for user
     await prisma.notification.create({
@@ -228,7 +255,9 @@ export async function manualCheckIn(formData: FormData) {
         type: 'appointment',
         data: {
           appointmentId: data.appointmentId,
-          // queueEntryId: queueEntry.id, // Temporarily disabled
+          queueEntryId: queueEntry2.id,
+          position: queueEntry2.position,
+          estimatedWait: queueEntry2.estimatedWait,
         },
       },
     });
@@ -249,13 +278,18 @@ export async function manualCheckIn(formData: FormData) {
       },
     });
 
+    // Invalidate relevant caches
     revalidatePath('/coordinator');
     revalidatePath('/user/checkin');
+    revalidatePath('/user/queue');
+    revalidatePath('/guruji/queue');
+    revalidatePath('/coordinator/queue');
     
     return {
       success: true,
       message: 'Manual check-in successful',
       appointment: updatedAppointment,
+      queueEntry: queueEntry2,
     };
   } catch (error) {
     console.error('Manual check-in error:', error);

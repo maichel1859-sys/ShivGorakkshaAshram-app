@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,105 +16,42 @@ import {
   CheckCircle,
   XCircle
 } from "lucide-react";
-import { toast } from "sonner";
-import { PageSpinner } from "@/components/ui/global-spinner";
-import { getCoordinatorQueueEntries, updateQueueStatus } from "@/lib/actions/queue-actions";
-
-interface QueueEntry {
-  id: string;
-  position: number;
-  status: string;
-  estimatedWait?: number;
-  priority?: string;
-  checkedInAt: string;
-  notes?: string | null;
-  user: {
-    id: string;
-    name: string | null;
-    phone: string | null;
-  };
-  guruji?: {
-    id: string;
-    name: string | null;
-  };
-}
+import { PageSpinner } from "@/components/loading";
+import { useQueueUnified } from "@/hooks/use-queue-unified";
+import type { QueueStatus, QueueEntry } from "@/types/queue";
+import { showToast, commonToasts } from "@/lib/toast";
+import { startConsultation, updateQueueStatus } from "@/lib/actions/queue-actions";
 
 export default function CoordinatorQueuePage() {
-  const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
-  const loadQueueEntries = async () => {
-    try {
-      setLoading(true);
-      const result = await getCoordinatorQueueEntries();
-      
-      if (result.success && result.queueEntries) {
-        const transformedEntries = result.queueEntries.map((entry: {
-          id: string;
-          position?: number | null;
-          status: string;
-          estimatedWait?: number | null;
-          priority?: string | null;
-          checkedInAt: Date | string;
-          notes?: string | null;
-          user: { id: string; name: string | null; phone: string | null };
-          guruji?: { id: string; name: string | null } | null;
-        }, index: number) => ({
-          id: entry.id,
-          position: entry.position || index + 1,
-          status: entry.status,
-          estimatedWait: entry.estimatedWait ?? (index + 1) * 15,
-          priority: entry.priority ?? 'NORMAL',
-          checkedInAt: entry.checkedInAt instanceof Date ? entry.checkedInAt.toISOString() : entry.checkedInAt,
-          notes: entry.notes,
-          user: {
-            id: entry.user.id,
-            name: entry.user.name,
-            phone: entry.user.phone,
-          },
-          guruji: entry.guruji ? {
-            id: entry.guruji.id,
-            name: entry.guruji.name,
-          } : undefined,
-        }));
-        setQueueEntries(transformedEntries);
-      } else {
-        console.error('Failed to load queue entries:', result.error);
-        toast.error('Failed to load queue data');
-      }
-    } catch (error) {
-      console.error('Error loading queue entries:', error);
-      toast.error('Error loading queue data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use unified queue hook with React Query caching and socket fallback
+  const {
+    queueEntries,
+    loading,
+    stats,
+    refetch: loadQueueEntries,
+  } = useQueueUnified({
+    role: 'coordinator',
+    autoRefresh: true,
+    refreshInterval: 30000,
+    enableRealtime: true,
+  });
 
-  useEffect(() => {
-    loadQueueEntries();
-  }, []);
-
-  const handleUpdateStatus = async (entryId: string, newStatus: string) => {
-    try {
-      const formData = new FormData();
-      formData.append('queueEntryId', entryId);
-      formData.append('status', newStatus);
-      
-      const result = await updateQueueStatus(formData);
-      if (result.success) {
-        toast.success(`Queue entry updated to ${newStatus}`);
-        await loadQueueEntries(); // Refresh the queue
-      } else {
-        toast.error(result.error || 'Failed to update queue entry');
-      }
-    } catch (error) {
-      console.error('Error updating queue status:', error);
-      toast.error('Failed to update queue entry');
-    }
-  };
+  // Filter entries manually since filterEntries function is not available
+  const filteredEntries = queueEntries.filter((entry: QueueEntry) => {
+    const matchesSearch = !searchTerm || 
+      entry.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entry.user.phone?.includes(searchTerm) ||
+      entry.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
+    const matchesPriority = priorityFilter === "all" || entry.priority === priorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -161,17 +98,44 @@ export default function CoordinatorQueuePage() {
     }
   };
 
-  // Filter queue entries
-  const filteredEntries = queueEntries.filter((entry) => {
-    const matchesSearch = entry.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.user.phone?.includes(searchTerm) ||
-                         entry.notes?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
-    const matchesPriority = priorityFilter === "all" || entry.priority === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
+  // Queue action handlers
+  const handleStartConsultation = async (entry: QueueEntry) => {
+    try {
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      
+      const result = await startConsultation(formData);
+      if (result.success) {
+        commonToasts.consultationStarted(entry.user.name || 'Unknown User');
+        await loadQueueEntries();
+      } else {
+        showToast.error(result.error || 'Failed to start consultation');
+      }
+    } catch (error) {
+      console.error('Error starting consultation:', error);
+      showToast.error('Failed to start consultation');
+    }
+  };
+
+  const handleUpdateStatus = async (entryId: string, newStatus: QueueStatus) => {
+    try {
+      const formData = new FormData();
+      formData.append('queueEntryId', entryId);
+      formData.append('status', newStatus);
+      
+      const result = await updateQueueStatus(formData);
+      if (result.success) {
+        showToast.success(`Status updated to ${newStatus}`);
+        await loadQueueEntries();
+      } else {
+        showToast.error(result.error || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showToast.error('Failed to update status');
+    }
+  };
+
 
   if (loading) {
     return <PageSpinner message="Loading queue..." />;
@@ -187,7 +151,7 @@ export default function CoordinatorQueuePage() {
             Monitor and manage patient queues across all gurujis
           </p>
         </div>
-        <Button onClick={loadQueueEntries} variant="outline">
+        <Button onClick={() => loadQueueEntries()} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -233,9 +197,6 @@ export default function CoordinatorQueuePage() {
                 <SelectItem value="LOW">Low</SelectItem>
               </SelectContent>
             </Select>
-            <div className="text-sm text-muted-foreground flex items-center">
-              Total: {filteredEntries.length} entries
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -248,7 +209,7 @@ export default function CoordinatorQueuePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueEntries.filter(e => e.status === 'WAITING').length}
+              {stats.waiting}
             </div>
           </CardContent>
         </Card>
@@ -258,7 +219,7 @@ export default function CoordinatorQueuePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueEntries.filter(e => e.status === 'IN_PROGRESS').length}
+              {stats.inProgress}
             </div>
           </CardContent>
         </Card>
@@ -268,7 +229,7 @@ export default function CoordinatorQueuePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {queueEntries.filter(e => e.status === 'COMPLETED').length}
+              {stats.completed}
             </div>
           </CardContent>
         </Card>
@@ -278,7 +239,7 @@ export default function CoordinatorQueuePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(queueEntries.reduce((acc, e) => acc + (e.estimatedWait || 0), 0) / Math.max(queueEntries.length, 1))}m
+              {stats.averageWaitTime}m
             </div>
           </CardContent>
         </Card>
@@ -358,7 +319,7 @@ export default function CoordinatorQueuePage() {
                     {entry.status === 'WAITING' && (
                       <Button 
                         size="sm" 
-                        onClick={() => handleUpdateStatus(entry.id, 'IN_PROGRESS')}
+                        onClick={() => handleStartConsultation(entry)}
                       >
                         Start Consultation
                       </Button>

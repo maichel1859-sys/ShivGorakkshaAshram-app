@@ -40,8 +40,8 @@ export async function generateLocationQRCode(locationId: string, locationName: s
     width: 300,
     margin: 2,
     color: {
-      dark: '#000000',
-      light: '#FFFFFF'
+      dark: 'hsl(var(--foreground))',
+      light: 'hsl(var(--background))'
     }
   });
 

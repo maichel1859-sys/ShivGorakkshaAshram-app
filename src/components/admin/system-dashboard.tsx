@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useAppStore } from '@/store/app-store';
 import {
   Card,
   CardContent,
@@ -30,13 +31,14 @@ interface SystemDashboardProps {
 
 export function SystemDashboard({ className = "" }: SystemDashboardProps) {
   const [health, setHealth] = useState<SystemHealth | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['system-dashboard'] || false;
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
 
   const checker = useMemo(() => new SystemSetupChecker(), []);
 
   const runHealthCheck = useCallback(async () => {
-    setIsLoading(true);
+    setLoadingState('system-dashboard', true);
     try {
       const result = await checker.runAllChecks();
       setHealth(result);
@@ -44,9 +46,9 @@ export function SystemDashboard({ className = "" }: SystemDashboardProps) {
     } catch (error) {
       console.error("Health check failed:", error);
     } finally {
-      setIsLoading(false);
+      setLoadingState('system-dashboard', false);
     }
-  }, [checker]);
+  }, [checker, setLoadingState]);
 
   useEffect(() => {
     runHealthCheck();

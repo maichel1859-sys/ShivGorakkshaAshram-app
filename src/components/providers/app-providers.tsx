@@ -11,6 +11,7 @@ import { useOfflineSync, useNetworkStatus, usePWA } from "@/hooks";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatus } from "@/components/ui/network-status";
 import { IOSPWAPrompt } from "@/components/ui/ios-pwa-prompt";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -59,12 +60,14 @@ export function AppProviders({ children }: AppProvidersProps) {
             enableSystem
             disableTransitionOnChange
           >
-            <LoadingProvider>
-              <AppInitializer>
-                {children}
-                <Toaster position="top-right" richColors />
-              </AppInitializer>
-            </LoadingProvider>
+            <LanguageProvider>
+              <LoadingProvider>
+                <AppInitializer>
+                  {children}
+                  <Toaster position="top-right" richColors />
+                </AppInitializer>
+              </LoadingProvider>
+            </LanguageProvider>
           </ThemeProvider>
         </SessionProvider>
       </QueryProvider>

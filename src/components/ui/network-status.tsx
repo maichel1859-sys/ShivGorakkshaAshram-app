@@ -61,7 +61,7 @@ export function NetworkStatus() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50">
       <div
         className={cn(
           "flex items-center space-x-2 px-3 py-2 rounded-lg shadow-lg text-white text-sm cursor-pointer transition-all duration-200",
@@ -90,7 +90,7 @@ export function NetworkStatus() {
 
       {/* Detailed Status Panel */}
       {showDetails && (
-        <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border p-4 text-sm">
+        <div className="absolute bottom-full right-0 mb-2 w-64 bg-white rounded-lg shadow-xl border p-4 text-sm">
           <div className="space-y-3">
             {/* Connection Status */}
             <div className="flex items-center justify-between">

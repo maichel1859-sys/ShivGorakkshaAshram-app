@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/loading';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { NotificationsManager } from '@/components/client/notifications-manager';
 

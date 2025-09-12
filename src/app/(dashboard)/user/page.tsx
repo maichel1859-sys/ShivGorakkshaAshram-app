@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useUserDashboard } from "@/hooks/queries";
 import { useAppStore } from "@/store/app-store";
-import { PageSpinner } from "@/components/ui/global-spinner";
+import { PageSpinner } from "@/components/loading";
 // LoadingSpinner available if needed
 // import { LoadingSpinner } from "@/components/ui/loading-spinner";
 

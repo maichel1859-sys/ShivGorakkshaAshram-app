@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAppStore } from '@/store/app-store';
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,8 @@ type OTPVerifyData = z.infer<typeof otpVerifySchema>;
 export default function PhoneLoginPage() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['phone-login'] || false;
 
   const [resendCountdown, setResendCountdown] = useState(0);
   const router = useRouter();
@@ -82,7 +84,7 @@ export default function PhoneLoginPage() {
   };
 
   const onPhoneSubmit = async (data: PhoneLoginData) => {
-    setIsLoading(true);
+    setLoadingState('phone-login', true);
 
     try {
       const formattedPhone = formatPhoneNumber(data.phone);
@@ -107,12 +109,12 @@ export default function PhoneLoginPage() {
         error instanceof Error ? error.message : "Failed to send OTP";
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      setLoadingState('phone-login', false);
     }
   };
 
   const onOTPSubmit = async (data: OTPVerifyData) => {
-    setIsLoading(true);
+    setLoadingState('phone-login', true);
 
     try {
       // Convert to FormData for Server Action
@@ -137,7 +139,7 @@ export default function PhoneLoginPage() {
         error instanceof Error ? error.message : "Invalid OTP";
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      setLoadingState('phone-login', false);
     }
   };
 
@@ -157,7 +159,7 @@ export default function PhoneLoginPage() {
   const resendOTP = async () => {
     if (resendCountdown > 0) return;
 
-    setIsLoading(true);
+    setLoadingState('phone-login', true);
     try {
       // Convert to FormData for Server Action
       const formData = new FormData();
@@ -176,7 +178,7 @@ export default function PhoneLoginPage() {
         error instanceof Error ? error.message : "Failed to resend OTP";
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      setLoadingState('phone-login', false);
     }
   };
 

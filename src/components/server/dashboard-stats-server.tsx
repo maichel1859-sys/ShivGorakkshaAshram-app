@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { getAdminDashboardStats } from "@/lib/actions/dashboard-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/loading";
 import { Users, Calendar, Activity, Bell } from "lucide-react";
 
 // Server Component for Dashboard Stats

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageSpinner } from "@/components/ui/global-spinner";
+import { PageSpinner } from "@/components/loading";
 
 interface RemedyTemplate {
   id: string;
@@ -73,7 +73,7 @@ export default function RemedyDetailsPage() {
   const router = useRouter();
   const [remedy, setRemedy] = useState<RemedyDocument | null>(null);
   const [consultation, setConsultation] = useState<ConsultationSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedRemedy, setEditedRemedy] = useState({
     customInstructions: "",
@@ -81,13 +81,7 @@ export default function RemedyDetailsPage() {
     customDuration: "",
   });
 
-  useEffect(() => {
-    if (params.remedyId) {
-      fetchRemedyDetails(params.remedyId as string);
-    }
-  }, [params.remedyId]);
-
-  const fetchRemedyDetails = async (remedyId: string) => {
+  const fetchRemedyDetails = useCallback(async (remedyId: string) => {
     try {
       setIsLoading(true);
       // TODO: Replace with actual API call
@@ -144,7 +138,13 @@ export default function RemedyDetailsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (params.remedyId) {
+      fetchRemedyDetails(params.remedyId as string);
+    }
+  }, [params.remedyId, fetchRemedyDetails]);
 
   const handleSave = async () => {
     try {

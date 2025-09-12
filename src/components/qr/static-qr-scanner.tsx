@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Camera, CheckCircle, AlertCircle, Clock, MapPin } from 'lucide-react';
 import { processQRScanSimple } from '@/lib/actions/qr-scan-actions-simple';
 import { useRouter } from 'next/navigation';
+import { showToast } from '@/lib/toast';
 
 interface QRScanResult {
   success: boolean;
@@ -95,10 +96,14 @@ export default function StaticQRScanner() {
       setScanResult(result);
 
       if (result.success) {
+        showToast.success(result.data?.message || 'Successfully checked in!');
         // Auto-refresh queue page after successful scan
         setTimeout(() => {
+          router.push('/user/queue');
           router.refresh();
         }, 2000);
+      } else {
+        showToast.error(result.error || 'QR scan failed');
       }
     } catch (err) {
       console.error('QR processing error:', err);

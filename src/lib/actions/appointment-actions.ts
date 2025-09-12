@@ -245,15 +245,15 @@ export async function bookAppointment(formData: FormData) {
     // For development: Allow any date/time (no restrictions)
     // In production, you would add time restrictions here
 
-    const endDateTime = new Date(appointmentDateTime.getTime() + 30 * 60000); // 30 minutes default
+    const endDateTime = new Date(appointmentDateTime.getTime() + 5 * 60000); // 5 minutes default
 
     // Check for conflicts
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
         gurujiId,
         date: {
-          gte: new Date(appointmentDateTime.getTime() - 15 * 60000), // 15 min buffer before
-          lte: new Date(appointmentDateTime.getTime() + 15 * 60000), // 15 min buffer after
+          gte: new Date(appointmentDateTime.getTime() - 2 * 60000), // 2 min buffer before
+          lte: new Date(appointmentDateTime.getTime() + 2 * 60000), // 2 min buffer after
         },
         status: {
           notIn: ['CANCELLED', 'NO_SHOW'],
@@ -726,7 +726,7 @@ export async function getAppointmentAvailability(options?: {
     const businessEnd = 24; // 12 AM next day
 
     for (let hour = businessStart; hour < businessEnd; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
+      for (let minute = 0; minute < 60; minute += 5) {
         const slotTime = new Date(targetDate);
         slotTime.setHours(hour, minute, 0, 0);
         
@@ -903,7 +903,7 @@ export async function createAppointmentForUser(formData: FormData) {
     // Check guruji availability
     const appointmentDate = new Date(data.date);
     const startTime = new Date(`${data.date}T${data.startTime}`);
-    const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes duration
+    const endTime = new Date(startTime.getTime() + 5 * 60000); // 5 minutes duration
 
     const conflictingAppointment = await prisma.appointment.findFirst({
       where: {

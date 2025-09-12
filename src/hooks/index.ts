@@ -16,4 +16,4 @@ export * from './use-adaptive-polling';
 export * from './use-auth-toast';
 export * from './use-notifications-realtime';
 export * from './use-polling-notifications';
-export * from './use-queue-realtime'; 
+export * from './use-queue-unified'; 

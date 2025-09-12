@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuthToast } from "@/hooks/use-auth-toast";
-import { FullScreenSpinner } from "@/components/ui/global-spinner";
+import { FullScreenSpinner } from "@/components/loading";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useCallback } from "react";
+import { useAppStore } from '@/store/app-store';
 import { toast } from "sonner";
 import {
   getAppointments,
@@ -9,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/loading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, User, RefreshCw, Plus } from "lucide-react";
 import { format } from "date-fns";
@@ -48,14 +49,15 @@ export function AppointmentManager() {
     total: number;
     hasMore: boolean;
   } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['appointment-manager'] || false;
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setLoadingState('appointment-manager', true);
       setError(null);
       const result = await getAppointments({
         status: activeTab !== "all" ? activeTab : undefined,
@@ -135,9 +137,9 @@ export function AppointmentManager() {
       console.error("Failed to fetch appointments:", err);
       setError("Failed to load appointments");
     } finally {
-      setIsLoading(false);
+      setLoadingState('appointment-manager', false);
     }
-  }, [activeTab]);
+  }, [activeTab, setLoadingState]);
 
   useEffect(() => {
     fetchAppointments();

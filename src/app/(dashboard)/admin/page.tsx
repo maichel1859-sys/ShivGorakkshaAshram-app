@@ -8,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 import {
   Users,
   Calendar,
@@ -348,33 +349,45 @@ export default async function AdminDashboardPage() {
               <Button
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-center gap-2"
+                asChild
               >
-                <Users className="h-5 w-5" />
-                <span className="text-sm">Manage Users</span>
+                <Link href="/admin/users">
+                  <Users className="h-5 w-5" />
+                  <span className="text-sm">Manage Users</span>
+                </Link>
               </Button>
 
               <Button
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-center gap-2"
+                asChild
               >
-                <Calendar className="h-5 w-5" />
-                <span className="text-sm">View Appointments</span>
+                <Link href="/admin/appointments">
+                  <Calendar className="h-5 w-5" />
+                  <span className="text-sm">View Appointments</span>
+                </Link>
               </Button>
 
               <Button
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-center gap-2"
+                asChild
               >
-                <FileText className="h-5 w-5" />
-                <span className="text-sm">System Reports</span>
+                <Link href="/admin/reports">
+                  <FileText className="h-5 w-5" />
+                  <span className="text-sm">System Reports</span>
+                </Link>
               </Button>
 
               <Button
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-center gap-2"
+                asChild
               >
-                <Bell className="h-5 w-5" />
-                <span className="text-sm">Notifications</span>
+                <Link href="/admin/notifications">
+                  <Bell className="h-5 w-5" />
+                  <span className="text-sm">Notifications</span>
+                </Link>
               </Button>
             </div>
           </CardContent>

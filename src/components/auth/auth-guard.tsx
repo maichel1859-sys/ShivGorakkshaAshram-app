@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Role } from '@prisma/client';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { GlobalSpinner } from '@/components/loading';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -47,7 +47,7 @@ export function AuthGuard({
 
   // Show loading while checking authentication or redirecting
   if (status === 'loading' || isRedirecting) {
-    return loadingComponent || <LoadingSpinner />;
+    return loadingComponent || <GlobalSpinner />;
   }
 
   // Not authenticated

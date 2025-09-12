@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { CalendarPlus, Calendar } from 'lucide-react';
 

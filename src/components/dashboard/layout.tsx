@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useAppStore } from '@/store/app-store';
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
-import { GlobalSpinner } from "@/components/ui/global-spinner";
+import { GlobalSpinner } from "@/components/loading";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -20,21 +21,22 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['dashboard-layout'] || false;
 
   useEffect(() => {
     if (status === "loading") {
-      setIsLoading(true);
+      setLoadingState('dashboard-layout', true);
     } else if (status === "unauthenticated") {
       router.push("/signin");
     } else if (status === "authenticated") {
       if (!allowedRoles.includes(session?.user?.role || "")) {
         router.push("/unauthorized");
       } else {
-        setIsLoading(false);
+        setLoadingState('dashboard-layout', false);
       }
     }
-  }, [status, session, router, allowedRoles]);
+  }, [status, session, router, allowedRoles, setLoadingState]);
 
   if (isLoading || status === "loading") {
     return <GlobalSpinner size="xl" message="Loading dashboard..." fullScreen />;
@@ -46,11 +48,18 @@ export function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar />
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+      
+      {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={title} />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-muted/20">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CardSpinner, PageSpinner } from "@/components/ui/global-spinner";
+import { CardSpinner, PageSpinner } from "@/components/loading";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

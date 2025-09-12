@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DashboardLayout } from "@/components/dashboard/layout";
-import { CardSpinner } from "@/components/ui/global-spinner";
+import { PageSpinner } from "@/components/loading";
 import {
   Card,
   CardContent,
@@ -21,45 +20,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Clock, User, Search, Download, Plus, AlertCircle } from "lucide-react";
-import { useAdminQueue } from "@/hooks/queries";
-
-interface QueueEntry {
-  id: string;
-  appointmentId: string;
-  userId: string;
-  gurujiId: string | null;
-  position: number;
-  status: string;
-  priority: string;
-  estimatedWait: number | null;
-  checkedInAt: string;
-  startedAt?: string;
-  completedAt?: string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    phone: string | null;
-  };
-  guruji?: {
-    id: string;
-    name: string | null;
-  } | null;
-  appointment: {
-    id: string;
-    date: string;
-    startTime: Date;
-    reason: string | null;
-  };
-}
+import { useQueueUnified } from "@/hooks/use-queue-unified";
+import type { QueueEntry } from "@/types/queue";
+import { showToast, commonToasts } from "@/lib/toast";
+import { startConsultation, updateQueueStatus } from "@/lib/actions/queue-actions";
 
 export default function AdminQueuePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Use React Query for data fetching
-  const { data: queueEntries = [], isLoading, error, refetch } = useAdminQueue();
+  // Use unified queue hook with React Query caching and socket fallback
+  const {
+    queueEntries,
+    loading: isLoading,
+    refetch,
+    stats,
+  } = useQueueUnified({
+    role: 'admin',
+    autoRefresh: true,
+    refreshInterval: 30000,
+    enableRealtime: true,
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -102,22 +84,47 @@ export default function AdminQueuePage() {
     return matchesSearch && matchesStatus;
   });
 
-  const waitingCount = queueEntries.filter(
-    (entry: QueueEntry) => entry.status === "WAITING"
-  ).length;
-  const inProgressCount = queueEntries.filter(
-    (entry: QueueEntry) => entry.status === "IN_PROGRESS"
-  ).length;
+  // Use stats from unified hook instead of calculating manually
+  const waitingCount = stats.waiting;
+  const inProgressCount = stats.inProgress;
 
   const handleQueueAction = async (action: string, queueEntryId: string) => {
     try {
       setActionLoading(true);
-      // TODO: Implement queue action logic
-      console.log('Queue action:', action, queueEntryId);
+      
+      const formData = new FormData();
+      formData.append('queueEntryId', queueEntryId);
+      
+      if (action === 'start') {
+        const result = await startConsultation(formData);
+        if (result.success) {
+          commonToasts.consultationStarted('Patient');
+        } else {
+          showToast.error(result.error || 'Failed to start consultation');
+        }
+      } else if (action === 'complete') {
+        formData.append('status', 'COMPLETED');
+        const result = await updateQueueStatus(formData);
+        if (result.success) {
+          commonToasts.consultationCompleted('Patient');
+        } else {
+          showToast.error(result.error || 'Failed to complete consultation');
+        }
+      } else if (action === 'cancel') {
+        formData.append('status', 'CANCELLED');
+        const result = await updateQueueStatus(formData);
+        if (result.success) {
+          showToast.success('Entry cancelled');
+        } else {
+          showToast.error(result.error || 'Failed to cancel entry');
+        }
+      }
+      
       // Refresh the queue data
       await refetch();
     } catch (error) {
       console.error('Queue action error:', error);
+      showToast.error('Action failed');
     } finally {
       setActionLoading(false);
     }
@@ -126,45 +133,46 @@ export default function AdminQueuePage() {
   const handleBulkAction = async (action: string, selectedIds: string[]) => {
     try {
       setActionLoading(true);
-      // TODO: Implement bulk action logic
-      console.log('Bulk action:', action, selectedIds);
+      
+      const promises = selectedIds.map(async (entryId) => {
+        const formData = new FormData();
+        formData.append('queueEntryId', entryId);
+        
+        if (action === 'start') {
+          return await startConsultation(formData);
+        } else if (action === 'complete') {
+          formData.append('status', 'COMPLETED');
+          return await updateQueueStatus(formData);
+        }
+        return { success: false, error: 'Unknown action' };
+      });
+      
+      const results = await Promise.all(promises);
+      const successful = results.filter(r => r.success).length;
+      const failed = results.length - successful;
+      
+      if (successful > 0) {
+        showToast.success(`${successful} entries processed successfully`);
+      }
+      if (failed > 0) {
+        showToast.error(`${failed} entries failed to process`);
+      }
+      
       // Refresh the queue data
       await refetch();
     } catch (error) {
       console.error('Bulk action error:', error);
+      showToast.error('Bulk action failed');
     } finally {
       setActionLoading(false);
     }
   };
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <CardSpinner message="Loading queue data..." />
-      </DashboardLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-semibold text-red-600">
-              Error loading queue data
-            </h3>
-            <p className="text-sm text-muted-foreground mt-2">
-              {error instanceof Error ? error.message : "An error occurred"}
-            </p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
+    return <PageSpinner message="Loading queue data..." />;
   }
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -315,12 +323,12 @@ export default function AdminQueuePage() {
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold">{entry.user.name}</h3>
+                          <h3 className="font-semibold">{entry.user.name || 'Unknown User'}</h3>
                           <Badge className={getStatusColor(entry.status)}>
                             {entry.status.replace("_", " ")}
                           </Badge>
-                          <Badge className={getPriorityColor(entry.priority)}>
-                            {entry.priority}
+                          <Badge className={getPriorityColor(entry.priority || 'NORMAL')}>
+                            {entry.priority || 'NORMAL'}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -389,6 +397,5 @@ export default function AdminQueuePage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
-  );
+    );
 }

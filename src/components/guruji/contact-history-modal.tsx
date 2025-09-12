@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useAppStore } from '@/store/app-store';
 import {
   Dialog,
   DialogContent,
@@ -58,7 +59,8 @@ export function ContactHistoryModal({
 }: ContactHistoryModalProps) {
   const [activeTab, setActiveTab] = useState<'history' | 'new'>('history');
   const [contactHistory, setContactHistory] = useState<ContactHistory[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { setLoadingState, loadingStates } = useAppStore();
+  const isLoading = loadingStates['contact-history'] || false;
   const [newMessage, setNewMessage] = useState({
     type: 'notification' as 'notification' | 'phone',
     message: '',
@@ -66,7 +68,7 @@ export function ContactHistoryModal({
 
   const fetchContactHistory = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setLoadingState('contact-history', true);
       // TODO: Replace with actual API call
       // const response = await fetch(`/api/patients/${patient.id}/contact-history`);
       // const data = await response.json();
@@ -109,9 +111,9 @@ export function ContactHistoryModal({
       console.error('Failed to fetch contact history:', error);
       toast.error('Failed to load contact history');
     } finally {
-      setIsLoading(false);
+      setLoadingState('contact-history', false);
     }
-  }, [patient.phone, patient.name]);
+  }, [patient.phone, patient.name, setLoadingState]);
 
   useEffect(() => {
     if (isOpen) {
@@ -126,7 +128,7 @@ export function ContactHistoryModal({
     }
 
     try {
-      setIsLoading(true);
+      setLoadingState('contact-history', true);
       
       // For now, we'll use a mock API call since we don't have a direct contact API
       // TODO: Create a dedicated contact API endpoint
@@ -155,7 +157,7 @@ export function ContactHistoryModal({
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
     } finally {
-      setIsLoading(false);
+      setLoadingState('contact-history', false);
     }
   };
 

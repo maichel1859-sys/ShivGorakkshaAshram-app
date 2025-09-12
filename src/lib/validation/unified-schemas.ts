@@ -75,6 +75,11 @@ export const PriorityEnum = z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]);
 export const NotificationTypeEnum = z.enum(["appointment", "remedy", "queue", "system", "reminder"]);
 export const RecurrenceEnum = z.enum(["WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"]);
 
+// User category types for different registration flows
+export const UserCategoryEnum = z.enum(["SELF_SERVICE", "ASSISTED", "WALK_IN", "FAMILY_MEMBER", "EMERGENCY"]);
+export const RegistrationMethodEnum = z.enum(["SELF_REGISTRATION", "COORDINATOR_ASSISTED", "FAMILY_PROXY", "WALK_IN", "PHONE_BOOKING"]);
+export const TechAccessibilityEnum = z.enum(["FULL_ACCESS", "LIMITED_ACCESS", "NO_ACCESS", "ASSISTED_ACCESS"]);
+
 // ========================================
 // USER SCHEMAS
 // ========================================
@@ -153,7 +158,7 @@ export const otpVerificationSchema = z.object({
 export const appointmentTimeSlotSchema = z.object({
   date: dateStringSchema,
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
-  duration: z.number().min(15).max(180).default(30), // Duration in minutes
+  duration: z.number().min(5).max(60).default(5), // Duration in minutes
 });
 
 export const recurrencePatternSchema = z.object({
@@ -265,7 +270,7 @@ export const notificationSchema = z.object({
   message: z.string().min(1, "Message is required").max(1000, "Message must be less than 1000 characters"),
   type: NotificationTypeEnum,
   priority: PriorityEnum.default("NORMAL"),
-  data: z.record(z.any()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   sendEmail: z.boolean().default(false),
   sendSms: z.boolean().default(false),
   scheduledFor: dateStringSchema.optional(),
@@ -409,8 +414,8 @@ export const auditLogSchema = z.object({
   action: z.string().min(1, "Action is required"),
   resource: z.string().min(1, "Resource is required"),
   resourceId: z.string().optional(),
-  oldData: z.record(z.any()).optional(),
-  newData: z.record(z.any()).optional(),
+  oldData: z.record(z.string(), z.unknown()).optional(),
+  newData: z.record(z.string(), z.unknown()).optional(),
   ipAddress: z.string().optional(),
   userAgent: z.string().optional(),
 });
@@ -542,5 +547,137 @@ export const appointmentFilterSchema = z.object({
   endDate: z.string().optional(),
   status: z.enum(['BOOKED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
   gurujiId: z.string().optional(),
-  userId: z.string().optional(),
 });
+
+// ========================================
+// WALK-IN AND ASSISTED BOOKING SCHEMAS
+// ========================================
+
+// Quick registration for walk-in users
+export const quickRegistrationSchema = z.object({
+  name: nameSchema,
+  phone: phoneSchema.optional(),
+  email: emailSchema.optional(),
+  age: z.number().min(1).max(120).optional(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  address: z.string().max(500).optional(),
+  emergencyContact: phoneSchema.optional(),
+  emergencyContactName: z.string().max(100).optional(),
+  userCategory: UserCategoryEnum.default("WALK_IN"),
+  registrationMethod: RegistrationMethodEnum.default("COORDINATOR_ASSISTED"),
+  techAccessibility: TechAccessibilityEnum.default("NO_ACCESS"),
+  notes: z.string().max(1000).optional(),
+  guardianName: z.string().max(100).optional(), // For minors
+  guardianPhone: phoneSchema.optional(),
+  guardianEmail: emailSchema.optional(),
+}).refine(
+  (data) => data.phone || data.email || data.guardianPhone,
+  {
+    message: "At least one contact method (phone, email, or guardian phone) is required",
+    path: ["phone"],
+  }
+);
+
+// Triage assessment for walk-ins
+export const triageAssessmentSchema = z.object({
+  hasMobile: z.boolean(),
+  canUseApp: z.boolean().optional(),
+  needsAssistance: z.boolean(),
+  isEmergency: z.boolean().default(false),
+  hasAppointment: z.boolean(),
+  existingPatient: z.boolean().optional(),
+  preferredMethod: z.enum(["SELF_SERVICE", "ASSISTED", "FAMILY_HELP"]).optional(),
+  language: z.string().optional(),
+  specialNeeds: z.string().max(500).optional(),
+});
+
+// Phone-based booking schema
+export const phoneBookingSchema = z.object({
+  patientName: nameSchema,
+  patientPhone: phoneSchema,
+  patientEmail: emailSchema.optional(),
+  callerName: z.string().max(100).optional(),
+  callerPhone: phoneSchema.optional(),
+  callerRelation: z.string().max(50).optional(),
+  gurujiId: idSchema,
+  preferredDate: dateStringSchema,
+  preferredTime: z.string(),
+  reason: z.string().max(500),
+  priority: PriorityEnum.default("NORMAL"),
+  notes: z.string().max(1000).optional(),
+  isCallerPatient: z.boolean().default(true),
+});
+
+// Family/proxy booking schema
+export const familyBookingSchema = z.object({
+  patientName: nameSchema,
+  patientPhone: phoneSchema.optional(),
+  patientEmail: emailSchema.optional(),
+  patientAge: z.number().min(1).max(120).optional(),
+  patientGender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  bookerName: nameSchema,
+  bookerPhone: phoneSchema,
+  bookerEmail: emailSchema.optional(),
+  relationship: z.string().max(50),
+  gurujiId: idSchema,
+  appointmentDate: dateStringSchema,
+  appointmentTime: z.string(),
+  reason: z.string().max(500),
+  priority: PriorityEnum.default("NORMAL"),
+  notes: z.string().max(1000).optional(),
+  consentGiven: z.boolean().refine(val => val === true, "Patient consent is required"),
+});
+
+// Emergency queue entry schema
+export const emergencyQueueSchema = z.object({
+  patientName: nameSchema,
+  patientPhone: phoneSchema.optional(),
+  emergencyContact: phoneSchema,
+  emergencyContactName: nameSchema,
+  emergencyNature: z.string().max(500),
+  gurujiId: idSchema.optional(), // Can be assigned later
+  priority: z.enum(["HIGH", "URGENT"]).default("URGENT"),
+  notes: z.string().max(1000).optional(),
+  skipNormalQueue: z.boolean().default(true),
+});
+
+// User lookup schema
+export const userLookupSchema = z.object({
+  searchTerm: z.string().min(1, "Search term is required"),
+  searchType: z.enum(["PHONE", "EMAIL", "NAME", "ID"]).default("PHONE"),
+  includeInactive: z.boolean().default(false),
+});
+
+// Reception workflow schema
+export const receptionWorkflowSchema = z.object({
+  step: z.enum(["TRIAGE", "LOOKUP", "REGISTER", "BOOK", "CHECKIN", "QUEUE"]),
+  userCategory: UserCategoryEnum,
+  data: z.record(z.string(), z.unknown()).optional(),
+  coordinatorId: idSchema,
+  timestamp: z.string().default(() => new Date().toISOString()),
+});
+
+// Bulk check-in schema for events
+export const bulkCheckinSchema = z.object({
+  appointmentIds: z.array(idSchema).min(1, "At least one appointment ID is required"),
+  coordinatorId: idSchema,
+  notes: z.string().max(500).optional(),
+  eventType: z.string().max(100).optional(),
+});
+
+// ========================================
+// TYPE EXPORTS FOR NEW SCHEMAS
+// ========================================
+
+export type QuickRegistration = z.infer<typeof quickRegistrationSchema>;
+export type TriageAssessment = z.infer<typeof triageAssessmentSchema>;
+export type PhoneBooking = z.infer<typeof phoneBookingSchema>;
+export type FamilyBooking = z.infer<typeof familyBookingSchema>;
+export type EmergencyQueue = z.infer<typeof emergencyQueueSchema>;
+export type UserLookup = z.infer<typeof userLookupSchema>;
+export type ReceptionWorkflow = z.infer<typeof receptionWorkflowSchema>;
+export type BulkCheckin = z.infer<typeof bulkCheckinSchema>;
+
+export type UserCategory = z.infer<typeof UserCategoryEnum>;
+export type RegistrationMethod = z.infer<typeof RegistrationMethodEnum>;
+export type TechAccessibility = z.infer<typeof TechAccessibilityEnum>;

@@ -1,4 +1,5 @@
 import { Role, AppointmentStatus, QueueStatus, RemedyType, Priority, Prisma } from "@prisma/client"
+import type { QueueEntry } from './queue';
 
 export interface User {
   id: string
@@ -37,24 +38,24 @@ export interface Appointment {
   guruji?: User | null
 }
 
-export interface QueueEntry {
-  id: string
-  appointmentId: string
-  userId: string
-  gurujiId?: string | null
-  position: number
-  status: QueueStatus
-  priority: Priority
-  estimatedWait?: number | null
-  checkedInAt: Date
-  startedAt?: Date | null
-  completedAt?: Date | null
-  notes?: string | null
-  createdAt: Date
-  updatedAt: Date
-  appointment?: Appointment
-  user?: User
-  guruji?: User | null
+// Re-export unified queue types
+export { 
+  type QueueEntry, 
+  type QueueEntryFromDB, 
+  type QueueStats, 
+  type QueueFilters,
+  type QueuePermissions,
+  type QueueSummary,
+  type OfflineQueueEntry,
+  type QueueStatus as QueueStatusType,
+  type QueuePriority,
+  type QueueEvent
+} from './queue';
+
+export interface QueueUpdate {
+  type: 'position_update' | 'status_change' | 'estimate_update'
+  queueEntry: QueueEntry
+  message?: string
 }
 
 export interface ConsultationSession {
@@ -145,12 +146,6 @@ export interface TimeSlot {
   end: string
   available: boolean
   gurujiId?: string
-}
-
-export interface QueueUpdate {
-  type: 'position_update' | 'status_change' | 'estimate_update'
-  queueEntry: QueueEntry
-  message?: string
 }
 
 // Form types for React Hook Form

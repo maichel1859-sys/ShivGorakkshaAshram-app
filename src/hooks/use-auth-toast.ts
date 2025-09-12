@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from 'react';
 import { signIn, signOut, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { useAppStore } from '@/store/app-store';
+import { useAppStore, useAuthLoading } from '@/store/app-store';
 
 interface AuthCredentials {
   email: string;
@@ -19,12 +18,11 @@ interface SignUpData {
 }
 
 export function useAuthToast() {
-  const [isLoading, setIsLoading] = useState(false);
   const { setAuthLoading } = useAppStore();
+  const isLoading = useAuthLoading();
   const router = useRouter();
 
   const signInWithToast = async (credentials: AuthCredentials) => {
-    setIsLoading(true);
     setAuthLoading(true);
 
     try {
@@ -101,13 +99,11 @@ export function useAuthToast() {
       toast.error('An unexpected error occurred. Please try again.', { id: 'auth' });
       return { success: false, error: 'Sign in failed' };
     } finally {
-      setIsLoading(false);
       setAuthLoading(false);
     }
   };
 
   const signUpWithToast = async (data: SignUpData) => {
-    setIsLoading(true);
     setAuthLoading(true);
 
     try {
@@ -148,13 +144,11 @@ export function useAuthToast() {
       toast.error('An unexpected error occurred. Please try again.', { id: 'auth' });
       return { success: false, error: 'Registration failed' };
     } finally {
-      setIsLoading(false);
       setAuthLoading(false);
     }
   };
 
   const signOutWithToast = async () => {
-    setIsLoading(true);
     setAuthLoading(true);
 
     try {
@@ -171,13 +165,11 @@ export function useAuthToast() {
       console.error('Sign out error:', error);
       toast.error('Error signing out. Please try again.', { id: 'auth' });
     } finally {
-      setIsLoading(false);
       setAuthLoading(false);
     }
   };
 
   const signInWithGoogle = async () => {
-    setIsLoading(true);
     setAuthLoading(true);
 
     try {
@@ -193,7 +185,6 @@ export function useAuthToast() {
       console.error('Google sign in error:', error);
       toast.error('Google authentication failed. Please try again.', { id: 'auth' });
     } finally {
-      setIsLoading(false);
       setAuthLoading(false);
     }
   };

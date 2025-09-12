@@ -27,7 +27,6 @@ interface QueueSummary {
 interface QueueState {
   entries: QueueEntry[];
   summaries: QueueSummary[];
-  isLoading: boolean;
   lastUpdate: number | null;
   selectedGurujiId: string | null;
 
@@ -37,7 +36,6 @@ interface QueueState {
   addEntry: (entry: QueueEntry) => void;
   updateEntry: (entryId: string, updates: Partial<QueueEntry>) => void;
   removeEntry: (entryId: string) => void;
-  setLoading: (loading: boolean) => void;
   setSelectedGuruji: (gurujiId: string | null) => void;
   updatePositions: () => void;
   getEntriesByGuruji: (gurujiId: string) => QueueEntry[];
@@ -49,7 +47,6 @@ interface QueueState {
 export const useQueueStore = create<QueueState>((set, get) => ({
   entries: [],
   summaries: [],
-  isLoading: false,
   lastUpdate: null,
   selectedGurujiId: null,
 
@@ -97,8 +94,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     const filteredEntries = entries.filter(entry => entry.id !== entryId);
     get().setEntries(filteredEntries);
   },
-
-  setLoading: (loading) => set({ isLoading: loading }),
 
   setSelectedGuruji: (gurujiId) => set({ selectedGurujiId: gurujiId }),
 

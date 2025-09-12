@@ -122,6 +122,7 @@ export const getCachedGurujiQueueEntries = cache(
             id: true,
             name: true,
             phone: true,
+            email: true,
             dateOfBirth: true,
           },
         },

@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, User, Shield, Bell, Users } from "lucide-react";
+import { GlobalSpinner } from "@/components/loading";
 
 // Server Component for User Settings
 async function UserSettingsServer() {
@@ -119,7 +120,11 @@ export default async function UserSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Suspense fallback={<div>Loading profile settings...</div>}>
+              <Suspense fallback={
+                <div className="flex items-center justify-center py-8">
+                  <GlobalSpinner size="md" message="Loading profile settings..." />
+                </div>
+              }>
                 <UserSettingsServer />
               </Suspense>
             </CardContent>

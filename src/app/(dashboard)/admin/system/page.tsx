@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/layout";
-import { CardSpinner } from "@/components/ui/global-spinner";
+import { CardSpinner } from "@/components/loading";
 import {
   Card,
   CardContent,

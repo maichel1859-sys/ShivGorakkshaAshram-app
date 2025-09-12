@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSocket, SocketEvents } from '@/lib/socket/socket-client';
-import { toast } from 'sonner';
+import { showToast } from '@/lib/toast';
 
 // Notification interface
 interface Notification {
@@ -34,33 +34,32 @@ export const useNotificationsRealtime = () => {
   const showToastNotification = useCallback((notification: Notification) => {
     const toastOptions = {
       duration: 5000,
-      description: notification.message,
     };
 
     switch (notification.type) {
       case 'SUCCESS':
-        toast.success(notification.title, toastOptions);
+        showToast.success(notification.title, toastOptions);
         break;
       case 'WARNING':
-        toast.warning(notification.title, toastOptions);
+        showToast.warning(notification.title, toastOptions);
         break;
       case 'ERROR':
-        toast.error(notification.title, toastOptions);
+        showToast.error(notification.title, toastOptions);
         break;
       case 'APPOINTMENT':
-        toast.info(`📅 ${notification.title}`, toastOptions);
+        showToast.info(`📅 ${notification.title}`, toastOptions);
         break;
       case 'QUEUE':
-        toast.info(`📍 ${notification.title}`, toastOptions);
+        showToast.info(`📍 ${notification.title}`, toastOptions);
         break;
       case 'REMEDY':
-        toast.info(`🌿 ${notification.title}`, toastOptions);
+        showToast.info(`🌿 ${notification.title}`, toastOptions);
         break;
       case 'CONSULTATION':
-        toast.info(`💬 ${notification.title}`, toastOptions);
+        showToast.info(`💬 ${notification.title}`, toastOptions);
         break;
       default:
-        toast.info(notification.title, toastOptions);
+        showToast.info(notification.title, toastOptions);
     }
   }, []);
 
