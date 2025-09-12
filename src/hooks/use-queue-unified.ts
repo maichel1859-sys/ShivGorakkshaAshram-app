@@ -129,12 +129,12 @@ export const useQueueUnified = (options: UseQueueOptions) => {
   } = useQuery({
     queryKey: queueKeys.entries(role),
     queryFn: () => fetchQueueData(role),
-    staleTime: connectionStatus.connected ? 60000 : 30000, // Longer stale time when connected via socket
+    staleTime: connectionStatus.connected ? 120000 : 30000, // Longer stale time when socket is active
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: !connectionStatus.connected, // Only refetch on focus if socket disconnected
     refetchOnReconnect: true,
-    refetchInterval: connectionStatus.connected ? false : refreshInterval, // Only poll when socket disconnected
-    refetchIntervalInBackground: false, // Don't refetch in background to save resources
+    refetchInterval: connectionStatus.connected ? refreshInterval * 2 : refreshInterval, // Slower polling when socket is active, normal when disconnected
+    refetchIntervalInBackground: connectionStatus.connected ? false : true, // Background polling only when socket is down
     retry: (failureCount) => {
       // Smart retry logic
       if (!isOnline) return false;

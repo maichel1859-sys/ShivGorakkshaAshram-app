@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Phone,
   Mail,
+  Play,
 } from "lucide-react";
 import { useGurujiConsultations } from "@/hooks/queries/use-guruji";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
@@ -40,6 +41,11 @@ import type { QueueEntry } from "@/types/queue";
 import React from "react";
 import { RemedyType } from "@prisma/client";
 import { showToast, commonToasts } from "@/lib/toast";
+import { 
+  startConsultation,
+  completeConsultation,
+  getConsultationSessionId 
+} from "@/lib/actions/queue-actions";
 
 interface Patient {
   id: string;
@@ -134,55 +140,76 @@ export default function GurujiConsultationsPage() {
     error: consultationsError,
   } = useGurujiConsultations();
 
-  // Use the shared queue management hook
+  // Use the shared queue management hook with hybrid approach
   const {
     queueEntries,
-    loading: queueLoading,
+    loading,
     refetch: loadQueueEntries,
   } = useQueueUnified({
     role: 'guruji',
     autoRefresh: true,
-    refreshInterval: 15000,
-    enableRealtime: true,
+    refreshInterval: 20000, // Smart polling: 20s fallback, 40s when socket active  
+    enableRealtime: true, // Socket primary with polling backup
   });
 
-  // Queue action handlers
+
+  // Queue action handlers using real server actions
   const handleStartConsultation = async (entry: QueueEntry) => {
     try {
-      // TODO: Implement start consultation logic
-      console.log('Starting consultation for:', entry.user.name);
-      await loadQueueEntries();
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      
+      const result = await startConsultation(formData);
+      if (result.success) {
+        console.log('Consultation started for:', entry.user.name);
+        commonToasts.consultationStarted(entry.user.name || 'Unknown User');
+        await loadQueueEntries(); // Refresh data
+      } else {
+        showToast.error(result.error || 'Failed to start consultation');
+      }
     } catch (error) {
       console.error('Error starting consultation:', error);
+      showToast.error('Failed to start consultation');
     }
   };
 
   const handleCompleteConsultation = async (entry: QueueEntry, onRemedyRequired?: (entry: QueueEntry) => void) => {
     try {
-      // TODO: Implement complete consultation logic
-      console.log('Completing consultation for:', entry.user.name);
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
       
-      // Check if remedy is required
-      if (onRemedyRequired) {
-        onRemedyRequired(entry);
+      const result = await completeConsultation(formData);
+      if (result.success) {
+        console.log('Consultation completed for:', entry.user.name);
+        commonToasts.consultationCompleted(entry.user.name || 'Unknown User');
+        await loadQueueEntries(); // Refresh data
+      } else {
+        // Check if error is about missing remedy
+        if (result.error?.includes('remedy') && onRemedyRequired) {
+          showToast.error('Please prescribe a remedy before completing the consultation');
+          onRemedyRequired(entry);
+        } else {
+          showToast.error(result.error || 'Failed to complete consultation');
+        }
       }
-      await loadQueueEntries();
     } catch (error) {
       console.error('Error completing consultation:', error);
+      showToast.error('Failed to complete consultation');
     }
   };
 
   const handlePrescribeRemedy = async (entry: QueueEntry, onSuccess?: (consultationSessionId: string, entry: QueueEntry) => void) => {
     try {
-      // TODO: Implement prescribe remedy logic
-      console.log('Prescribing remedy for:', entry.user.name);
-      const mockConsultationSessionId = `consultation-${Date.now()}`;
-      
-      if (onSuccess) {
-        onSuccess(mockConsultationSessionId, entry);
+      const sessionResult = await getConsultationSessionId(entry.id);
+      if (sessionResult.success && sessionResult.consultationSessionId && onSuccess) {
+        console.log('Opening remedy prescription for:', entry.user.name);
+        onSuccess(sessionResult.consultationSessionId, entry);
+      } else {
+        showToast.error('No active consultation session found');
       }
     } catch (error) {
-      console.error('Error prescribing remedy:', error);
+      console.error('Error preparing remedy prescription:', error);
+      showToast.error('Failed to prepare remedy prescription');
     }
   };
 
@@ -266,7 +293,7 @@ export default function GurujiConsultationsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  if (queueLoading || consultationsLoading) {
+  if (loading || consultationsLoading) {
     return <PageSpinner message="Loading consultations..." />;
   }
 
@@ -451,8 +478,9 @@ export default function GurujiConsultationsPage() {
                       <Button 
                         size="sm" 
                         onClick={() => handleStartConsultation(entry)}
-                        className="flex-1 sm:flex-none"
+                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
                       >
+                        <Play className="h-3 w-3 mr-1" />
                         Start Consultation
                       </Button>
                     </div>

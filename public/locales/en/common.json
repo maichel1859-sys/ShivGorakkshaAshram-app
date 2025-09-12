@@ -16,7 +16,19 @@
     "qrScanner": "QR Scanner",
     "checkIn": "Check In",
     "myQueue": "My Queue",
-    "myRemedies": "My Remedies"
+    "myRemedies": "My Remedies",
+    "system": "System",
+    "qrCodes": "QR Codes",
+    "database": "Database",
+    "monitoring": "Monitoring",
+    "notifications": "Notifications",
+    "performance": "Performance",
+    "myAppointments": "My Appointments",
+    "queueManagement": "Queue Management",
+    "myConsultations": "My Consultations",
+    "main": "Main",
+    "systemTechnical": "System & Technical",
+    "configuration": "Configuration"
   },
   "dashboard": {
     "welcome": "Welcome",
@@ -31,7 +43,20 @@
     "gurujiDashboard": "Guruji Dashboard",
     "spiritualConsultation": "Spiritual consultation and guidance",
     "userDashboard": "User Dashboard",
-    "yourAppointments": "Your appointments and consultations"
+    "yourAppointments": "Your appointments and consultations",
+    "adminDescription": "Monitor system performance and manage operations",
+    "systemOnline": "System Online",
+    "totalUsers": "Total Users",
+    "activeUsers": "active users",
+    "statistics": "Dashboard Statistics",
+    "welcomeBack": "Welcome back",
+    "todayOverview": "Here's what's happening with your appointments today",
+    "failedToLoad": "Failed to load dashboard data",
+    "coordinatorDashboard": "Coordinator Dashboard",
+    "gurujiDashboard": "Guruji Dashboard",
+    "currentAppointments": "Current Appointments",
+    "pendingTasks": "Pending Tasks",
+    "quickActions": "Quick Actions"
   },
   "queue": {
     "position": "Position",
@@ -89,7 +114,9 @@
     "address": "Address",
     "age": "Age",
     "gender": "Gender",
-    "notes": "Notes"
+    "notes": "Notes",
+    "admin": "Admin",
+    "searchPlaceholder": "Search appointments, users, remedies..."
   },
   "auth": {
     "signIn": "Sign In",
@@ -103,7 +130,11 @@
     "alreadyHaveAccount": "Already have an account?",
     "dontHaveAccount": "Don't have an account?",
     "welcomeBack": "Welcome Back",
-    "getStarted": "Get Started"
+    "getStarted": "Get Started",
+    "signingIn": "Signing you in...",
+    "signInToAccount": "Sign in to your account",
+    "enterCredentials": "Enter your credentials to access the system",
+    "redirecting": "Redirecting to dashboard..."
   },
   "remedies": {
     "title": "Remedies",

@@ -10,8 +10,9 @@ import { useAppStore } from "@/store/app-store";
 import { useOfflineSync, useNetworkStatus, usePWA } from "@/hooks";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatus } from "@/components/ui/network-status";
-import { IOSPWAPrompt } from "@/components/ui/ios-pwa-prompt";
+import { UniversalPWAPrompt } from "@/components/ui/universal-pwa-prompt";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { registerServiceWorker } from "@/lib/pwa";
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -29,6 +30,9 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     setLoading(false); // App is ready
     setAuthLoading(false); // Auth is ready
 
+    // Register Service Worker
+    registerServiceWorker();
+
     // Log PWA status for debugging
     if (process.env.NODE_ENV === "development") {
       console.log("PWA Status:", { isInstalled, canInstall });
@@ -42,8 +46,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       {/* Enhanced Network Status Indicator */}
       <NetworkStatus />
       
-      {/* iOS PWA Installation Prompt */}
-      <IOSPWAPrompt />
+      {/* Universal Cross-Platform PWA Installation Prompt */}
+      <UniversalPWAPrompt />
     </>
   );
 }

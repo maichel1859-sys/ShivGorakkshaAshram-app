@@ -177,7 +177,7 @@ async function AppointmentListContent({
                           "appointmentId"
                         ) as string;
                         if (appointmentId) {
-                          await cancelAppointment(appointmentId);
+                          await cancelAppointment(appointmentId, "Cancelled by user");
                         }
                       }}
                     >

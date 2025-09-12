@@ -24,6 +24,7 @@ import { TriageAssessmentComponent } from "./triage-assessment";
 import { QuickRegistrationForm } from "./quick-registration-form";
 import { UserLookupComponent } from "./user-lookup";
 import { EmergencyQueueEntry } from "./emergency-queue-entry";
+import { ManualCheckIn } from "./manual-checkin";
 import { toast } from "sonner";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
 
@@ -35,6 +36,7 @@ type WorkflowStep =
   | "emergency"
   | "booking" 
   | "checkin" 
+  | "manual-checkin"
   | "complete";
 
 interface WorkflowData {
@@ -158,6 +160,7 @@ export function ReceptionDashboard() {
       case "emergency": return "Emergency Registration";
       case "booking": return "Book Appointment";
       case "checkin": return "Check-in Patient";
+      case "manual-checkin": return "Manual Check-in";
       case "complete": return "Process Complete";
       default: return "Reception Desk";
     }
@@ -200,6 +203,9 @@ export function ReceptionDashboard() {
             onCancel={resetWorkflow}
           />
         );
+      
+      case "manual-checkin":
+        return <ManualCheckIn />;
       
       case "complete":
         return <CompletionScreen onReset={resetWorkflow} />;
@@ -269,7 +275,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Button
               onClick={() => onStepSelect("triage")}
               className="h-24 flex-col gap-2 text-left"
@@ -291,6 +297,18 @@ function WelcomeScreen({ onStepSelect, stats }: {
               <div>
                 <div className="font-medium">Find Existing Patient</div>
                 <div className="text-sm text-gray-500">Search by phone/name</div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => onStepSelect("manual-checkin")}
+              className="h-24 flex-col gap-2 text-left border-green-200 hover:bg-green-50"
+              variant="outline"
+            >
+              <UserCheck className="h-8 w-8 text-green-500" />
+              <div>
+                <div className="font-medium text-green-700">Manual Check-in</div>
+                <div className="text-sm text-green-500">Help with appointment check-in</div>
               </div>
             </Button>
 

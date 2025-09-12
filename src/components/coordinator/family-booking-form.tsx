@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { familyBookingSchema, type FamilyBooking } from "@/lib/validation/unified-schemas";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FamilyBookingFormProps {
   onSuccess?: (bookingData: FamilyBooking) => void;
@@ -41,6 +42,7 @@ export function FamilyBookingForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const isMobile = useIsMobile();
 
   const {
     register,
@@ -130,13 +132,13 @@ export function FamilyBookingForm({
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-4 sm:pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
             <Users className="h-6 w-6 text-blue-600" />
-            <CardTitle className="text-xl">Family/Proxy Booking</CardTitle>
+            <CardTitle className={isMobile ? "text-lg" : "text-xl"}>Family/Proxy Booking</CardTitle>
           </div>
-          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 self-start sm:self-auto">
             <Heart className="h-3 w-3 mr-1" />
             Family Care
           </Badge>
@@ -145,14 +147,14 @@ export function FamilyBookingForm({
         {/* Progress Steps */}
         <div className="flex items-center justify-between mt-4">
           {[1, 2, 3, 4].map((step) => (
-            <div key={step} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+            <div key={step} className="flex items-center flex-1">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-medium touch-target ${
                 currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {step}
               </div>
               {step < 4 && (
-                <div className={`flex-1 h-px mx-2 ${
+                <div className={`flex-1 h-px mx-1 sm:mx-2 ${
                   currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
                 }`} />
               )}
@@ -178,14 +180,14 @@ export function FamilyBookingForm({
                 <h3 className="text-lg font-medium">Patient Information</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="patientName">Patient Full Name *</Label>
+                  <Label htmlFor="patientName" className="text-sm font-medium">Patient Full Name *</Label>
                   <Input
                     id="patientName"
                     {...register("patientName")}
                     placeholder="Enter patient's full name"
-                    className={errors.patientName ? "border-red-500" : ""}
+                    className={`h-11 touch-target ${errors.patientName ? "border-red-500" : ""}`}
                   />
                   {errors.patientName && (
                     <p className="text-sm text-red-500">{errors.patientName.message}</p>
@@ -262,7 +264,7 @@ export function FamilyBookingForm({
                 <h3 className="text-lg font-medium">Your Information (Person Booking)</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="bookerName">Your Full Name *</Label>
                   <Input
@@ -343,7 +345,7 @@ export function FamilyBookingForm({
                 <h3 className="text-lg font-medium">Appointment Details</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gurujiId">Select Guruji *</Label>
                   <Select onValueChange={(value) => setValue("gurujiId", value)}>
@@ -523,39 +525,40 @@ export function FamilyBookingForm({
 
           {/* Navigation Buttons */}
           <Separator />
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex gap-2 order-2 sm:order-1">
               {currentStep > 1 && (
-                <Button type="button" variant="outline" onClick={prevStep}>
+                <Button type="button" variant="outline" onClick={prevStep} className="h-11 touch-target">
                   Previous
                 </Button>
               )}
               {onCancel && (
-                <Button type="button" variant="ghost" onClick={onCancel}>
+                <Button type="button" variant="ghost" onClick={onCancel} className="h-11 touch-target">
                   Cancel
                 </Button>
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 order-1 sm:order-2">
               {currentStep < 4 ? (
-                <Button type="button" onClick={nextStep}>
+                <Button type="button" onClick={nextStep} className="h-11 px-6 touch-target">
                   Next
                 </Button>
               ) : (
                 <Button 
                   type="submit" 
                   disabled={isSubmitting || !watchedFields.consentGiven}
+                  className="h-11 px-6 touch-target"
                 >
                   {isSubmitting ? (
                     <>
                       <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Booking Appointment...
+                      {isMobile ? "Booking..." : "Booking Appointment..."}
                     </>
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Confirm Booking
+                      {isMobile ? "Confirm" : "Confirm Booking"}
                     </>
                   )}
                 </Button>

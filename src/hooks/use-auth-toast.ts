@@ -54,40 +54,39 @@ export function useAuthToast() {
       }
 
       if (result?.ok) {
-        toast.success('Welcome back! Signing you in...', { id: 'auth' });
-
-        // Get updated session to check user role
+        // Wait a moment for NextAuth session to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Get updated session to check user role  
         const session = await getSession();
 
         if (session?.user) {
-          // Show role-specific welcome message
+          // Show single role-specific welcome message with shorter duration
           const roleMessages = {
-            ADMIN: 'Welcome, Administrator! Redirecting to admin dashboard...',
-            COORDINATOR: 'Welcome, Coordinator! Redirecting to coordinator dashboard...',
-            GURUJI: 'Welcome, Guruji! Redirecting to guruji dashboard...',
-            USER: 'Welcome to ShivGorakksha Ashram! Redirecting to your dashboard...',
+            ADMIN: 'Welcome, Administrator!',
+            COORDINATOR: 'Welcome, Coordinator!',
+            GURUJI: 'Welcome, Guruji!',
+            USER: 'Welcome to ShivGorakksha Ashram!',
           };
 
-          const welcomeMessage = roleMessages[session.user.role as keyof typeof roleMessages] || 'Welcome! Redirecting...';
-          toast.success(welcomeMessage, { id: 'auth' });
+          const welcomeMessage = roleMessages[session.user.role as keyof typeof roleMessages] || 'Welcome!';
+          toast.success(welcomeMessage, { id: 'auth', duration: 1500 });
 
-          // Redirect based on user role
-          switch (session.user.role) {
-            case 'ADMIN':
-              router.push('/admin');
-              break;
-            case 'COORDINATOR':
-              router.push('/coordinator');
-              break;
-            case 'GURUJI':
-              router.push('/guruji');
-              break;
-            default:
-              router.push('/user');
-          }
+          // Immediate redirect based on user role
+          const redirectPath = (() => {
+            switch (session.user.role) {
+              case 'ADMIN': return '/admin';
+              case 'COORDINATOR': return '/coordinator';
+              case 'GURUJI': return '/guruji';
+              default: return '/user';
+            }
+          })();
+
+          // Use router.replace for immediate navigation without history
+          router.replace(redirectPath);
         } else {
           // Fallback redirect
-          router.push('/');
+          router.replace('/');
         }
 
         return { success: true };

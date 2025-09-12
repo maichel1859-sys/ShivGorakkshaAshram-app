@@ -5,11 +5,16 @@ import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
 import { revalidatePath } from 'next/cache';
 import { validateLocationQRData } from '@/lib/utils/qr-validation';
+import { calculateDistance } from '@/lib/utils/geolocation';
 
 interface QRScanData {
   locationId: string; // e.g., "GURUJI_LOC_001"
   locationName: string;
   timestamp: number;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 interface TimeWindowConfig {
@@ -23,10 +28,10 @@ const TIME_WINDOW_CONFIG: TimeWindowConfig = {
 };
 
 /**
- * Process QR code scan for appointment check-in (Simplified version)
- * This works with the current schema while we implement the full location system
+ * Process QR code scan for appointment check-in with geolocation validation
+ * Users must be within 100m of the QR code location to scan successfully
  */
-export async function processQRScanSimple(qrData: string) {
+export async function processQRScanSimple(qrData: string, userCoordinates?: { latitude: number; longitude: number }) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -40,10 +45,28 @@ export async function processQRScanSimple(qrData: string) {
       return { success: false, error: validation.error || 'Invalid QR code' };
     }
 
-    const { locationId, locationName, timestamp } = validation.data!;
+    const { locationId, locationName, timestamp, coordinates: qrCoordinates } = validation.data!;
     const scanTime = new Date(timestamp);
 
     console.log(`QR Scan attempt - User: ${session.user.id}, Location: ${locationName} (${locationId}), Time: ${scanTime.toISOString()}`);
+
+    // Geolocation validation - user must be within 100 meters of the QR code location
+    if (userCoordinates && qrCoordinates) {
+      const distance = calculateDistance(userCoordinates, qrCoordinates);
+      const maxDistance = 100; // 100 meters
+      
+      if (distance > maxDistance) {
+        return { 
+          success: false, 
+          error: `You are ${Math.round(distance)}m away from the scanning location. Please move within ${maxDistance}m to scan the QR code.` 
+        };
+      }
+      
+      console.log(`✅ Location validation passed - Distance: ${Math.round(distance)}m`);
+    } else if (userCoordinates) {
+      // If user provided coordinates but QR doesn't have coordinates (legacy QR)
+      console.log('⚠️ Warning: QR code does not contain location data');
+    }
 
     // Check if user has appointment for TODAY
     const today = new Date();
@@ -276,7 +299,11 @@ export async function createTestQRCode(): Promise<string> {
   const qrData = {
     locationId: 'GURUJI_LOC_001',
     locationName: 'Main Consultation Room',
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    coordinates: {
+      latitude: 19.0760,
+      longitude: 72.8777
+    }
   };
   return JSON.stringify(qrData);
 }

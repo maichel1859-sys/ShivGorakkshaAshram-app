@@ -2,6 +2,10 @@ interface LocationQRData {
   locationId: string;
   locationName: string;
   timestamp: number;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 /**

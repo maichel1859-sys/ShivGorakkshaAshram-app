@@ -6,14 +6,25 @@ import { toast } from "sonner";
 import {
   getAppointments,
   cancelAppointment,
+  rescheduleAppointment,
 } from "@/lib/actions/appointment-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/loading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, User, RefreshCw, Plus } from "lucide-react";
-import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Calendar, Clock, User, RefreshCw, Plus, CalendarIcon } from "lucide-react";
+import { format, addDays, isAfter } from "date-fns";
 import { AppointmentStatus } from "@prisma/client";
 
 interface Appointment {
@@ -54,6 +65,11 @@ export function AppointmentManager() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -152,7 +168,7 @@ export function AppointmentManager() {
       setCancellingId(appointmentId);
       startTransition(async () => {
         try {
-          await cancelAppointment(appointmentId);
+          await cancelAppointment(appointmentId, "Cancelled by user");
           toast.success("Appointment cancelled successfully");
           await fetchAppointments();
         } catch (error) {
@@ -167,6 +183,77 @@ export function AppointmentManager() {
         }
       });
     }
+  };
+
+  const handleReschedule = (appointmentId: string) => {
+    setSelectedAppointmentId(appointmentId);
+    // Set default date to tomorrow
+    const tomorrow = addDays(new Date(), 1);
+    setRescheduleDate(format(tomorrow, "yyyy-MM-dd"));
+    setRescheduleTime("09:00");
+    setShowRescheduleDialog(true);
+  };
+
+  const handleRescheduleSubmit = () => {
+    if (!selectedAppointmentId || !rescheduleDate || !rescheduleTime) {
+      toast.error("Please select both date and time");
+      return;
+    }
+
+    // Validate that the new date is not in the past
+    const selectedDateTime = new Date(`${rescheduleDate}T${rescheduleTime}:00`);
+    const now = new Date();
+    
+    if (!isAfter(selectedDateTime, now)) {
+      toast.error("Please select a future date and time");
+      return;
+    }
+
+    setReschedulingId(selectedAppointmentId);
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append('date', rescheduleDate);
+        formData.append('time', rescheduleTime);
+        
+        await rescheduleAppointment(selectedAppointmentId!, formData);
+        toast.success("Appointment rescheduled successfully");
+        setShowRescheduleDialog(false);
+        setSelectedAppointmentId(null);
+        setRescheduleDate("");
+        setRescheduleTime("");
+        await fetchAppointments();
+      } catch (error) {
+        console.error("Failed to reschedule appointment:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to reschedule appointment"
+        );
+      } finally {
+        setReschedulingId(null);
+      }
+    });
+  };
+
+  const handleRescheduleCancel = () => {
+    setShowRescheduleDialog(false);
+    setSelectedAppointmentId(null);
+    setRescheduleDate("");
+    setRescheduleTime("");
+    setReschedulingId(null);
+  };
+
+  // Generate time slots for reschedule dialog
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 6; hour < 22; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(timeString);
+      }
+    }
+    return slots;
   };
 
   const statusOptions = [
@@ -336,8 +423,15 @@ export function AppointmentManager() {
                     {(appointment.status === "BOOKED" ||
                       appointment.status === "CONFIRMED") && (
                       <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline">
-                          Reschedule
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleReschedule(appointment.id)}
+                          disabled={reschedulingId === appointment.id || isPending}
+                        >
+                          {reschedulingId === appointment.id
+                            ? "Rescheduling..."
+                            : "Reschedule"}
                         </Button>
                         <Button
                           size="sm"
@@ -372,6 +466,81 @@ export function AppointmentManager() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              Select a new date and time for your appointment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-date">Date</Label>
+              <div className="relative">
+                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="reschedule-date"
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  min={format(addDays(new Date(), 1), "yyyy-MM-dd")}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-time">Time</Label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <select
+                  id="reschedule-time"
+                  value={rescheduleTime}
+                  onChange={(e) => setRescheduleTime(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-input bg-background rounded-md text-sm"
+                >
+                  <option value="">Select time</option>
+                  {generateTimeSlots().map((time) => (
+                    <option key={time} value={time}>
+                      {format(new Date(`2024-01-01T${time}:00`), "h:mm a")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {rescheduleDate && rescheduleTime && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>New appointment:</strong><br />
+                  {format(new Date(rescheduleDate), "EEEE, MMMM do, yyyy")} at{" "}
+                  {format(new Date(`2024-01-01T${rescheduleTime}:00`), "h:mm a")}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleRescheduleCancel}
+              disabled={reschedulingId !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRescheduleSubmit}
+              disabled={
+                !rescheduleDate ||
+                !rescheduleTime ||
+                reschedulingId !== null
+              }
+            >
+              {reschedulingId ? "Rescheduling..." : "Reschedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

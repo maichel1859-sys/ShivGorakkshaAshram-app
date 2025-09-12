@@ -30,7 +30,11 @@
       "Bash(timeout 600 npm run build)",
       "Bash(git checkout:*)",
       "Bash(netstat:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(timeout 30 npx tsc --noEmit --incremental false)",
+      "Bash(ls:*)",
+      "Bash(timeout 15 npm run lint)",
+      "Bash(timeout 300 npx next build)"
     ],
     "deny": []
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,81 +11,145 @@ import {
   Users,
   CheckCircle,
   Play,
-  Square,
   Timer,
-  Pill,
   Phone,
   MessageSquare,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
+import { ConsultationTimer } from "@/components/guruji/consultation-timer";
 import { PageSpinner } from "@/components/loading";
 import { useLoadingState } from "@/store";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
 import type { QueueEntry } from "@/types/queue";
 import { showToast, commonToasts } from "@/lib/toast";
+import { 
+  startConsultation,
+  completeConsultation,
+  getConsultationSessionId 
+} from "@/lib/actions/queue-actions";
 
 export default function GurujiDashboard() {
   const { data: session } = useSession();
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
+  const [startingConsultationId, setStartingConsultationId] = useState<string | null>(null);
+  const [prescribingForId, setPrescribingForId] = useState<string | null>(null);
+  const [consultationStartTime, setConsultationStartTime] = useState<Date | null>(null);
+  const [activeConsultationId, setActiveConsultationId] = useState<string | null>(null);
   
   // Use simple toast utility
 
-  // Use unified queue hook with React Query caching and socket fallback
+  // Use unified queue hook with hybrid approach: socket primary + polling fallback
   const {
     queueEntries,
     stats,
+    refetch,
+    invalidateCache,
   } = useQueueUnified({
     role: 'guruji',
     autoRefresh: true,
-    refreshInterval: 15000, // More frequent for guruji
-    enableRealtime: true,
+    refreshInterval: 15000, // Smart polling: 15s fallback, 30s when socket active
+    enableRealtime: true, // Socket primary with polling backup
   });
+
+
 
   // Queue action handlers
   const handleStartConsultation = async (entry: QueueEntry) => {
+    setStartingConsultationId(entry.id);
     try {
-      // TODO: Implement start consultation logic
-      console.log('Starting consultation for:', entry.user.name);
-      commonToasts.consultationStarted(entry.user.name || 'Unknown User');
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      
+      const result = await startConsultation(formData);
+      
+      if (result.success) {
+        console.log('Consultation started for:', entry.user.name);
+        commonToasts.consultationStarted(entry.user.name || 'Unknown User');
+        
+        // Invalidate cache and refetch data
+        invalidateCache();
+        await refetch();
+        
+        return result;
+      } else {
+        throw new Error(result.error || 'Failed to start consultation');
+      }
     } catch (err) {
       console.error('Error starting consultation:', err);
-      showToast.error('Failed to start consultation');
+      showToast.error(err instanceof Error ? err.message : 'Failed to start consultation');
+      throw err;
+    } finally {
+      setStartingConsultationId(null);
     }
   };
 
   const handleCompleteConsultation = async (entry: QueueEntry, onRemedyRequired?: (entry: QueueEntry) => void) => {
     try {
-      // TODO: Implement complete consultation logic
-      console.log('Completing consultation for:', entry.user.name);
-      commonToasts.consultationCompleted(entry.user.name || 'Unknown User');
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
       
-      // Check if remedy is required
-      if (onRemedyRequired) {
-        onRemedyRequired(entry);
+      const result = await completeConsultation(formData);
+      
+      if (result.success) {
+        console.log('Consultation completed for:', entry.user.name);
+        commonToasts.consultationCompleted(entry.user.name || 'Unknown User');
+        
+        // Invalidate cache and refetch data
+        invalidateCache();
+        await refetch();
+        
+        return result;
+      } else {
+        // Check if error is about missing remedy
+        if (result.error?.includes('remedy')) {
+          showToast.error('Please prescribe a remedy before completing the consultation');
+          // Trigger remedy prescription flow
+          if (onRemedyRequired) {
+            onRemedyRequired(entry);
+          }
+        } else {
+          throw new Error(result.error || 'Failed to complete consultation');
+        }
       }
     } catch (err) {
       console.error('Error completing consultation:', err);
-      showToast.error('Failed to complete consultation');
+      showToast.error(err instanceof Error ? err.message : 'Failed to complete consultation');
+      throw err;
     }
   };
 
   const handlePrescribeRemedy = async (entry: QueueEntry, onSuccess?: (consultationSessionId: string, entry: QueueEntry) => void) => {
+    setPrescribingForId(entry.id);
     try {
-      // TODO: Implement prescribe remedy logic
-      console.log('Prescribing remedy for:', entry.user.name);
-      const mockConsultationSessionId = `consultation-${Date.now()}`;
+      // Get the consultation session ID
+      const sessionResult = await getConsultationSessionId(entry.id);
       
-      if (onSuccess) {
-        onSuccess(mockConsultationSessionId, entry);
+      if (sessionResult.success && sessionResult.consultationSessionId) {
+        console.log('Opening remedy prescription for:', entry.user.name);
+        
+        if (onSuccess) {
+          onSuccess(sessionResult.consultationSessionId, entry);
+        }
+      } else {
+        // If no active consultation session, start one first
+        const startResult = await handleStartConsultation(entry);
+        if (startResult.success && startResult.consultationSessionId) {
+          if (onSuccess) {
+            onSuccess(startResult.consultationSessionId, entry);
+          }
+        } else {
+          throw new Error('No active consultation session found');
+        }
       }
     } catch (err) {
-      console.error('Error prescribing remedy:', err);
-      showToast.error('Failed to prescribe remedy');
+      console.error('Error preparing remedy prescription:', err);
+      showToast.error(err instanceof Error ? err.message : 'Failed to prepare remedy prescription');
+    } finally {
+      setPrescribingForId(null);
     }
   };
 
@@ -95,19 +159,38 @@ export default function GurujiDashboard() {
 
   // Custom handlers that integrate with dashboard-specific state
   const onStartConsultation = async (entry: QueueEntry) => {
-    await handleStartConsultation(entry);
-    setSessionActive(true);
-    setSessionStartTime(new Date());
+    try {
+      const result = await handleStartConsultation(entry);
+      if (result && result.success) {
+        // Set consultation tracking info
+        setConsultationStartTime(new Date());
+        setActiveConsultationId(result.consultationSessionId || `session-${entry.id}`);
+      }
+    } catch {
+      // Error already handled in handleStartConsultation
+    }
   };
 
-  const onCompleteConsultation = async (entry: QueueEntry) => {
-    await handleCompleteConsultation(entry, (entry) => {
-      // Handle remedy requirement
+  const onCompleteConsultation = async (entry: QueueEntry, skipRemedy = false) => {
+    if (!skipRemedy) {
+      // Show remedy prescription dialog first
       setSelectedQueueEntry(entry);
       setPrescribeModalOpen(true);
-    });
-    setSessionActive(false);
-    setSessionStartTime(null);
+      return;
+    }
+    
+    try {
+      // Complete without remedy
+      const result = await handleCompleteConsultation(entry);
+      
+      if (result && result.success) {
+        // Clear consultation state
+        setConsultationStartTime(null);
+        setActiveConsultationId(null);
+      }
+    } catch {
+      // Error already handled in handleCompleteConsultation
+    }
   };
 
   const onPrescribeRemedy = async (entry: QueueEntry) => {
@@ -118,14 +201,6 @@ export default function GurujiDashboard() {
     });
   };
 
-  const getSessionDuration = () => {
-    if (!sessionStartTime) return "0:00";
-    const now = new Date();
-    const diff = now.getTime() - sessionStartTime.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -144,6 +219,36 @@ export default function GurujiDashboard() {
 
   // Get current patient from in-progress entries
   const currentPatient = inProgressEntries[0] || null;
+
+  // Create consultation session data for timer (when patient is in progress)
+  const activeConsultation = useMemo(() => {
+    if (!currentPatient || !consultationStartTime) return null;
+    
+    return {
+      id: activeConsultationId || `temp-${currentPatient.id}`,
+      appointmentId: currentPatient.appointment?.id || currentPatient.id,
+      patientId: currentPatient.user.id,
+      gurujiId: session?.user?.id || '',
+      startTime: consultationStartTime.toISOString(),
+      patient: {
+        id: currentPatient.user.id,
+        name: currentPatient.user.name,
+        phone: currentPatient.user.phone || null,
+      }
+    };
+  }, [currentPatient, consultationStartTime, activeConsultationId, session?.user?.id]);
+
+  // Update consultation start time when patient consultation begins
+  useEffect(() => {
+    if (currentPatient && !consultationStartTime) {
+      // Set start time when first patient becomes current
+      setConsultationStartTime(new Date());
+    } else if (!currentPatient && consultationStartTime) {
+      // Clear start time when no current patient
+      setConsultationStartTime(null);
+      setActiveConsultationId(null);
+    }
+  }, [currentPatient, consultationStartTime]);
 
   const isLoading = useLoadingState("queue-loading");
   
@@ -164,12 +269,12 @@ export default function GurujiDashboard() {
           </p>
         </div>
 
-        {/* Session Timer */}
-        {sessionActive && (
+        {/* Active Consultation Indicator */}
+        {currentPatient && (
           <div className="flex items-center space-x-2 bg-green-50 p-3 rounded-lg">
             <Timer className="h-5 w-5 text-green-600" />
-            <span className="font-mono text-lg font-semibold text-green-700">
-              {getSessionDuration()}
+            <span className="text-sm text-green-700">
+              Active consultation in progress
             </span>
           </div>
         )}
@@ -232,62 +337,80 @@ export default function GurujiDashboard() {
 
       {/* Current Patient Section */}
       {currentPatient && (
-        <Card className="border-green-200 bg-green-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-700">
-              <Play className="h-5 w-5" />
-              Current Consultation
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-green-100 text-green-700">
-                    {currentPatient.user.name
-                      ?.split(" ")
-                      .map((n: string) => n[0])
-                      .join("")
-                      .toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold text-green-800">
-                    {currentPatient.user.name || 'Unknown User'}
-                  </h3>
-                  <p className="text-sm text-green-600">
-                    Priority: {currentPatient.priority || 'NORMAL'}
-                  </p>
-                  <p className="text-xs text-green-500">
-                    Started: {sessionStartTime?.toLocaleTimeString()}
-                  </p>
-                  {currentPatient.user.phone && (
-                    <p className="text-xs text-green-500">
-                      Phone: {currentPatient.user.phone}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Patient Info Card */}
+          <Card className="border-green-200 bg-green-50/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-700">
+                <Play className="h-5 w-5" />
+                Current Consultation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback className="bg-green-100 text-green-700">
+                      {currentPatient.user.name
+                        ?.split(" ")
+                        .map((n: string) => n[0])
+                        .join("")
+                        .toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-semibold text-green-800">
+                      {currentPatient.user.name || 'Unknown User'}
+                    </h3>
+                    <p className="text-sm text-green-600">
+                      Priority: {currentPatient.priority || 'NORMAL'}
                     </p>
-                  )}
+                    {currentPatient.user.phone && (
+                      <p className="text-xs text-green-500">
+                        Phone: {currentPatient.user.phone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Complete Button */}
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => onPrescribeRemedy(currentPatient)}
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={prescribingForId === currentPatient.id}
+                  >
+                    {prescribingForId === currentPatient.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Opening...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Complete
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={() => onPrescribeRemedy(currentPatient)}
-                  variant="outline"
-                  className="border-green-600 text-green-700 hover:bg-green-50"
-                >
-                  <Pill className="h-4 w-4 mr-2" />
-                  Prescribe Remedy
-                </Button>
-                <Button
-                  onClick={() => onCompleteConsultation(currentPatient)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Square className="h-4 w-4 mr-2" />
-                  Complete Session
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Consultation Timer */}
+          {activeConsultation && (
+            <ConsultationTimer 
+              consultation={activeConsultation}
+              onUpdate={(updatedConsultation) => {
+                if (updatedConsultation.endTime) {
+                  // Consultation completed, refresh data
+                  invalidateCache();
+                  refetch();
+                }
+              }}
+            />
+          )}
+        </div>
       )}
 
       {/* Queue Section */}
@@ -362,9 +485,19 @@ export default function GurujiDashboard() {
                         onClick={() => onStartConsultation(patient)}
                         size="sm"
                         className="bg-primary hover:bg-primary/90"
+                        disabled={startingConsultationId === patient.id}
                       >
-                        <Play className="h-4 w-4 mr-1" />
-                        Start
+                        {startingConsultationId === patient.id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-1" />
+                            Start
+                          </>
+                        )}
                       </Button>
                     )}
                     <Button 
@@ -406,9 +539,23 @@ export default function GurujiDashboard() {
           onClose={() => {
             setPrescribeModalOpen(false);
             setSelectedQueueEntry(null);
+            setConsultationSessionId(null);
           }}
           consultationId={consultationSessionId}
           patientName={selectedQueueEntry.user.name || "Patient"}
+          onSuccess={() => {
+            // Clear consultation state and refresh queue data
+            setConsultationStartTime(null);
+            setActiveConsultationId(null);
+            invalidateCache();
+            refetch();
+          }}
+          onSkip={() => {
+            // Complete consultation without remedy
+            onCompleteConsultation(selectedQueueEntry, true);
+            setSelectedQueueEntry(null);
+            setConsultationSessionId(null);
+          }}
         />
       )}
     </div>

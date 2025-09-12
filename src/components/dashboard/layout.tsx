@@ -56,9 +56,11 @@ export function DashboardLayout({
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={title} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-muted/20">
-          <div className="max-w-7xl mx-auto">
-            {children}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-8 bg-muted/20 mobile-scroll">
+          <div className="max-w-7xl mx-auto w-full">
+            <div className="section-spacing">
+              {children}
+            </div>
           </div>
         </main>
       </div>
