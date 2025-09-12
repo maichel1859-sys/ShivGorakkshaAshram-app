@@ -23,6 +23,7 @@ import {
 import { useUserDashboard } from "@/hooks/queries";
 import { useAppStore } from "@/store/app-store";
 import { PageSpinner } from "@/components/loading";
+import { useLanguage } from "@/contexts/LanguageContext";
 // LoadingSpinner available if needed
 // import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
@@ -43,6 +44,7 @@ export default function UserDashboard() {
   const { isLoading: authLoading, shouldRedirect, redirectTo } = useUserRedirect();
   const { data: dashboardData, isLoading, error } = useUserDashboard();
   const { setLoadingState } = useAppStore();
+  const { t } = useLanguage();
 
   // Handle authentication redirect
   React.useEffect(() => {
@@ -59,7 +61,7 @@ export default function UserDashboard() {
 
   // Show loading while checking auth or loading data
   if (isLoading || authLoading) {
-    return <PageSpinner message="Loading dashboard..." />;
+    return <PageSpinner message={t('common.loading', 'Loading dashboard...')} />;
   }
 
   // Don't render anything while redirecting
@@ -74,7 +76,7 @@ export default function UserDashboard() {
           <div className="text-center">
             <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
             <p className="text-muted-foreground">
-              Failed to load dashboard data
+              {t('dashboard.failedToLoad', 'Failed to load dashboard data')}
             </p>
           </div>
         </div>
@@ -93,10 +95,10 @@ export default function UserDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Welcome back, {user?.name?.split(" ")[0]}!
+            {t('dashboard.welcomeBack', 'Welcome back')}, {user?.name?.split(" ")[0]}!
           </h2>
           <p className="text-muted-foreground">
-            Here&apos;s what&apos;s happening with your appointments today.
+            {t('dashboard.todayOverview', "Here's what's happening with your appointments today.")}
           </p>
         </div>
         <Button asChild>

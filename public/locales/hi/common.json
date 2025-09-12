@@ -16,7 +16,19 @@
     "qrScanner": "QR स्कैनर",
     "checkIn": "चेक इन",
     "myQueue": "मेरी पंक्ति",
-    "myRemedies": "मेरे उपचार"
+    "myRemedies": "मेरे उपचार",
+    "system": "सिस्टम",
+    "qrCodes": "QR कोड",
+    "database": "डेटाबेस",
+    "monitoring": "निगरानी",
+    "notifications": "सूचनाएं",
+    "performance": "प्रदर्शन",
+    "myAppointments": "मेरे अपॉइंटमेंट",
+    "queueManagement": "पंक्ति प्रबंधन",
+    "myConsultations": "मेरे परामर्श",
+    "main": "मुख्य",
+    "systemTechnical": "सिस्टम और तकनीकी",
+    "configuration": "कॉन्फ़िगरेशन"
   },
   "dashboard": {
     "welcome": "स्वागत",
@@ -31,7 +43,20 @@
     "gurujiDashboard": "गुरुजी डैशबोर्ड",
     "spiritualConsultation": "आध्यात्मिक परामर्श और मार्गदर्शन",
     "userDashboard": "उपयोगकर्ता डैशबोर्ड",
-    "yourAppointments": "आपके अपॉइंटमेंट और परामर्श"
+    "yourAppointments": "आपके अपॉइंटमेंट और परामर्श",
+    "adminDescription": "सिस्टम प्रदर्शन की निगरानी करें और संचालन प्रबंधित करें",
+    "systemOnline": "सिस्टम ऑनलाइन",
+    "totalUsers": "कुल उपयोगकर्ता",
+    "activeUsers": "सक्रिय उपयोगकर्ता",
+    "statistics": "डैशबोर्ड आंकड़े",
+    "welcomeBack": "वापस स्वागत है",
+    "todayOverview": "यहाँ आज आपकी अपॉइंटमेंट्स के साथ क्या हो रहा है",
+    "failedToLoad": "डैशबोर्ड डेटा लोड करने में विफल",
+    "coordinatorDashboard": "समन्वयक डैशबोर्ड",
+    "gurujiDashboard": "गुरुजी डैशबोर्ड",
+    "currentAppointments": "वर्तमान अपॉइंटमेंट्स",
+    "pendingTasks": "लंबित कार्य",
+    "quickActions": "त्वरित कार्य"
   },
   "queue": {
     "position": "स्थिति",
@@ -89,7 +114,9 @@
     "address": "पता",
     "age": "उम्र",
     "gender": "लिंग",
-    "notes": "नोट्स"
+    "notes": "नोट्स",
+    "admin": "प्रशासक",
+    "searchPlaceholder": "अपॉइंटमेंट, उपयोगकर्ता, उपचार खोजें..."
   },
   "auth": {
     "signIn": "साइन इन",

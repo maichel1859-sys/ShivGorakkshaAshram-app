@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Camera, CheckCircle, AlertCircle, Clock, MapPin } from 'lucide-react';
+import { Camera, CheckCircle, AlertCircle, Clock, MapPin, Navigation } from 'lucide-react';
 import { processQRScanSimple } from '@/lib/actions/qr-scan-actions-simple';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast';
+import { getCurrentLocation } from '@/lib/utils/geolocation';
 
 interface QRScanResult {
   success: boolean;
@@ -25,10 +26,30 @@ export default function StaticQRScanner() {
   const [scanResult, setScanResult] = useState<QRScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<'checking' | 'allowed' | 'denied' | 'error'>('checking');
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const router = useRouter();
+
+  // Get user location on component mount
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        setLocationStatus('checking');
+        const location = await getCurrentLocation();
+        setUserLocation(location);
+        setLocationStatus('allowed');
+      } catch (error) {
+        console.error('Location error:', error);
+        setLocationStatus('denied');
+        setError(error instanceof Error ? error.message : 'Failed to get location');
+      }
+    };
+
+    getLocation();
+  }, []);
 
   // Initialize camera
   useEffect(() => {
@@ -92,7 +113,8 @@ export default function StaticQRScanner() {
     setScanResult(null);
 
     try {
-      const result = await processQRScanSimple(qrData);
+      // Pass user location for geolocation validation
+      const result = await processQRScanSimple(qrData, userLocation || undefined);
       setScanResult(result);
 
       if (result.success) {
@@ -134,6 +156,32 @@ export default function StaticQRScanner() {
 
   return (
     <div className="space-y-6">
+      {/* Location Status */}
+      <Alert className={locationStatus === 'allowed' ? 'border-green-200 bg-green-50' : locationStatus === 'denied' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'}>
+        <div className="flex items-start gap-2">
+          {locationStatus === 'checking' ? (
+            <Navigation className="h-4 w-4 text-blue-600 mt-0.5 animate-spin" />
+          ) : locationStatus === 'allowed' ? (
+            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+          )}
+          <div>
+            <AlertDescription className={locationStatus === 'allowed' ? 'text-green-800' : locationStatus === 'denied' ? 'text-red-800' : 'text-blue-800'}>
+              {locationStatus === 'checking' && 'Getting your location...'}
+              {locationStatus === 'allowed' && 'Location access granted. You can scan QR codes within 100m of their location.'}
+              {locationStatus === 'denied' && 'Location access denied. QR scanning may not work properly.'}
+              {locationStatus === 'error' && 'Location error occurred.'}
+            </AlertDescription>
+            {userLocation && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Your location: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}
+              </p>
+            )}
+          </div>
+        </div>
+      </Alert>
+
       {/* Scanner Status */}
       {scanResult && (
         <Alert className={scanResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>

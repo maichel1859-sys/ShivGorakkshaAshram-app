@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
-import { PWAInstallPrompt } from "@/components/ui/pwa-install-prompt";
+// PWA install prompt is now handled by UniversalPWAPrompt in AppProviders
 import { TopProgressBar } from "@/components/loading";
 
 const inter = Inter({
@@ -64,9 +64,15 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon-192x192.png",
-    shortcut: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png",
+    icon: [
+      { url: "/icons/icon-32x32.svg", sizes: "32x32", type: "image/svg+xml" },
+      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+    ],
+    shortcut: "/icons/icon-192x192.svg",
+    apple: [
+      { url: "/icons/icon-180x180.svg", sizes: "180x180", type: "image/svg+xml" },
+      { url: "/icons/icon-152x152.svg", sizes: "152x152", type: "image/svg+xml" },
+    ],
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
@@ -103,7 +109,6 @@ export default function RootLayout({
         <AppProviders>
           <TopProgressBar />
           {children}
-          <PWAInstallPrompt />
         </AppProviders>
       </body>
     </html>

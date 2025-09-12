@@ -16,7 +16,19 @@
     "qrScanner": "QR स्कॅनर",
     "checkIn": "चेक इन",
     "myQueue": "माझी रांग",
-    "myRemedies": "माझे उपाय"
+    "myRemedies": "माझे उपाय",
+    "system": "प्रणाली",
+    "qrCodes": "QR कोड",
+    "database": "डेटाबेस",
+    "monitoring": "निरीक्षण",
+    "notifications": "सूचना",
+    "performance": "कार्यक्षमता",
+    "myAppointments": "माझ्या भेटी",
+    "queueManagement": "रांग व्यवस्थापन",
+    "myConsultations": "माझ्या सल्लामसलत",
+    "main": "मुख्य",
+    "systemTechnical": "प्रणाली आणि तांत्रिक",
+    "configuration": "कॉन्फिगरेशन"
   },
   "dashboard": {
     "welcome": "स्वागत",
@@ -31,7 +43,20 @@
     "gurujiDashboard": "गुरुजी डॅशबोर्ड",
     "spiritualConsultation": "आध्यात्मिक सल्लामसलत आणि मार्गदर्शन",
     "userDashboard": "वापरकर्ता डॅशबोर्ड",
-    "yourAppointments": "तुमच्या भेटी आणि सल्लामसलत"
+    "yourAppointments": "तुमच्या भेटी आणि सल्लामसलत",
+    "adminDescription": "प्रणाली कार्यक्षमतेचे निरीक्षण करा आणि ऑपरेशन्स व्यवस्थापित करा",
+    "systemOnline": "प्रणाली ऑनलाइन",
+    "totalUsers": "एकूण वापरकर्ते",
+    "activeUsers": "सक्रिय वापरकर्ते",
+    "statistics": "डॅशबोर्ड आकडेवारी",
+    "welcomeBack": "परत स्वागत आहे",
+    "todayOverview": "आज तुमच्या भेटींसह काय घडत आहे ते येथे आहे",
+    "failedToLoad": "डॅशबोर्ड डेटा लोड करण्यात अयशस्वी",
+    "coordinatorDashboard": "समन्वयक डॅशबोर्ड",
+    "gurujiDashboard": "गुरुजी डॅशबोर्ड",
+    "currentAppointments": "सध्याच्या भेटी",
+    "pendingTasks": "प्रतीक्षित कार्ये",
+    "quickActions": "त्वरित कृती"
   },
   "queue": {
     "position": "स्थान",
@@ -89,7 +114,9 @@
     "address": "पत्ता",
     "age": "वय",
     "gender": "लिंग",
-    "notes": "नोंदी"
+    "notes": "नोंदी",
+    "admin": "प्रशासक",
+    "searchPlaceholder": "भेटी, वापरकर्ते, उपाय शोधा..."
   },
   "auth": {
     "signIn": "साइन इन",

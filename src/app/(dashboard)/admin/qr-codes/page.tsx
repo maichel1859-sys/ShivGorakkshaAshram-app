@@ -1,8 +1,9 @@
 import { Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Download, QrCode } from 'lucide-react';
-import { getLocationQRCodes, generateLocationQRCode } from '@/lib/actions/location-actions';
+import { QrCode } from 'lucide-react';
+import { getLocationQRCodes } from '@/lib/actions/location-actions';
+import { QRCodeCard } from '@/components/admin/qr-code-card';
+import { QRGeneratorForm } from '@/components/admin/qr-generator-form';
 
 async function QRCodeGenerator() {
   const result = await getLocationQRCodes();
@@ -14,23 +15,6 @@ async function QRCodeGenerator() {
       </div>
     );
   }
-
-  const handleDownloadQR = async (locationId: string, locationName: string) => {
-    try {
-      const qrCodeImage = await generateLocationQRCode(locationId, locationName);
-      
-      // Create a download link
-      const link = document.createElement('a');
-      link.href = qrCodeImage;
-      link.download = `${locationName.replace(/\s+/g, '_')}_QR_Code.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error downloading QR code:', error);
-      alert('Failed to download QR code');
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -45,31 +29,7 @@ async function QRCodeGenerator() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {result.qrCodes?.map((qrCode) => (
-          <Card key={qrCode.locationId} className="relative">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5" />
-                {qrCode.locationName}
-              </CardTitle>
-              <CardDescription>
-                Location ID: {qrCode.locationId}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-gray-100 p-4 rounded-lg">
-                <p className="text-sm font-mono text-gray-600 break-all">
-                  {qrCode.qrCodeData}
-                </p>
-              </div>
-              <Button 
-                onClick={() => handleDownloadQR(qrCode.locationId, qrCode.locationName)}
-                className="w-full"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download QR Code
-              </Button>
-            </CardContent>
-          </Card>
+          <QRCodeCard key={qrCode.locationId} qrCode={qrCode} />
         ))}
       </div>
 
@@ -92,7 +52,11 @@ async function QRCodeGenerator() {
 
 export default function QRCodesPage() {
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 space-y-8">
+      {/* QR Generator Form */}
+      <QRGeneratorForm />
+      
+      {/* Existing QR Codes */}
       <Suspense fallback={<div>Loading QR codes...</div>}>
         <QRCodeGenerator />
       </Suspense>
