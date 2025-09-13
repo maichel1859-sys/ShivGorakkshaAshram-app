@@ -104,7 +104,7 @@ export default function UserDashboard() {
         <Button asChild>
           <Link href="/user/appointments/book">
             <Plus className="mr-2 h-4 w-4" />
-            Book Appointment
+            {t('nav.bookAppointment', 'Book Appointment')}
           </Link>
         </Button>
       </div>
@@ -114,14 +114,14 @@ export default function UserDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Next Appointment
+              {t('dashboard.nextAppointment', 'Next Appointment')}
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">No upcoming</div>
+            <div className="text-2xl font-bold">{t('dashboard.noUpcoming', 'No upcoming')}</div>
             <p className="text-xs text-muted-foreground">
-              Book your next appointment
+              {t('dashboard.bookYourNext', 'Book your next appointment')}
             </p>
           </CardContent>
         </Card>
@@ -129,7 +129,7 @@ export default function UserDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Queue Position
+              {t('queue.position', 'Queue Position')}
             </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -138,7 +138,7 @@ export default function UserDashboard() {
               {currentQueuePosition ? `#${currentQueuePosition}` : '-'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {currentQueuePosition && currentQueueStatus ? currentQueueStatus.toLowerCase() : 'Not in queue'}
+              {currentQueuePosition && currentQueueStatus ? currentQueueStatus.toLowerCase() : t('queue.notInQueue', 'Not in queue')}
             </p>
           </CardContent>
         </Card>
@@ -146,26 +146,26 @@ export default function UserDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Pending Remedies
+              {t('dashboard.pendingRemedies', 'Pending Remedies')}
             </CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Ready for download</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.readyForDownload', 'Ready for download')}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Appointments
+              {t('dashboard.totalAppointments', 'Total Appointments')}
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{appointmentCount}</div>
-            <p className="text-xs text-muted-foreground">0 completed</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.completed', '0 completed')}</p>
           </CardContent>
         </Card>
       </div>
@@ -176,9 +176,9 @@ export default function UserDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Recent Appointments
+              {t('dashboard.recentAppointments', 'Recent Appointments')}
             </CardTitle>
-            <CardDescription>Your recent appointments</CardDescription>
+            <CardDescription>{t('dashboard.yourRecentAppointments', 'Your recent appointments')}</CardDescription>
           </CardHeader>
           <CardContent>
             {recentAppointments.length > 0 ? (
@@ -193,7 +193,7 @@ export default function UserDashboard() {
                         {new Date(appointment.date).toLocaleDateString()}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {appointment.guruji?.name || 'Unknown Guruji'}
+                        {appointment.guruji?.name || t('dashboard.unknownGuruji', 'Unknown Guruji')}
                       </p>
                     </div>
                     <span className="text-xs text-muted-foreground">
@@ -204,7 +204,7 @@ export default function UserDashboard() {
               </div>
             ) : (
               <div className="text-center text-muted-foreground">
-                No recent appointments
+                {t('dashboard.noRecentAppointments', 'No recent appointments')}
               </div>
             )}
           </CardContent>
@@ -216,21 +216,21 @@ export default function UserDashboard() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Access frequently used features</CardDescription>
+          <CardTitle>{t('dashboard.quickActions', 'Quick Actions')}</CardTitle>
+          <CardDescription>{t('dashboard.frequentlyUsedFeatures', 'Access frequently used features')}</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Button variant="outline" asChild>
-            <Link href="/user/appointments/book">Book Appointment</Link>
+            <Link href="/user/appointments/book">{t('nav.bookAppointment', 'Book Appointment')}</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/user/queue">My Queue</Link>
+            <Link href="/user/queue">{t('nav.myQueue', 'My Queue')}</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/user/remedies">My Remedies</Link>
+            <Link href="/user/remedies">{t('nav.myRemedies', 'My Remedies')}</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/user/qr">QR Scanner</Link>
+            <Link href="/user/qr">{t('nav.qrScanner', 'QR Scanner')}</Link>
           </Button>
         </CardContent>
       </Card>

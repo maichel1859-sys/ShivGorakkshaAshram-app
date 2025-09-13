@@ -246,10 +246,30 @@ export function QRGeneratorForm() {
                 </div>
                 
                 <div>
-                  <h3 className="font-semibold mb-2">QR Code Data</h3>
+                  <h3 className="font-semibold mb-2">Manual Check-in Code</h3>
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800 mb-2">
+                      <strong>For users who can&apos;t scan QR codes:</strong>
+                    </p>
+                    <div className="bg-white p-2 rounded border text-center">
+                      <div className="text-lg font-mono font-bold text-blue-900">
+                        {result.data.locationId}
+                      </div>
+                      <div className="text-xs text-blue-600 mt-1">
+                        Enter this code on the check-in page
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Full QR Code Data</h3>
                   <div className="bg-gray-100 p-2 rounded text-xs font-mono break-all">
                     {result.data.qrData}
                   </div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Complete JSON data stored in the QR code
+                  </p>
                 </div>
                 
                 <Button onClick={() => handleDownload(result.data!)} className="w-full">

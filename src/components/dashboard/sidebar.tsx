@@ -21,7 +21,6 @@ import {
   Shield,
   BarChart3,
   Bell,
-  CheckCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -150,12 +149,6 @@ const navItems: NavItem[] = [
     icon: QrCode,
     roles: ["USER"],
   },
-  {
-    title: "Check In",
-    href: "/user/checkin",
-    icon: CheckCircle,
-    roles: ["USER"],
-  },
 
   // Coordinator routes
   {
@@ -192,9 +185,9 @@ const navItems: NavItem[] = [
     roles: ["GURUJI"],
   },
   {
-    title: "My Consultations",
-    href: "/guruji/consultations",
-    icon: UserCheck,
+    title: "My Appointments",
+    href: "/guruji/appointments",
+    icon: Calendar,
     roles: ["GURUJI"],
   },
   {
@@ -247,10 +240,9 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
       "Book Appointment": t("nav.bookAppointment", "Book Appointment"),
       "My Remedies": t("nav.myRemedies", "My Remedies"),
       "QR Scanner": t("nav.qrScanner", "QR Scanner"),
-      "Check In": t("nav.checkIn", "Check In"),
+      "My Appointments": t("nav.myAppointments", "My Appointments"),
       "Reception Desk": t("nav.reception", "Reception Desk"),
       "Queue Management": t("nav.queueManagement", "Queue Management"),
-      "My Consultations": t("nav.myConsultations", "My Consultations"),
     };
     return titleMap[title] || title;
   };

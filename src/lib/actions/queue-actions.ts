@@ -503,62 +503,142 @@ export async function startConsultation(formData: FormData) {
 
   try {
     const queueEntryId = formData.get('queueEntryId') as string;
-    
+
     if (!queueEntryId) {
       return { success: false, error: 'Queue entry ID is required' };
     }
 
-    // Find the queue entry
-    const queueEntry = await prisma.queueEntry.findUnique({
-      where: { id: queueEntryId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
+    let queueEntry;
+    let isVirtual = false;
+
+    // Check if this is a virtual queue entry (checked-in appointment)
+    if (queueEntryId.startsWith('virtual-')) {
+      isVirtual = true;
+      const appointmentId = queueEntryId.replace('virtual-', '');
+
+      // Find the checked-in appointment
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        guruji: {
-          select: {
-            id: true,
-            name: true,
+      });
+
+      if (!appointment) {
+        return { success: false, error: 'Appointment not found' };
+      }
+
+      if (appointment.status !== 'CHECKED_IN') {
+        return { success: false, error: 'Appointment is not checked in' };
+      }
+
+      if (appointment.gurujiId !== session.user.id) {
+        return { success: false, error: 'This appointment is not assigned to you' };
+      }
+
+      // Create a real queue entry for this checked-in appointment
+      queueEntry = await prisma.queueEntry.create({
+        data: {
+          appointmentId: appointment.id,
+          userId: appointment.userId,
+          gurujiId: appointment.gurujiId,
+          status: 'IN_PROGRESS',
+          position: 1, // Since we're starting immediately
+          estimatedWait: 0,
+          checkedInAt: appointment.checkedInAt || new Date(),
+          startedAt: new Date(),
+          notes: `Started from checked-in appointment`,
+          priority: appointment.priority || 'NORMAL'
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
-
-    if (!queueEntry) {
-      return { success: false, error: 'Queue entry not found' };
-    }
-
-    // Check if this guruji owns the queue entry
-    if (queueEntry.gurujiId !== session.user.id) {
-      return { success: false, error: 'You can only start consultations for your own queue' };
-    }
-
-    // Check if queue entry is in waiting status
-    if (queueEntry.status !== 'WAITING') {
-      return { success: false, error: 'Queue entry is not in waiting status' };
-    }
-
-    // Update queue entry status
-    const updatedQueueEntry = await prisma.queueEntry.update({
-      where: { id: queueEntryId },
-      data: {
-        status: 'IN_PROGRESS',
-        startedAt: new Date(),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
+      });
+    } else {
+      // Find the real queue entry
+      queueEntry = await prisma.queueEntry.findUnique({
+        where: { id: queueEntryId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
+      });
+
+      if (!queueEntry) {
+        return { success: false, error: 'Queue entry not found' };
+      }
+
+      // Check if this guruji can start the consultation
+      // Allow if: (1) unassigned patient, or (2) already assigned to this guruji
+      if (queueEntry.gurujiId !== null && queueEntry.gurujiId !== session.user.id) {
+        return { success: false, error: 'This patient is already assigned to another guruji' };
+      }
+
+      // Check if queue entry is in waiting status
+      if (queueEntry.status !== 'WAITING') {
+        return { success: false, error: 'Queue entry is not in waiting status' };
+      }
+
+      // Update queue entry status and assign to this guruji if not already assigned
+      queueEntry = await prisma.queueEntry.update({
+        where: { id: queueEntryId },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+          gurujiId: session.user.id, // Assign patient to this guruji
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+    }
 
     // Create consultation session record
     const consultationSession = await prisma.consultationSession.create({
@@ -589,12 +669,12 @@ export async function startConsultation(formData: FormData) {
     revalidatePath('/guruji/queue');
     revalidatePath('/user/queue');
     
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'Consultation started successfully',
       consultationSessionId: consultationSession.id,
       consultationSession,
-      currentPatient: updatedQueueEntry,
+      currentPatient: queueEntry,
     };
   } catch (error) {
     console.error('Start consultation error:', error);

@@ -8,17 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Search, 
-  UserCheck, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
+import {
+  Search,
+  UserCheck,
+  CheckCircle,
+  AlertCircle,
+  Clock,
   Calendar,
   User,
   Phone
 } from 'lucide-react';
 import { manualCheckIn, searchAppointments } from '@/lib/actions/coordinator-actions';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AppointmentSearchResult {
   id: string;
@@ -52,6 +53,7 @@ interface CheckInResult {
 }
 
 export function ManualCheckIn() {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<AppointmentSearchResult[]>([]);
@@ -126,19 +128,19 @@ export function ManualCheckIn() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            Search Appointments for Manual Check-in
+            {t('coordinator.searchAppointments', 'Search Appointments for Manual Check-in')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <div className="flex-1">
-              <Label htmlFor="search">Search by Name, Phone, or Email</Label>
+              <Label htmlFor="search">{t('coordinator.searchByDetails', 'Search by Name, Phone, or Email')}</Label>
               <Input
                 id="search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Enter patient name, phone number, or email"
+                placeholder={t('coordinator.searchPlaceholder', 'Enter patient name, phone number, or email')}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>

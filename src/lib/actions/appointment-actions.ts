@@ -355,97 +355,6 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
   }
 }
 
-// Check-in appointment Server Action
-export async function checkInAppointment(appointmentId: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    throw new Error('Authentication required');
-  }
-
-  try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: { 
-        user: true,
-        guruji: true,
-      },
-    });
-
-    if (!appointment) {
-      throw new Error('Appointment not found');
-    }
-
-    if (appointment.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      throw new Error('Unauthorized');
-    }
-
-    // Check if appointment is already checked in
-    if (appointment.status === 'CHECKED_IN') {
-      throw new Error('Appointment is already checked in');
-    }
-
-    // Get the next position in the queue for this guruji
-    const lastQueueEntry = await prisma.queueEntry.findFirst({
-      where: {
-        gurujiId: appointment.gurujiId,
-        status: { in: ['WAITING', 'IN_PROGRESS'] },
-      },
-      orderBy: { position: 'desc' },
-    });
-
-    const nextPosition = (lastQueueEntry?.position || 0) + 1;
-
-    // Update appointment status and create queue entry in a transaction
-    const [, queueEntry] = await prisma.$transaction([
-      prisma.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          status: 'CHECKED_IN',
-          checkedInAt: new Date(),
-        },
-      }),
-      prisma.queueEntry.create({
-        data: {
-          appointmentId: appointmentId,
-          userId: appointment.userId,
-          gurujiId: appointment.gurujiId!,
-          position: nextPosition,
-          status: 'WAITING',
-          priority: appointment.priority,
-          checkedInAt: new Date(),
-          estimatedWait: 0, // No wait time for development
-        },
-      }),
-    ]);
-
-    // Create notification for the guruji
-    await prisma.notification.create({
-      data: {
-        userId: appointment.gurujiId!,
-        title: 'New Patient Checked In',
-        message: `${appointment.user.name} has checked in and is ready for consultation`,
-        type: 'queue',
-        data: {
-          appointmentId: appointmentId,
-          patientName: appointment.user.name,
-          position: nextPosition,
-          estimatedWait: 0,
-        },
-      },
-    });
-
-    revalidatePath('/user/appointments');
-    revalidatePath('/admin/appointments');
-    revalidatePath('/guruji/queue');
-    revalidatePath('/user/queue');
-    
-    return { success: true, queueEntry };
-  } catch (error) {
-    console.error('Check-in appointment error:', error);
-    throw new Error('Failed to check in');
-  }
-}
 
 // Reschedule appointment Server Action
 export async function rescheduleAppointment(appointmentId: string, formData: FormData) {
@@ -1004,11 +913,4 @@ export async function createAppointmentForUser(formData: FormData) {
   }
 }
 
-// Development helper server action for check-in
-export async function devCheckInAppointment(formData: FormData) {
-  const appointmentId = formData.get("appointmentId") as string;
-  if (appointmentId) {
-    return await checkInAppointment(appointmentId);
-  }
-  return { success: false, error: 'Appointment ID is required' };
-} 
+ 

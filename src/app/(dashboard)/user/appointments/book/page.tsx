@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppointmentAvailability } from "@/hooks/queries/use-appointments";
 import AppointmentForm from "@/components/forms/AppointmentForm";
 import { convertTimeTo24Hour, formatDateForAPI } from "@/lib/utils/helpers";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TimeSlot {
   time: string;
@@ -27,6 +28,7 @@ interface TimeSlot {
 }
 
 export default function BookAppointmentPage() {
+  const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedGuruji, setSelectedGuruji] = useState("");
@@ -74,7 +76,7 @@ export default function BookAppointmentPage() {
 
   const handleBookAppointment = async () => {
     if (!selectedDate || !selectedTime || !selectedGuruji || !reason.trim()) {
-      setModalMessage("Please fill in all required fields");
+      setModalMessage(t("appointments.fillAllFields", "Please fill in all required fields"));
       setShowErrorModal(true);
       return;
     }
@@ -94,14 +96,14 @@ export default function BookAppointmentPage() {
         converted: time24Hour,
       });
       await bookAppointment(formData);
-      setModalMessage("Your appointment has been booked successfully!");
+      setModalMessage(t("appointments.bookingSuccess", "Your appointment has been booked successfully!"));
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Booking error:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to book appointment. Please try again.";
+          : t("appointments.bookingError", "Failed to book appointment. Please try again.");
       setModalMessage(errorMessage);
       setShowErrorModal(true);
     } finally {
@@ -132,10 +134,10 @@ export default function BookAppointmentPage() {
     <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
       <div className="mb-4 sm:mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
-          Book Appointment
+          {t("nav.bookAppointment", "Book Appointment")}
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Schedule your consultation with our experienced gurujis
+          {t("appointments.scheduleConsultation", "Schedule your consultation with our experienced gurujis")}
         </p>
       </div>
 
@@ -164,9 +166,9 @@ export default function BookAppointmentPage() {
           <CardHeader className="rounded-t-xl ">
             <CardTitle className="flex items-center space-x-2 text-lg">
               <User className="h-5 w-5" />
-              <span>Available Gurujis</span>
+              <span>{t("appointments.availableGurujis", "Available Gurujis")}</span>
               <span className="ml-auto text-sm text-muted-foreground">
-                {getAvailableGurujisList().length} available
+                {getAvailableGurujisList().length} {t("appointments.available", "available")}
               </span>
             </CardTitle>
           </CardHeader>
@@ -175,17 +177,17 @@ export default function BookAppointmentPage() {
               <div className="text-center py-6">
                 <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  Loading gurujis...
+                  {t("common.loading", "Loading")} gurujis...
                 </p>
               </div>
             ) : getAvailableGurujisList().length === 0 ? (
               <div className="text-center py-6">
                 <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  No gurujis available at the moment
+                  {t("appointments.noGurujiAvailable", "No gurujis available at the moment")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Please check back later
+                  {t("appointments.checkBackLater", "Please check back later")}
                 </p>
               </div>
             ) : (
@@ -212,17 +214,17 @@ export default function BookAppointmentPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm sm:text-base truncate">
-                          {guruji.name || "Unknown"}
+                          {guruji.name || t("common.unknown", "Unknown")}
                         </h4>
                         <p className="text-xs sm:text-sm text-muted-foreground truncate">
                           {typeof guruji.specialization === "string"
                             ? guruji.specialization
-                            : "General Consultation"}
+                            : t("appointments.generalConsultation", "General Consultation")}
                         </p>
                         <div className="flex items-center mt-1">
                           <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                           <span className="text-xs text-green-600 dark:text-green-400">
-                            Available
+                            {t("appointments.available", "Available")}
                           </span>
                         </div>
                       </div>
@@ -286,12 +288,12 @@ export default function BookAppointmentPage() {
                     >
                       <div className="truncate">{slot.time}</div>
                       <div className="text-xs opacity-75">
-                        {slot.available ? "Available" : "Booked"}
+                        {slot.available ? t("appointments.available", "Available") : t("appointments.booked", "Booked")}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p>No availability data</p>
+                  <p>{t("appointments.noAvailabilityData", "No availability data")}</p>
                 )}
               </div>
             </div>
@@ -302,42 +304,39 @@ export default function BookAppointmentPage() {
       {/* Instructions */}
       <Card className="mt-4 sm:mt-6 rounded-xl">
         <CardHeader className="rounded-t-xl pb-4">
-          <CardTitle className="text-lg">Booking Instructions</CardTitle>
+          <CardTitle className="text-lg">{t("appointments.bookingInstructions", "Booking Instructions")}</CardTitle>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <h4 className="font-medium mb-2 text-sm sm:text-base">
-                Before Your Appointment
+                {t("appointments.beforeAppointment", "Before Your Appointment")}
               </h4>
               <ul className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                <li>• Arrive 2 minutes early</li>
+                <li>• {t("appointments.arriveEarly", "Arrive 2 minutes early")}</li>
                 <li>
-                  • <strong>Scan QR code at reception to confirm</strong>
+                  • <strong>{t("appointments.scanQrConfirm", "Scan QR code at reception to confirm")}</strong>
                 </li>
-                <li>• Bring any relevant medical records</li>
-                <li>• Prepare a list of symptoms</li>
-                <li>• Wear comfortable clothing</li>
+                <li>• {t("appointments.bringRecords", "Bring any relevant medical records")}</li>
+                <li>• {t("appointments.prepareSymptoms", "Prepare a list of symptoms")}</li>
+                <li>• {t("appointments.comfortableClothing", "Wear comfortable clothing")}</li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium mb-2 text-sm sm:text-base">
-                What to Expect
+                {t("appointments.whatToExpect", "What to Expect")}
               </h4>
               <ul className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                <li>• Consultation duration: 5 minutes</li>
-                <li>• Digital remedy prescription</li>
-                <li>• Follow-up appointment scheduling</li>
-                <li>• Health recommendations</li>
+                <li>• {t("appointments.consultationDuration", "Consultation duration: 5 minutes")}</li>
+                <li>• {t("appointments.digitalPrescription", "Digital remedy prescription")}</li>
+                <li>• {t("appointments.followUpScheduling", "Follow-up appointment scheduling")}</li>
+                <li>• {t("appointments.healthRecommendations", "Health recommendations")}</li>
               </ul>
             </div>
           </div>
           <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl">
             <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
-              <strong>Important:</strong> Your appointment is not confirmed
-              until you scan the QR code at the ashram. You can reschedule or
-              cancel up to 24 hours before the scheduled time. For urgent
-              changes, please contact reception.
+              <strong>{t("common.important", "Important")}:</strong> {t("appointments.importantNotice", "Your appointment is not confirmed until you scan the QR code at the ashram. You can reschedule or cancel up to 24 hours before the scheduled time. For urgent changes, please contact reception.")}
             </p>
           </div>
         </CardContent>
@@ -349,43 +348,40 @@ export default function BookAppointmentPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <CheckCircle className="h-6 w-6 text-green-600" />
-              <span>Booking Confirmed</span>
+              <span>{t("appointments.bookingConfirmed", "Booking Confirmed")}</span>
             </DialogTitle>
             <DialogDescription>{modalMessage}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-xl">
               <div className="space-y-2">
-                <p className="text-sm font-medium">Appointment Details:</p>
+                <p className="text-sm font-medium">{t("appointments.appointmentDetails", "Appointment Details")}:</p>
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
-                    <strong>Date:</strong>{" "}
+                    <strong>{t("appointments.date", "Date")}:</strong>{" "}
                     {selectedDate ? selectedDate.toLocaleDateString() : "N/A"}
                   </p>
                   <p>
-                    <strong>Time:</strong> {selectedTime}
+                    <strong>{t("appointments.time", "Time")}:</strong> {selectedTime}
                   </p>
                   <p>
-                    <strong>Guruji:</strong>{" "}
+                    <strong>{t("appointments.guruji", "Guruji")}:</strong>{" "}
                     {gurujis.find((g) => g.id === selectedGuruji)?.name ||
-                      "Unknown"}
+                      t("common.unknown", "Unknown")}
                   </p>
                 </div>
               </div>
             </div>
             <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl">
               <p className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-2">
-                📍 Important: To confirm your appointment and join the queue
+                📍 {t("appointments.importantConfirmation", "Important: To confirm your appointment and join the queue")}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400">
-                You must scan the QR code at the ashram reception when you
-                arrive. Without scanning the QR code, you won&apos;t be added to
-                the consultation queue.
+                {t("appointments.qrCodeRequired", "You must scan the QR code at the ashram reception when you arrive. Without scanning the QR code, you won't be added to the consultation queue.")}
               </p>
             </div>
             <p className="text-sm text-muted-foreground">
-              You will be redirected to your appointments page where you can
-              view and manage this appointment.
+              {t("appointments.redirectMessage", "You will be redirected to your appointments page where you can view and manage this appointment.")}
             </p>
           </div>
           <DialogFooter>
@@ -393,7 +389,7 @@ export default function BookAppointmentPage() {
               onClick={handleSuccessModalClose}
               className="w-full rounded-xl"
             >
-              View My Appointments
+{t("nav.myAppointments", "View My Appointments")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -405,14 +401,13 @@ export default function BookAppointmentPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <XCircle className="h-6 w-6 text-red-600" />
-              <span>Booking Failed</span>
+              <span>{t("appointments.bookingFailed", "Booking Failed")}</span>
             </DialogTitle>
             <DialogDescription>{modalMessage}</DialogDescription>
           </DialogHeader>
           <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-xl">
             <p className="text-sm text-red-700 dark:text-red-300">
-              Please check your selection and try again. If the problem
-              persists, contact support.
+              {t("appointments.checkSelectionError", "Please check your selection and try again. If the problem persists, contact support.")}
             </p>
           </div>
           <DialogFooter>
@@ -421,7 +416,7 @@ export default function BookAppointmentPage() {
               variant="outline"
               className="w-full rounded-xl"
             >
-              Try Again
+{t("common.tryAgain", "Try Again")}
             </Button>
           </DialogFooter>
         </DialogContent>

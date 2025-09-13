@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Search, FileText, Calendar, User, Download, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { getUserRemedies } from "@/lib/actions/remedy-management-actions";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RemedyDocument {
   id: string;
@@ -26,6 +27,7 @@ interface RemedyDocument {
 }
 
 export default function UserRemediesPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [remedies, setRemedies] = useState<RemedyDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,11 +40,11 @@ export default function UserRemediesPage() {
       if (result.success) {
         setRemedies(result.remedies || []);
       } else {
-        throw new Error(result.error || "Failed to fetch remedies");
+        throw new Error(result.error || t("remedies.failedToLoad", "Failed to fetch remedies"));
       }
     } catch (error) {
       console.error("Failed to fetch remedies:", error);
-      toast.error("Failed to load remedies");
+      toast.error(t("remedies.failedToLoad", "Failed to load remedies"));
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +89,7 @@ export default function UserRemediesPage() {
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search remedies..."
+              placeholder={t("remedies.searchPlaceholder", "Search remedies...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8"
@@ -109,24 +111,24 @@ export default function UserRemediesPage() {
                       {remedy.templateName}
                     </h3>
                     <Badge className={getStatusColor(remedy.status)}>
-                      {remedy.status}
+                      {t(`status.${remedy.status.toLowerCase()}`, remedy.status)}
                     </Badge>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <User className="h-4 w-4" />
-                      <span>Guruji: {remedy.gurujiName}</span>
+                      <span>{t("remedies.prescribedBy", "Guruji")}: {remedy.gurujiName}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>Consultation: {remedy.consultationDate}</span>
+                      <span>{t("remedies.consultationDate", "Consultation")}: {remedy.consultationDate}</span>
                     </div>
                   </div>
 
                   {remedy.customInstructions && (
                     <div className="mb-3">
-                      <p className="text-sm font-medium mb-1">Instructions:</p>
+                      <p className="text-sm font-medium mb-1">{t("remedies.instructions", "Instructions")}:</p>
                       <p className="text-sm text-muted-foreground">
                         {remedy.customInstructions}
                       </p>
@@ -136,18 +138,18 @@ export default function UserRemediesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                     {remedy.customDosage && (
                       <div>
-                        <span className="font-medium">Dosage:</span>{" "}
+                        <span className="font-medium">{t("remedies.dosage", "Dosage")}:</span>{" "}
                         {remedy.customDosage}
                       </div>
                     )}
                     {remedy.customDuration && (
                       <div>
-                        <span className="font-medium">Duration:</span>{" "}
+                        <span className="font-medium">{t("remedies.duration", "Duration")}:</span>{" "}
                         {remedy.customDuration}
                       </div>
                     )}
                     <div>
-                      <span className="font-medium">Created:</span>{" "}
+                      <span className="font-medium">{t("common.created", "Created")}:</span>{" "}
                       {remedy.createdAt}
                     </div>
                   </div>
@@ -162,7 +164,7 @@ export default function UserRemediesPage() {
                         rel="noopener noreferrer"
                       >
                         <Download className="mr-2 h-4 w-4" />
-                        Download
+                        {t("common.download", "Download")}
                       </a>
                     </Button>
                   )}
@@ -172,7 +174,7 @@ export default function UserRemediesPage() {
                     onClick={() => router.push(`/user/remedies/${remedy.id}`)}
                   >
                     <Eye className="mr-2 h-4 w-4" />
-                    View Details
+                    {t("remedies.viewDetails", "View Details")}
                   </Button>
                 </div>
               </div>
@@ -184,12 +186,12 @@ export default function UserRemediesPage() {
                     <span
                       className={`flex items-center gap-1 ${remedy.emailSent ? "text-green-600" : "text-gray-400"}`}
                     >
-                      {remedy.emailSent ? "✓" : "○"} Email Sent
+                      {remedy.emailSent ? "✓" : "○"} {t("remedies.emailSent", "Email Sent")}
                     </span>
                   </div>
                   {remedy.deliveredAt && (
                     <span>
-                      Delivered:{" "}
+                      {t("remedies.delivered", "Delivered")}:{" "}
                       {new Date(remedy.deliveredAt).toLocaleDateString()}
                     </span>
                   )}
@@ -204,11 +206,11 @@ export default function UserRemediesPage() {
         <Card>
           <CardContent className="p-8 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No remedies found</h3>
+            <h3 className="text-lg font-semibold mb-2">{t("remedies.noRemedies", "No remedies found")}</h3>
             <p className="text-muted-foreground">
               {searchTerm
-                ? "No remedies match your search."
-                : "You haven't received any remedies yet."}
+                ? t("remedies.noMatchingRemedies", "No remedies match your search.")
+                : t("remedies.noRemediesYet", "You haven't received any remedies yet.")}
             </p>
           </CardContent>
         </Card>

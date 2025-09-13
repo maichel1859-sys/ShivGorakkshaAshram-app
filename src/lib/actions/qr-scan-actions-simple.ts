@@ -293,6 +293,71 @@ export async function generateLocationQRData(locationId: string, locationName: s
 }
 
 /**
+ * Process manual text input for check-in (alternative to QR scanning)
+ * Users can input the location code instead of scanning QR
+ */
+export async function processManualTextCheckIn(locationCode: string, userCoordinates?: { latitude: number; longitude: number }) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    // Create QR data from location code (simulate scanning)
+    const locationData = {
+      locationId: locationCode.toUpperCase(),
+      locationName: getLocationNameFromCode(locationCode),
+      timestamp: Date.now(),
+      coordinates: getLocationCoordinates(locationCode)
+    };
+
+    const qrData = JSON.stringify(locationData);
+
+    // Process using the same logic as QR scanning
+    return await processQRScanSimple(qrData, userCoordinates);
+
+  } catch (error) {
+    console.error('Manual text check-in error:', error);
+    return { success: false, error: 'Failed to process manual check-in. Please try again.' };
+  }
+}
+
+/**
+ * Get location name from location code
+ */
+function getLocationNameFromCode(locationCode: string): string {
+  const locationMap: Record<string, string> = {
+    'RECEPTION_001': 'Main Reception',
+    'GURUJI_LOC_001': 'Main Consultation Room',
+    'GURUJI_LOC_002': 'Secondary Consultation Room',
+    'CONSULTATION_001': 'Consultation Room 1',
+    'MAIN_HALL_001': 'Main Hall',
+    'WAITING_AREA_001': 'Waiting Area',
+    'EMERGENCY_001': 'Emergency Room',
+  };
+
+  return locationMap[locationCode.toUpperCase()] || `Location ${locationCode}`;
+}
+
+/**
+ * Get location coordinates from location code
+ */
+function getLocationCoordinates(locationCode: string): { latitude: number; longitude: number } {
+  const coordinatesMap: Record<string, { latitude: number; longitude: number }> = {
+    'RECEPTION_001': { latitude: 19.0760, longitude: 72.8777 },
+    'GURUJI_LOC_001': { latitude: 19.0761, longitude: 72.8778 },
+    'GURUJI_LOC_002': { latitude: 19.0762, longitude: 72.8779 },
+    'CONSULTATION_001': { latitude: 19.0763, longitude: 72.8780 },
+    'MAIN_HALL_001': { latitude: 19.0764, longitude: 72.8781 },
+    'WAITING_AREA_001': { latitude: 19.0765, longitude: 72.8782 },
+    'EMERGENCY_001': { latitude: 19.0766, longitude: 72.8783 },
+  };
+
+  return coordinatesMap[locationCode.toUpperCase()] || { latitude: 19.0760, longitude: 72.8777 };
+}
+
+/**
  * Create a test QR code for development
  */
 export async function createTestQRCode(): Promise<string> {

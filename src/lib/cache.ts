@@ -1,4 +1,4 @@
-import { unstable_cache as cache, revalidateTag, revalidatePath } from 'next/cache';
+import { unstable_cache as cache } from 'next/cache';
 
 // Cache configuration
 export const CACHE_TAGS = {
@@ -386,14 +386,16 @@ export const cachedFunctions = {
 // Cache invalidation functions
 export const cacheInvalidation = {
   // Invalidate user-related caches
-  invalidateUser: (userId: string) => {
+  invalidateUser: async (userId: string) => {
+    const { revalidateTag } = await import('next/cache');
     revalidateTag(CACHE_TAGS.users);
     revalidateTag(CACHE_TAGS.dashboard);
     memoryCache.invalidateByTag(`user:${userId}`);
   },
 
   // Invalidate appointment-related caches
-  invalidateAppointments: () => {
+  invalidateAppointments: async () => {
+    const { revalidateTag } = await import('next/cache');
     revalidateTag(CACHE_TAGS.appointments);
     revalidateTag(CACHE_TAGS.queue);
     revalidateTag(CACHE_TAGS.dashboard);
@@ -401,20 +403,23 @@ export const cacheInvalidation = {
   },
 
   // Invalidate queue-related caches
-  invalidateQueue: () => {
+  invalidateQueue: async () => {
+    const { revalidateTag } = await import('next/cache');
     revalidateTag(CACHE_TAGS.queue);
     revalidateTag(CACHE_TAGS.dashboard);
     memoryCache.invalidateByTag('queue');
   },
 
   // Invalidate all caches
-  invalidateAll: () => {
+  invalidateAll: async () => {
+    const { revalidateTag } = await import('next/cache');
     Object.values(CACHE_TAGS).forEach(tag => revalidateTag(tag));
     memoryCache.clear();
   },
 
   // Invalidate specific paths
-  invalidatePath: (path: string) => {
+  invalidatePath: async (path: string) => {
+    const { revalidatePath } = await import('next/cache');
     revalidatePath(path);
   },
 };

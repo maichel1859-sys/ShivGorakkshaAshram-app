@@ -25,6 +25,7 @@ import { QuickRegistrationForm } from "./quick-registration-form";
 import { UserLookupComponent } from "./user-lookup";
 import { EmergencyQueueEntry } from "./emergency-queue-entry";
 import { ManualCheckIn } from "./manual-checkin";
+import { CheckedInPatients } from "./checked-in-patients";
 import { toast } from "sonner";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
 
@@ -430,6 +431,11 @@ function WelcomeScreen({ onStepSelect, stats }: {
           </div>
         </CardContent>
       </Card>
+
+      {/* Checked-in Patients - Full Width */}
+      <div className="lg:col-span-3">
+        <CheckedInPatients />
+      </div>
     </div>
   );
 }

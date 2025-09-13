@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { AppointmentList } from '@/components/server/appointment-list';
 import { DashboardStats } from '@/components/server/dashboard-stats';
 import { AppointmentManager } from '@/components/client/appointment-manager';
+import { TranslatedText } from '@/components/client/translated-text';
 import { Button } from '@/components/ui/button';
 import { Plus, Calendar, QrCode } from 'lucide-react';
 import Link from 'next/link';
@@ -24,51 +25,66 @@ export default function AppointmentsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Appointments</h1>
-          <p className="text-muted-foreground mt-2">
-            View and manage your spiritual consultation appointments
-          </p>
+          <TranslatedText
+            as="h1"
+            translationKey="nav.appointments"
+            fallback="My Appointments"
+            className="text-3xl font-bold tracking-tight"
+          />
+          <TranslatedText
+            as="p"
+            translationKey="appointments.manage"
+            fallback="View and manage your spiritual consultation appointments"
+            className="text-muted-foreground"
+          />
         </div>
+
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/user/qr-scanner">
-              <QrCode className="h-4 w-4 mr-2" />
-              QR Scanner
-            </Link>
-          </Button>
           <Button asChild>
             <Link href="/user/appointments/book">
-              <Plus className="h-4 w-4 mr-2" />
-              Book New Appointment
+              <Plus className="mr-2 h-4 w-4" />
+              <TranslatedText translationKey="appointments.bookNew" fallback="Book New" />
+            </Link>
+          </Button>
+
+          <Button variant="outline" asChild>
+            <Link href="/user/qr-scanner">
+              <QrCode className="mr-2 h-4 w-4" />
+              <TranslatedText translationKey="qr.scanToCheckIn" fallback="QR Check-in" />
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Dashboard Stats - Server Component with Suspense */}
-      <Suspense fallback={<div>Loading dashboard stats...</div>}>
+      {/* Quick Stats */}
+      <Suspense fallback={<TranslatedText translationKey="common.loading" fallback="Loading stats..." />}>
         <DashboardStats />
       </Suspense>
 
-      {/* Main Content - Combining Server and Client Components */}
-      <div className="grid gap-8">
-        {/* Server-side rendered appointments with Suspense for streaming */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Recent Appointments</h2>
-          </div>
-          
-          <Suspense fallback={<div>Loading appointments...</div>}>
-            <AppointmentList limit={5} showActions={true} />
-          </Suspense>
+      {/* Appointments List */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <TranslatedText
+            as="h2"
+            translationKey="appointments.recent"
+            fallback="Recent Appointments"
+            className="text-2xl font-semibold"
+          />
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/user/appointments?view=all">
+              <Calendar className="mr-2 h-4 w-4" />
+              <TranslatedText translationKey="appointments.viewAll" fallback="View All" />
+            </Link>
+          </Button>
         </div>
 
-        {/* Client-side interactive appointment manager with React Query */}
-        <div className="mt-8">
-          <AppointmentManager />
-        </div>
+        <Suspense fallback={<TranslatedText translationKey="appointments.loading" fallback="Loading appointments..." />}>
+          <AppointmentList />
+        </Suspense>
       </div>
+
+      {/* Appointment Management */}
+      <AppointmentManager />
     </div>
   );
 }

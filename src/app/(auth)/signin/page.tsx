@@ -72,12 +72,12 @@ export default function SignInPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium">
-            Email
+            {t('auth.email', 'Email')}
           </label>
           <Input
             id="email"
             type="email"
-            placeholder="Enter your email"
+            placeholder={t('auth.enterEmail', 'Enter your email')}
             {...register("email")}
             disabled={isLoading || isRedirecting}
           />
@@ -88,13 +88,13 @@ export default function SignInPage() {
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium">
-            Password
+            {t('auth.password', 'Password')}
           </label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
+              placeholder={t('auth.enterPassword', 'Enter your password')}
               {...register("password")}
               disabled={isLoading || isRedirecting}
             />
@@ -125,7 +125,7 @@ export default function SignInPage() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
+            {t('auth.orContinueWith', 'Or continue with')}
           </span>
         </div>
       </div>
@@ -155,18 +155,18 @@ export default function SignInPage() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        Continue with Google
+        {t('auth.continueWithGoogle', 'Continue with Google')}
       </Button>
 
       <div className="text-center text-sm">
         <span className="text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          {t('auth.dontHaveAccount', "Don't have an account?")}{" "}
         </span>
         <Link
           href="/signup"
           className="font-medium text-primary hover:underline"
         >
-          Sign up
+          {t('auth.signUp', 'Sign up')}
         </Link>
       </div>
 

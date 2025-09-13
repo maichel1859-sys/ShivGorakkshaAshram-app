@@ -11,9 +11,11 @@ import {
 import { ShieldX, ArrowLeft, Home } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function UnauthorizedPage() {
   const { data: session } = useSession();
+  const { t } = useLanguage();
 
   const getRedirectPath = () => {
     if (!session?.user) {
@@ -40,34 +42,34 @@ export default function UnauthorizedPage() {
             <ShieldX className="h-6 w-6 text-red-600" />
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">
-            Access Denied
+            {t('unauthorized.title', 'Access Denied')}
           </CardTitle>
           <CardDescription className="text-gray-600">
-            You don&apos;t have permission to access this page.
+            {t('unauthorized.description', "You don't have permission to access this page.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center text-sm text-gray-500">
             {session?.user ? (
               <>
-                <p>Your role: <span className="font-medium">{session.user.role}</span></p>
-                <p>This page requires different permissions.</p>
+                <p>{t('unauthorized.yourRole', 'Your role')}: <span className="font-medium">{session.user.role}</span></p>
+                <p>{t('unauthorized.requiresDifferentPermissions', 'This page requires different permissions.')}</p>
               </>
             ) : (
-              <p>Please sign in to access this page.</p>
+              <p>{t('unauthorized.pleaseSignIn', 'Please sign in to access this page.')}</p>
             )}
           </div>
           <div className="flex flex-col space-y-2">
             <Button asChild className="w-full">
               <Link href={getRedirectPath()}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Go to Your Dashboard
+                {t('unauthorized.goToDashboard', 'Go to Your Dashboard')}
               </Link>
             </Button>
             <Button variant="outline" asChild className="w-full">
               <Link href="/">
                 <Home className="mr-2 h-4 w-4" />
-                Go to Home
+                {t('unauthorized.goToHome', 'Go to Home')}
               </Link>
             </Button>
           </div>

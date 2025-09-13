@@ -16,22 +16,28 @@ import {
   MessageSquare,
   AlertCircle,
   Loader2,
+  Calendar,
+  CalendarDays,
 } from "lucide-react";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
 import { ConsultationTimer } from "@/components/guruji/consultation-timer";
 import { PageSpinner } from "@/components/loading";
 import { useLoadingState } from "@/store";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
+import { useGurujiAppointments } from "@/hooks/queries/use-guruji-appointments";
 import type { QueueEntry } from "@/types/queue";
 import { showToast, commonToasts } from "@/lib/toast";
-import { 
+import {
   startConsultation,
   completeConsultation,
-  getConsultationSessionId 
+  getConsultationSessionId
 } from "@/lib/actions/queue-actions";
+import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function GurujiDashboard() {
   const { data: session } = useSession();
+  const { t } = useLanguage();
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
@@ -54,6 +60,24 @@ export default function GurujiDashboard() {
     refreshInterval: 15000, // Smart polling: 15s fallback, 30s when socket active
     enableRealtime: true, // Socket primary with polling backup
   });
+
+  // Get appointment data
+  const { data: appointments = [], isLoading: appointmentsLoading } = useGurujiAppointments();
+
+  // Calculate appointment statistics
+  const appointmentStats = useMemo(() => {
+    const today = appointments.filter(apt => isToday(new Date(apt.date)));
+    const tomorrow = appointments.filter(apt => isTomorrow(new Date(apt.date)));
+    const thisWeek = appointments.filter(apt => isThisWeek(new Date(apt.date)));
+    const total = appointments.length;
+
+    return {
+      today: today.length,
+      tomorrow: tomorrow.length,
+      thisWeek: thisWeek.length,
+      total
+    };
+  }, [appointments]);
 
 
 
@@ -262,10 +286,10 @@ export default function GurujiDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Welcome, {session?.user.name?.split(" ")[0]}!
+            {t("dashboard.welcome", "Welcome")}, {session?.user.name?.split(" ")[0]}!
           </h2>
           <p className="text-muted-foreground">
-            Your consultation dashboard for today
+            {t("dashboard.spiritualConsultation", "Your consultation dashboard for today")}
           </p>
         </div>
 
@@ -274,7 +298,7 @@ export default function GurujiDashboard() {
           <div className="flex items-center space-x-2 bg-green-50 p-3 rounded-lg">
             <Timer className="h-5 w-5 text-green-600" />
             <span className="text-sm text-green-700">
-              Active consultation in progress
+              {t("consultation.inProgress", "Active consultation in progress")}
             </span>
           </div>
         )}
@@ -285,55 +309,97 @@ export default function GurujiDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Today&apos;s Total
+              {t("dashboard.todaysAppointments", "Today's Total")}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
-              Total patients today
+              {t("queue.waitingPatients", "Total patients today")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("queue.completed", "Completed")}</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">
-              Consultations completed
+              {t("consultation.summary", "Consultations completed")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Waiting</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("queue.waitingPatients", "Waiting")}</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.waiting}</div>
-            <p className="text-xs text-muted-foreground">Patients in queue</p>
+            <p className="text-xs text-muted-foreground">{t("queue.waitingPatients", "Patients in queue")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Time</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("queue.waitTime", "Avg. Time")}</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {stats.averageWaitTime}
             </div>
-            <p className="text-xs text-muted-foreground">Minutes per session</p>
+            <p className="text-xs text-muted-foreground">{t("queue.minutes", "Minutes")} {t("consultation.duration", "per session")}</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Appointment Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            {t("appointments.upcoming", "Appointment Overview")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <CalendarDays className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-blue-700">{appointmentStats.today}</div>
+              <p className="text-sm text-blue-600">{t("common.today", "Today")}</p>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-green-700">{appointmentStats.tomorrow}</div>
+              <p className="text-sm text-green-600">{t("common.tomorrow", "Tomorrow")}</p>
+            </div>
+            <div className="text-center p-3 bg-purple-50 rounded-lg">
+              <CalendarDays className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-purple-700">{appointmentStats.thisWeek}</div>
+              <p className="text-sm text-purple-600">{t("common.thisWeek", "This Week")}</p>
+            </div>
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <Calendar className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-gray-700">{appointmentStats.total}</div>
+              <p className="text-sm text-gray-600">{t("common.total", "Total")}</p>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <Button variant="outline" size="sm" asChild>
+              <a href="/guruji/appointments">
+                <Calendar className="h-4 w-4 mr-2" />
+                {t("nav.myAppointments", "View All Appointments")}
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Current Patient Section */}
       {currentPatient && (
@@ -362,14 +428,30 @@ export default function GurujiDashboard() {
                     <h3 className="font-semibold text-green-800">
                       {currentPatient.user.name || 'Unknown User'}
                     </h3>
-                    <p className="text-sm text-green-600">
-                      Priority: {currentPatient.priority || 'NORMAL'}
-                    </p>
-                    {currentPatient.user.phone && (
-                      <p className="text-xs text-green-500">
-                        Phone: {currentPatient.user.phone}
+                    <div className="space-y-1">
+                      <p className="text-sm text-green-600">
+                        Priority: {currentPatient.priority || 'NORMAL'}
                       </p>
-                    )}
+                      {currentPatient.user.phone && (
+                        <p className="text-xs text-green-500">
+                          Phone: {currentPatient.user.phone}
+                        </p>
+                      )}
+                      {currentPatient.appointment && (
+                        <div className="text-xs text-green-500 space-y-1">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {format(new Date(currentPatient.appointment.date), "MMM dd")} at{" "}
+                              {format(currentPatient.appointment.startTime, "h:mm a")}
+                            </span>
+                          </div>
+                          {currentPatient.appointment.reason && (
+                            <p><strong>Reason:</strong> {currentPatient.appointment.reason}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -467,9 +549,32 @@ export default function GurujiDashboard() {
                           </span>
                         )}
                       </div>
+
+                      {/* Appointment Details */}
+                      {patient.appointment && (
+                        <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {format(new Date(patient.appointment.date), "MMM dd, yyyy")} at {" "}
+                              {format(patient.appointment.startTime, "h:mm a")}
+                              {patient.appointment.endTime && (
+                                <> - {format(patient.appointment.endTime, "h:mm a")}</>
+                              )}
+                            </span>
+                          </div>
+                          {patient.appointment.reason && (
+                            <p>
+                              <strong>Appointment Reason:</strong> {patient.appointment.reason}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Queue Notes */}
                       {patient.notes && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          <strong>Reason:</strong> {patient.notes}
+                          <strong>Queue Notes:</strong> {patient.notes}
                         </p>
                       )}
                     </div>
