@@ -388,11 +388,11 @@ export const ALERT_TEMPLATES = {
     ],
   }),
 
-  APPOINTMENT_REMINDER: (patientName: string, time: string): AlertItem => ({
+  APPOINTMENT_REMINDER: (devoteeName: string, time: string): AlertItem => ({
     id: "appointment-reminder",
     type: "info",
     title: "Upcoming Appointment",
-    message: `${patientName} has an appointment scheduled for ${time}.`,
+    message: `${devoteeName} has an appointment scheduled for ${time}.`,
     priority: "medium",
     timestamp: new Date(),
     category: "Appointments",

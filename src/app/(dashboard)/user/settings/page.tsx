@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/core/auth";
@@ -6,17 +5,8 @@ import { authOptions } from "@/lib/core/auth";
 import { getUserSettings, getFamilyContacts } from "@/lib/actions";
 import { UserSettingsForm } from "@/components/forms/user-settings-form";
 import { FamilyContactsList } from "@/components/family-contacts-list";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, User, Shield, Bell, Users } from "lucide-react";
-import { GlobalSpinner } from "@/components/loading";
+import { AlertTriangle } from "lucide-react";
 import UserSettingsClientWrapper from "./user-settings-client-wrapper";
 
 // Server Component for User Settings

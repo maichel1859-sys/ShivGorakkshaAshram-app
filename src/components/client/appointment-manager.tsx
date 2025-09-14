@@ -175,7 +175,11 @@ export function AppointmentManager() {
         status: string;
         action: string;
         userId: string;
-        appointment?: any;
+        appointment?: {
+          id: string;
+          gurujiName?: string;
+          [key: string]: unknown;
+        };
         timestamp: string;
       };
 
@@ -192,7 +196,7 @@ export function AppointmentManager() {
         } else if (data.action === 'completed') {
           toast.success('Your consultation has been completed.');
         } else if (data.action === 'booked') {
-          const gurujiName = (data as any).gurujiName || 'your Guruji';
+          const gurujiName = (data as { gurujiName?: string }).gurujiName || 'your Guruji';
           toast.success(`Appointment successfully booked with ${gurujiName}!`);
         } else if (data.action === 'cancelled') {
           toast.info('Your appointment has been cancelled.');

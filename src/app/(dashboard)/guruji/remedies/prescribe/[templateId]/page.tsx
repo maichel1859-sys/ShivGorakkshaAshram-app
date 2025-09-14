@@ -33,7 +33,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   useRemedyTemplate,
-  useGurujiPatients,
+  useGurujiDevotees,
   useGenerateRemedyPreview,
   usePrescribeRemedy,
 } from "@/hooks/queries";
@@ -41,7 +41,7 @@ import { toast } from "sonner";
 
 
 
-interface Patient {
+interface Devotee {
   id: string;
   name: string | null;
   email: string | null;
@@ -49,7 +49,7 @@ interface Patient {
 }
 
 const prescriptionSchema = z.object({
-  patientId: z.string().min(1, "Please select a patient"),
+  devoteeId: z.string().min(1, "Please select a devotee"),
   customInstructions: z.string().optional(),
   customDosage: z.string().optional(),
   customDuration: z.string().optional(),
@@ -65,7 +65,7 @@ export default function PrescribeRemedyPage({
 }: {
   params: Promise<{ templateId: string }>;
 }) {
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedDevotee, setSelectedDevotee] = useState<Devotee | null>(null);
   const [templateId, setTemplateId] = useState<string>("");
   const router = useRouter();
 
@@ -76,10 +76,10 @@ export default function PrescribeRemedyPage({
     error: templateError,
   } = useRemedyTemplate(templateId);
   const {
-    data: patients = [],
-    isLoading: patientsLoading,
-    error: patientsError,
-  } = useGurujiPatients();
+    data: devotees = [],
+    isLoading: devoteesLoading,
+    error: devoteesError,
+  } = useGurujiDevotees();
   const generatePreviewMutation = useGenerateRemedyPreview();
   const prescribeRemedyMutation = usePrescribeRemedy();
 
@@ -98,8 +98,8 @@ export default function PrescribeRemedyPage({
   });
 
   const watchedValues = watch();
-  const isLoading = templateLoading || patientsLoading;
-  const error = templateError || patientsError;
+  const isLoading = templateLoading || devoteesLoading;
+  const error = templateError || devoteesError;
   const isSubmitting = prescribeRemedyMutation.isPending;
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function PrescribeRemedyPage({
   const onSubmit = async (data: PrescriptionFormData) => {
     const formData = new FormData();
     formData.append("templateId", templateId);
-    formData.append("patientId", data.patientId);
+    formData.append("devoteeId", data.devoteeId);
     if (data.customInstructions)
       formData.append("customInstructions", data.customInstructions);
     if (data.customDosage) formData.append("customDosage", data.customDosage);
@@ -163,18 +163,18 @@ export default function PrescribeRemedyPage({
     });
   };
 
-  const handlePatientSelect = (patientId: string) => {
-    const patient = patients.find((p) => p.id === patientId);
-    setSelectedPatient(patient || null);
-    setValue("patientId", patientId);
+  const handleDevoteeSelect = (devoteeId: string) => {
+    const devotee = devotees.find((p) => p.id === devoteeId);
+    setSelectedDevotee(devotee || null);
+    setValue("devoteeId", devoteeId);
   };
 
   const generatePreview = async () => {
-    if (!selectedPatient || !template) return;
+    if (!selectedDevotee || !template) return;
 
     const formData = new FormData();
     formData.append("templateId", templateId);
-    formData.append("patientId", selectedPatient.id);
+    formData.append("devoteeId", selectedDevotee.id);
     if (watchedValues.customInstructions)
       formData.append("customInstructions", watchedValues.customInstructions);
     if (watchedValues.customDosage)
@@ -310,42 +310,42 @@ export default function PrescribeRemedyPage({
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                {/* Patient Selection */}
+                {/* Devotee Selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="patient">Select Patient</Label>
-                  <Select onValueChange={handlePatientSelect}>
+                  <Label htmlFor="devotee">Select Devotee</Label>
+                  <Select onValueChange={handleDevoteeSelect}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Choose patient" />
+                      <SelectValue placeholder="Choose devotee" />
                     </SelectTrigger>
                     <SelectContent>
-                      {patients.map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
+                      {devotees.map((devotee) => (
+                        <SelectItem key={devotee.id} value={devotee.id}>
                           <div>
-                            <div className="font-medium">{patient.name}</div>
+                            <div className="font-medium">{devotee.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {patient.email}
+                              {devotee.email}
                             </div>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.patientId && (
+                  {errors.devoteeId && (
                     <p className="text-sm text-destructive">
-                      {errors.patientId.message}
+                      {errors.devoteeId.message}
                     </p>
                   )}
                 </div>
 
-                {selectedPatient && (
+                {selectedDevotee && (
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="font-medium">{selectedPatient.name}</p>
+                    <p className="font-medium">{selectedDevotee.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedPatient.email}
+                      {selectedDevotee.email}
                     </p>
-                    {selectedPatient.phone && (
+                    {selectedDevotee.phone && (
                       <p className="text-sm text-muted-foreground">
-                        {selectedPatient.phone}
+                        {selectedDevotee.phone}
                       </p>
                     )}
                   </div>
@@ -387,7 +387,7 @@ export default function PrescribeRemedyPage({
                     </Label>
                     <Textarea
                       id="customInstructions"
-                      placeholder="Any specific instructions for this patient..."
+                      placeholder="Any specific instructions for this devotee..."
                       {...register("customInstructions")}
                     />
                   </div>
@@ -452,7 +452,7 @@ export default function PrescribeRemedyPage({
                       type="button"
                       variant="outline"
                       onClick={generatePreview}
-                      disabled={!selectedPatient}
+                      disabled={!selectedDevotee}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       Preview PDF
@@ -462,7 +462,7 @@ export default function PrescribeRemedyPage({
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={isSubmitting || !selectedPatient}
+                    disabled={isSubmitting || !selectedDevotee}
                   >
                                       {isSubmitting ? (
                     <>
@@ -511,7 +511,7 @@ export default function PrescribeRemedyPage({
               <div>
                 <p className="font-medium">Delivery</p>
                 <p className="text-sm text-muted-foreground">
-                  The remedy will be sent to the patient via selected delivery
+                  The remedy will be sent to the devotee via selected delivery
                   methods
                 </p>
               </div>
@@ -524,7 +524,7 @@ export default function PrescribeRemedyPage({
               <div>
                 <p className="font-medium">Follow-up</p>
                 <p className="text-sm text-muted-foreground">
-                  Patient can access their remedies anytime from their dashboard
+                  Devotee can access their remedies anytime from their dashboard
                 </p>
               </div>
             </div>

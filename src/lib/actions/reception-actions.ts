@@ -16,7 +16,7 @@ import {
 import { hash } from 'bcryptjs';
 import crypto from 'crypto';
 
-// Quick registration for walk-in patients
+// Quick registration for walk-in devotees
 export async function createQuickRegistration(formData: FormData) {
   const session = await getServerSession(authOptions);
   
@@ -26,7 +26,7 @@ export async function createQuickRegistration(formData: FormData) {
 
   // Only coordinators can create quick registrations
   if (!['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
-    return { success: false, error: 'Access denied. Only coordinators can register walk-in patients.' };
+    return { success: false, error: 'Access denied. Only coordinators can register walk-in devotees.' };
   }
 
   try {
@@ -64,7 +64,7 @@ export async function createQuickRegistration(formData: FormData) {
     if (existingUser) {
       return { 
         success: false, 
-        error: 'A user with this phone number or email already exists. Please use the lookup function to find existing patients.' 
+        error: 'A user with this phone number or email already exists. Please use the lookup function to find existing devotees.' 
       };
     }
 
@@ -82,7 +82,7 @@ export async function createQuickRegistration(formData: FormData) {
         role: 'USER',
         isActive: true,
         
-        // Extended fields for walk-in patients
+        // Extended fields for walk-in devotees
         dateOfBirth: validatedData.age ? 
           new Date(new Date().getFullYear() - validatedData.age, 0, 1) : null,
         address: validatedData.address,
@@ -128,12 +128,12 @@ export async function createQuickRegistration(formData: FormData) {
     await prisma.notification.create({
       data: {
         userId: session.user.id,
-        title: 'Walk-in Patient Registered',
-        message: `Successfully registered walk-in patient: ${user.name}`,
+        title: 'Walk-in Devotee Registered',
+        message: `Successfully registered walk-in devotee: ${user.name}`,
         type: 'system',
         data: {
-          patientId: user.id,
-          patientName: user.name,
+          devoteeId: user.id,
+          devoteeName: user.name,
           registrationType: 'quick_registration',
         },
       },
@@ -161,7 +161,7 @@ export async function createQuickRegistration(formData: FormData) {
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
     }
     
-    return { success: false, error: 'Failed to register patient' };
+    return { success: false, error: 'Failed to register devotee' };
   }
 }
 
@@ -179,9 +179,9 @@ export async function createPhoneBooking(formData: FormData) {
 
   try {
     const data = {
-      patientName: formData.get('patientName') as string,
-      patientPhone: formData.get('patientPhone') as string,
-      patientEmail: formData.get('patientEmail') as string || undefined,
+      devoteeName: formData.get('devoteeName') as string,
+      devoteePhone: formData.get('devoteePhone') as string,
+      devoteeEmail: formData.get('devoteeEmail') as string || undefined,
       callerName: formData.get('callerName') as string || undefined,
       callerPhone: formData.get('callerPhone') as string || undefined,
       callerRelation: formData.get('callerRelation') as string || undefined,
@@ -191,28 +191,28 @@ export async function createPhoneBooking(formData: FormData) {
       reason: formData.get('reason') as string,
       priority: (formData.get('priority') as string) || 'NORMAL',
       notes: formData.get('notes') as string || undefined,
-      isCallerPatient: formData.get('isCallerPatient') === 'true',
+      isCallerDevotee: formData.get('isCallerDevotee') === 'true',
     };
 
     const validatedData = phoneBookingSchema.parse(data);
 
-    // Check if patient exists
-    let patient = await prisma.user.findFirst({
+    // Check if devotee exists
+    let devotee = await prisma.user.findFirst({
       where: {
-        phone: normalizePhoneNumber(validatedData.patientPhone),
+        phone: normalizePhoneNumber(validatedData.devoteePhone),
       },
     });
 
-    // If patient doesn't exist, create them
-    if (!patient) {
+    // If devotee doesn't exist, create them
+    if (!devotee) {
       const tempPassword = crypto.randomBytes(8).toString('hex');
       const hashedPassword = await hash(tempPassword, 12);
 
-      patient = await prisma.user.create({
+      devotee = await prisma.user.create({
         data: {
-          name: validatedData.patientName,
-          phone: normalizePhoneNumber(validatedData.patientPhone),
-          email: validatedData.patientEmail,
+          name: validatedData.devoteeName,
+          phone: normalizePhoneNumber(validatedData.devoteePhone),
+          email: validatedData.devoteeEmail,
           password: hashedPassword,
           role: 'USER',
           isActive: true,
@@ -227,7 +227,7 @@ export async function createPhoneBooking(formData: FormData) {
 
     const appointment = await prisma.appointment.create({
       data: {
-        userId: patient.id,
+        userId: devotee.id,
         gurujiId: validatedData.gurujiId,
         date: appointmentDate,
         startTime: appointmentDate,
@@ -250,9 +250,9 @@ export async function createPhoneBooking(formData: FormData) {
     // Create notifications
     await prisma.notification.create({
       data: {
-        userId: patient.id,
+        userId: devotee.id,
         title: 'Appointment Booked via Phone',
-        message: `Your appointment with ${appointment.guruji?.name || 'the doctor'} has been scheduled for ${appointmentDate.toLocaleString()}`,
+        message: `Your appointment with ${appointment.guruji?.name || 'the Guruji'} has been scheduled for ${appointmentDate.toLocaleString()}`,
         type: 'appointment',
         data: {
           appointmentId: appointment.id,
@@ -270,7 +270,7 @@ export async function createPhoneBooking(formData: FormData) {
       success: true, 
       appointment: {
         id: appointment.id,
-        patientName: patient.name,
+        devoteeName: devotee.name,
         gurujiName: appointment.guruji?.name || null,
         date: appointmentDate.toISOString(),
         status: appointment.status,
@@ -302,8 +302,8 @@ export async function createEmergencyQueueEntry(formData: FormData) {
 
   try {
     const data = {
-      patientName: formData.get('patientName') as string,
-      patientPhone: formData.get('patientPhone') as string || undefined,
+      devoteeName: formData.get('devoteeName') as string,
+      devoteePhone: formData.get('devoteePhone') as string || undefined,
       emergencyContact: formData.get('emergencyContact') as string,
       emergencyContactName: formData.get('emergencyContactName') as string,
       emergencyNature: formData.get('emergencyNature') as string,
@@ -315,23 +315,23 @@ export async function createEmergencyQueueEntry(formData: FormData) {
 
     const validatedData = emergencyQueueSchema.parse(data);
 
-    // Check if patient exists or create new one
-    let patient = null;
-    if (validatedData.patientPhone) {
-      patient = await prisma.user.findFirst({
-        where: { phone: normalizePhoneNumber(validatedData.patientPhone) },
+    // Check if devotee exists or create new one
+    let devotee = null;
+    if (validatedData.devoteePhone) {
+      devotee = await prisma.user.findFirst({
+        where: { phone: normalizePhoneNumber(validatedData.devoteePhone) },
       });
     }
 
-    if (!patient) {
+    if (!devotee) {
       const tempPassword = crypto.randomBytes(8).toString('hex');
       const hashedPassword = await hash(tempPassword, 12);
 
-      patient = await prisma.user.create({
+      devotee = await prisma.user.create({
         data: {
-          name: validatedData.patientName,
-          phone: validatedData.patientPhone ? 
-            normalizePhoneNumber(validatedData.patientPhone) : null,
+          name: validatedData.devoteeName,
+          phone: validatedData.devoteePhone ? 
+            normalizePhoneNumber(validatedData.devoteePhone) : null,
           password: hashedPassword,
           role: 'USER',
           isActive: true,
@@ -345,7 +345,7 @@ export async function createEmergencyQueueEntry(formData: FormData) {
     if (validatedData.gurujiId) {
       appointment = await prisma.appointment.create({
         data: {
-          userId: patient.id,
+          userId: devotee.id,
           gurujiId: validatedData.gurujiId,
           date: new Date(),
           startTime: new Date(),
@@ -361,7 +361,7 @@ export async function createEmergencyQueueEntry(formData: FormData) {
     // Create emergency queue entry with priority position
     const queueEntry = await prisma.queueEntry.create({
       data: {
-        userId: patient.id,
+        userId: devotee.id,
         gurujiId: validatedData.gurujiId,
         appointmentId: appointment?.id || '',
         position: 0, // Emergency gets position 0 (highest priority)
@@ -402,13 +402,13 @@ export async function createEmergencyQueueEntry(formData: FormData) {
         data: {
           userId: validatedData.gurujiId,
           title: '🚨 EMERGENCY PATIENT',
-          message: `Emergency patient ${validatedData.patientName} added to your queue. Nature: ${validatedData.emergencyNature}`,
+          message: `Emergency devotee ${validatedData.devoteeName} added to your queue. Nature: ${validatedData.emergencyNature}`,
           type: 'queue',
           data: {
             isEmergency: true,
             queueEntryId: queueEntry.id,
-            patientId: patient.id,
-            patientName: validatedData.patientName,
+            devoteeId: devotee.id,
+            devoteeName: validatedData.devoteeName,
             emergencyNature: validatedData.emergencyNature,
           },
         },
@@ -430,13 +430,13 @@ export async function createEmergencyQueueEntry(formData: FormData) {
           data: {
             userId: guruji.id,
             title: '🚨 EMERGENCY PATIENT - UNASSIGNED',
-            message: `Emergency patient ${validatedData.patientName} needs immediate attention. Nature: ${validatedData.emergencyNature}`,
+            message: `Emergency devotee ${validatedData.devoteeName} needs immediate attention. Nature: ${validatedData.emergencyNature}`,
             type: 'queue',
             data: {
               isEmergency: true,
               queueEntryId: queueEntry.id,
-              patientId: patient.id,
-              patientName: validatedData.patientName,
+              devoteeId: devotee.id,
+              devoteeName: validatedData.devoteeName,
               emergencyNature: validatedData.emergencyNature,
               needsAssignment: true,
             },
@@ -453,7 +453,7 @@ export async function createEmergencyQueueEntry(formData: FormData) {
         resource: 'EMERGENCY_QUEUE_ENTRY',
         resourceId: queueEntry.id,
         newData: {
-          patientName: validatedData.patientName,
+          devoteeName: validatedData.devoteeName,
           emergencyNature: validatedData.emergencyNature,
           priority: validatedData.priority,
           gurujiId: validatedData.gurujiId,
@@ -469,7 +469,7 @@ export async function createEmergencyQueueEntry(formData: FormData) {
       success: true, 
       queueEntry: {
         id: queueEntry.id,
-        patientName: patient.name,
+        devoteeName: devotee.name,
         position: queueEntry.position,
         status: queueEntry.status,
         priority: queueEntry.priority,

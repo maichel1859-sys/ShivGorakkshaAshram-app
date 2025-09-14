@@ -75,11 +75,11 @@ export function QuickRegistrationForm({
       const result = await createQuickRegistration(formData);
       
       if (!result.success) {
-        toast.error(result.error || "Failed to register patient");
+        toast.error(result.error || "Failed to register devotee");
         return;
       }
       
-      toast.success(`${mode === "emergency" ? "Emergency patient" : "New patient"} registered successfully!`);
+      toast.success(`${mode === "emergency" ? "Emergency devotee" : "New devotee"} registered successfully!`);
       
       if (onSuccess) {
         onSuccess(data);
@@ -89,7 +89,7 @@ export function QuickRegistrationForm({
       setCurrentStep(1);
     } catch (error) {
       console.error("Registration error:", error);
-      toast.error("Failed to register patient. Please try again.");
+      toast.error("Failed to register devotee. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -118,7 +118,7 @@ export function QuickRegistrationForm({
             <CardTitle className="text-xl">
               {mode === "emergency" ? "Emergency Registration" : 
                mode === "family" ? "Family Member Registration" : 
-               "Quick Patient Registration"}
+               "Quick Devotee Registration"}
             </CardTitle>
           </div>
           {mode === "emergency" && (
@@ -170,7 +170,7 @@ export function QuickRegistrationForm({
                   <Input
                     id="name"
                     {...register("name")}
-                    placeholder="Enter patient's full name"
+                    placeholder="Enter devotee's full name"
                     className={errors.name ? "border-red-500" : ""}
                   />
                   {errors.name && (
@@ -267,7 +267,7 @@ export function QuickRegistrationForm({
                   <Input
                     id="phone"
                     {...register("phone")}
-                    placeholder="Patient's phone number"
+                    placeholder="Devotee's phone number"
                     type="tel"
                   />
                   {errors.phone && (
@@ -280,7 +280,7 @@ export function QuickRegistrationForm({
                   <Input
                     id="email"
                     {...register("email")}
-                    placeholder="Patient's email (optional)"
+                    placeholder="Devotee's email (optional)"
                     type="email"
                   />
                   {errors.email && (
@@ -313,7 +313,7 @@ export function QuickRegistrationForm({
                 <Textarea
                   id="address"
                   {...register("address")}
-                  placeholder="Patient's address (optional)"
+                  placeholder="Devotee's address (optional)"
                   rows={3}
                 />
               </div>
@@ -334,7 +334,7 @@ export function QuickRegistrationForm({
                   <Textarea
                     id="notes"
                     {...register("notes")}
-                    placeholder="Any additional notes about the patient or registration..."
+                    placeholder="Any additional notes about the devotee or registration..."
                     rows={4}
                   />
                 </div>

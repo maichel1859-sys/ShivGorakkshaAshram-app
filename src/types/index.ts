@@ -61,7 +61,7 @@ export interface QueueUpdate {
 export interface ConsultationSession {
   id: string
   appointmentId: string
-  patientId: string
+  devoteeId: string
   gurujiId: string
   startTime: Date
   endTime?: Date | null
@@ -73,7 +73,7 @@ export interface ConsultationSession {
   createdAt: Date
   updatedAt: Date
   appointment?: Appointment
-  patient?: User
+  devotee?: User
   guruji?: User
 }
 

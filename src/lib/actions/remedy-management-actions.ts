@@ -29,7 +29,7 @@ export async function getUserRemedies() {
     const remedies = await prisma.remedyDocument.findMany({
       where: {
         consultationSession: {
-          patientId: session.user.id
+          devoteeId: session.user.id
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -124,7 +124,7 @@ export async function updateRemedy(remedyId: string, formData: FormData) {
         template: true,
         consultationSession: {
           include: {
-            patient: true,
+            devotee: true,
           },
         },
       },
@@ -161,7 +161,7 @@ export async function updateRemedy(remedyId: string, formData: FormData) {
   }
 }
 
-// Send remedy to patient
+// Send remedy to devotee
 export async function sendRemedy(remedyId: string, formData: FormData) {
   const session = await getServerSession(authOptions);
   
@@ -180,7 +180,7 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
       include: {
         consultationSession: {
           include: {
-            patient: true,
+            devotee: true,
             appointment: {
               select: { gurujiId: true },
             },
@@ -243,7 +243,7 @@ export async function sendRemedy(remedyId: string, formData: FormData) {
   }
 }
 
-// Resend remedy to patient
+// Resend remedy to devotee
 export async function resendRemedy(remedyId: string) {
   const session = await getServerSession(authOptions);
   
@@ -259,7 +259,7 @@ export async function resendRemedy(remedyId: string) {
         template: true,
         consultationSession: {
           include: {
-            patient: true,
+            devotee: true,
             appointment: {
               include: {
                 guruji: {
@@ -281,10 +281,10 @@ export async function resendRemedy(remedyId: string) {
       return { success: false, error: 'Permission denied' };
     }
 
-    // Create notification for the patient
+    // Create notification for the devotee
     await prisma.notification.create({
       data: {
-        userId: remedy.consultationSession.patientId,
+        userId: remedy.consultationSession.devoteeId,
         type: 'REMEDY_PRESCRIBED',
         title: 'Remedy Resent',
         message: `Your remedy "${remedy.template.name}" has been resent by ${remedy.consultationSession.appointment.guruji?.name || 'Guruji'}. Please check your remedies section.`,
@@ -315,7 +315,7 @@ export async function resendRemedy(remedyId: string) {
         resourceId: remedyId,
         newData: JSON.parse(JSON.stringify({
           templateName: remedy.template.name,
-          patientName: remedy.consultationSession.patient.name,
+          devoteeName: remedy.consultationSession.devotee.name,
           resentAt: new Date().toISOString()
         })),
       },
@@ -348,7 +348,7 @@ export async function getRemedyDetails(remedyId: string) {
         template: true,
         consultationSession: {
           include: {
-            patient: {
+            devotee: {
               select: {
                 id: true,
                 name: true,
@@ -378,7 +378,7 @@ export async function getRemedyDetails(remedyId: string) {
     const canAccess = 
       session.user.role === 'ADMIN' ||
       (session.user.role === 'GURUJI' && remedy.consultationSession.appointment.gurujiId === session.user.id) ||
-      (session.user.role === 'USER' && remedy.consultationSession.patientId === session.user.id);
+      (session.user.role === 'USER' && remedy.consultationSession.devoteeId === session.user.id);
 
     if (!canAccess) {
       return { success: false, error: 'Permission denied' };
@@ -410,7 +410,7 @@ export async function deleteRemedy(remedyId: string) {
         template: true,
         consultationSession: {
           include: {
-            patient: true,
+            devotee: true,
           },
         },
       },
@@ -429,7 +429,7 @@ export async function deleteRemedy(remedyId: string) {
         resourceId: remedyId,
         oldData: JSON.parse(JSON.stringify({
           templateName: remedy.template.name,
-          patientName: remedy.consultationSession.patient.name,
+          devoteeName: remedy.consultationSession.devotee.name,
         })),
       },
     });

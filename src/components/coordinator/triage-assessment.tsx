@@ -43,7 +43,7 @@ export function TriageAssessmentComponent({ onComplete, onCancel }: TriageAssess
     {
       id: "appointment",
       title: "Do you have an existing appointment today?",
-      description: "Check if patient has pre-booked appointment",
+      description: "Check if devotee has pre-booked appointment",
       icon: Calendar,
       color: "text-blue-500",
       type: "boolean",
@@ -52,11 +52,11 @@ export function TriageAssessmentComponent({ onComplete, onCancel }: TriageAssess
     {
       id: "existing",
       title: "Have you visited this ashram before?",
-      description: "Check if patient is already in our system",
+      description: "Check if devotee is already in our system",
       icon: UserCheck,
       color: "text-green-500",
       type: "boolean",
-      field: "existingPatient",
+      field: "existingDevotee",
     },
     {
       id: "mobile",
@@ -160,7 +160,7 @@ export function TriageAssessmentComponent({ onComplete, onCancel }: TriageAssess
       recommendedPath = "COORDINATOR_CHECKIN";
     } else if (finalAssessment.hasMobile && finalAssessment.canUseApp && finalAssessment.preferredMethod === "SELF_SERVICE") {
       recommendedPath = "SELF_BOOKING";
-    } else if (finalAssessment.existingPatient) {
+    } else if (finalAssessment.existingDevotee) {
       recommendedPath = "QUICK_BOOKING";
     } else {
       recommendedPath = "FULL_REGISTRATION";
@@ -172,7 +172,7 @@ export function TriageAssessmentComponent({ onComplete, onCancel }: TriageAssess
       needsAssistance: finalAssessment.preferredMethod !== "SELF_SERVICE",
       isEmergency: finalAssessment.isEmergency || false,
       hasAppointment: finalAssessment.hasAppointment || false,
-      existingPatient: finalAssessment.existingPatient,
+      existingDevotee: finalAssessment.existingDevotee,
       preferredMethod: finalAssessment.preferredMethod,
     };
 
@@ -214,7 +214,7 @@ export function TriageAssessmentComponent({ onComplete, onCancel }: TriageAssess
     
     return {
       title: "Registration Needed",
-      description: "New patient registration",
+      description: "New devotee registration",
       color: "bg-yellow-100 text-yellow-800",
       icon: HelpCircle,
     };
@@ -227,7 +227,7 @@ export function TriageAssessmentComponent({ onComplete, onCancel }: TriageAssess
       <CardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-blue-600" />
-          <CardTitle>Patient Triage Assessment</CardTitle>
+          <CardTitle>Devotee Triage Assessment</CardTitle>
         </div>
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>Question {currentQuestion + 1} of {questions.length}</span>

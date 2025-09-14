@@ -65,7 +65,7 @@ export default function GurujiDashboard() {
   });
 
   // Get appointment data
-  const { data: appointments = [], isLoading: appointmentsLoading, refetch: refetchAppointments } = useGurujiAppointments();
+  const { data: appointments = [], refetch: refetchAppointments } = useGurujiAppointments();
 
   // Calculate appointment statistics
   const appointmentStats = useMemo(() => {
@@ -121,11 +121,11 @@ export default function GurujiDashboard() {
 
         // Show notification for new bookings
         if (data.action === 'booked') {
-          const patientName = (data as any).patientName || 'A patient';
-          showToast.success(`${patientName} has booked a new appointment with you`);
+          const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
+          showToast.success(`${devoteeName} has booked a new appointment with you`);
         } else if (data.action === 'cancelled') {
-          const patientName = (data as any).patientName || 'A patient';
-          showToast.error(`${patientName} has cancelled their appointment`);
+          const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
+          showToast.error(`${devoteeName} has cancelled their appointment`);
         }
       }
     };
@@ -281,13 +281,13 @@ export default function GurujiDashboard() {
     }
   };
 
-  const onPrescribeRemedy = async (entry: QueueEntry) => {
-    await handlePrescribeRemedy(entry, (consultationSessionId, entry) => {
-      setConsultationSessionId(consultationSessionId);
-      setSelectedQueueEntry(entry);
-      setPrescribeModalOpen(true);
-    });
-  };
+  // const _onPrescribeRemedy = async (entry: QueueEntry) => {
+  //   await handlePrescribeRemedy(entry, (consultationSessionId, entry) => {
+  //     setConsultationSessionId(consultationSessionId);
+  //     setSelectedQueueEntry(entry);
+  //     setPrescribeModalOpen(true);
+  //   });
+  // };
 
   // Handlers for the new complete consultation options
   const onPrescribeAndCompleteHandler = (entry: QueueEntry) => {
@@ -338,38 +338,38 @@ export default function GurujiDashboard() {
     }
   };
 
-  // Get current patient from in-progress entries
-  const currentPatient = inProgressEntries[0] || null;
+  // Get current devotee from in-progress entries
+  const currentDevotee = inProgressEntries[0] || null;
 
-  // Create consultation session data for timer (when patient is in progress)
+  // Create consultation session data for timer (when devotee is in progress)
   const activeConsultation = useMemo(() => {
-    if (!currentPatient || !consultationStartTime) return null;
+    if (!currentDevotee || !consultationStartTime) return null;
     
     return {
-      id: activeConsultationId || `temp-${currentPatient.id}`,
-      appointmentId: currentPatient.appointment?.id || currentPatient.id,
-      patientId: currentPatient.user.id,
+      id: activeConsultationId || `temp-${currentDevotee.id}`,
+      appointmentId: currentDevotee.appointment?.id || currentDevotee.id,
+      devoteeId: currentDevotee.user.id,
       gurujiId: session?.user?.id || '',
       startTime: consultationStartTime.toISOString(),
-      patient: {
-        id: currentPatient.user.id,
-        name: currentPatient.user.name,
-        phone: currentPatient.user.phone || null,
+      devotee: {
+        id: currentDevotee.user.id,
+        name: currentDevotee.user.name,
+        phone: currentDevotee.user.phone || null,
       }
     };
-  }, [currentPatient, consultationStartTime, activeConsultationId, session?.user?.id]);
+  }, [currentDevotee, consultationStartTime, activeConsultationId, session?.user?.id]);
 
-  // Update consultation start time when patient consultation begins
+  // Update consultation start time when devotee consultation begins
   useEffect(() => {
-    if (currentPatient && !consultationStartTime) {
-      // Set start time when first patient becomes current
+    if (currentDevotee && !consultationStartTime) {
+      // Set start time when first devotee becomes current
       setConsultationStartTime(new Date());
-    } else if (!currentPatient && consultationStartTime) {
-      // Clear start time when no current patient
+    } else if (!currentDevotee && consultationStartTime) {
+      // Clear start time when no current devotee
       setConsultationStartTime(null);
       setActiveConsultationId(null);
     }
-  }, [currentPatient, consultationStartTime]);
+  }, [currentDevotee, consultationStartTime]);
 
   const isLoading = useLoadingState("queue-loading");
   
@@ -391,7 +391,7 @@ export default function GurujiDashboard() {
         </div>
 
         {/* Active Consultation Indicator */}
-        {currentPatient && (
+        {currentDevotee && (
           <div className="flex items-center space-x-2 bg-green-50 p-3 rounded-lg">
             <Timer className="h-5 w-5 text-green-600" />
             <span className="text-sm text-green-700">
@@ -413,7 +413,7 @@ export default function GurujiDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
-              {t("queue.waitingPatients", "Total patients today")}
+              {t("queue.waitingDevotees", "Total devotees today")}
             </p>
           </CardContent>
         </Card>
@@ -433,12 +433,12 @@ export default function GurujiDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("queue.waitingPatients", "Waiting")}</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("queue.waitingDevotees", "Waiting")}</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.waiting}</div>
-            <p className="text-xs text-muted-foreground">{t("queue.waitingPatients", "Patients in queue")}</p>
+            <p className="text-xs text-muted-foreground">{t("queue.waitingDevotees", "Devotees in queue")}</p>
           </CardContent>
         </Card>
 
@@ -498,10 +498,10 @@ export default function GurujiDashboard() {
         </CardContent>
       </Card>
 
-      {/* Current Patient Section */}
-      {currentPatient && (
+      {/* Current Devotee Section */}
+      {currentDevotee && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Patient Info Card */}
+          {/* Devotee Info Card */}
           <Card className="border-green-200 bg-green-50/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-green-700">
@@ -514,7 +514,7 @@ export default function GurujiDashboard() {
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-green-100 text-green-700">
-                      {currentPatient.user.name
+                      {currentDevotee.user.name
                         ?.split(" ")
                         .map((n: string) => n[0])
                         .join("")
@@ -523,35 +523,37 @@ export default function GurujiDashboard() {
                   </Avatar>
                   <div>
                     <h3 className="font-semibold text-green-800">
-                      {currentPatient.user.name || 'Unknown User'}
+                      {currentDevotee.user.name || 'Unknown User'}
                     </h3>
                     <div className="space-y-1">
                       <p className="text-sm text-green-600">
-                        Priority: {currentPatient.priority || 'NORMAL'}
+                        Priority: {currentDevotee.priority || 'NORMAL'}
                       </p>
-                      {currentPatient.user.phone && (
+                      {currentDevotee.user.phone && (
                         <p className="text-xs text-green-500">
-                          Phone: {currentPatient.user.phone}
+                          Phone: {currentDevotee.user.phone}
                         </p>
                       )}
-                      {currentPatient.appointment && (
+                      {currentDevotee.appointment && (
                         <div className="text-xs text-green-500 space-y-1">
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-3 w-3" />
                             <span>
                               {(() => {
-                                const date = currentPatient.appointment.date instanceof Date
-                                  ? currentPatient.appointment.date
-                                  : new Date(currentPatient.appointment.date);
-                                const startTime = currentPatient.appointment.startTime instanceof Date
-                                  ? currentPatient.appointment.startTime
-                                  : new Date(currentPatient.appointment.startTime);
+                                if (!currentDevotee.appointment) return 'No appointment details';
+
+                                const rawDate = currentDevotee.appointment.date;
+                                const rawStartTime = currentDevotee.appointment.startTime;
+
+                                const date = rawDate ? new Date(rawDate) : new Date();
+                                const startTime = rawStartTime ? new Date(rawStartTime) : new Date();
+
                                 return `${format(isNaN(date.getTime()) ? new Date() : date, "MMM dd")} at ${format(isNaN(startTime.getTime()) ? new Date() : startTime, "h:mm a")}`;
                               })()}
                             </span>
                           </div>
-                          {currentPatient.appointment.reason && (
-                            <p><strong>Reason:</strong> {currentPatient.appointment.reason}</p>
+                          {currentDevotee.appointment.reason && (
+                            <p><strong>Reason:</strong> {currentDevotee.appointment.reason}</p>
                           )}
                         </div>
                       )}
@@ -562,9 +564,9 @@ export default function GurujiDashboard() {
                 {/* Complete Button */}
                 <div className="flex justify-end">
                   <CompleteConsultationButton
-                    onPrescribeAndComplete={() => onPrescribeAndCompleteHandler(currentPatient)}
-                    onSkipAndComplete={() => onSkipAndCompleteHandler(currentPatient)}
-                    isLoading={prescribingForId === currentPatient.id}
+                    onPrescribeAndComplete={() => onPrescribeAndCompleteHandler(currentDevotee)}
+                    onSkipAndComplete={() => onSkipAndCompleteHandler(currentDevotee)}
+                    isLoading={prescribingForId === currentDevotee.id}
                     loadingText="Opening..."
                   />
                 </div>
@@ -594,15 +596,15 @@ export default function GurujiDashboard() {
                 }
               }}
               onPrescribeAndComplete={() => {
-                const currentPatient = queueEntries.find(p => p.status === 'IN_PROGRESS');
-                if (currentPatient) {
-                  onPrescribeAndCompleteHandler(currentPatient);
+                const currentDevotee = queueEntries.find(p => p.status === 'IN_PROGRESS');
+                if (currentDevotee) {
+                  onPrescribeAndCompleteHandler(currentDevotee);
                 }
               }}
               onSkipAndComplete={() => {
-                const currentPatient = queueEntries.find(p => p.status === 'IN_PROGRESS');
-                if (currentPatient) {
-                  onSkipAndCompleteHandler(currentPatient);
+                const currentDevotee = queueEntries.find(p => p.status === 'IN_PROGRESS');
+                if (currentDevotee) {
+                  onSkipAndCompleteHandler(currentDevotee);
                 }
               }}
             />
@@ -615,7 +617,7 @@ export default function GurujiDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Patient Queue
+            Devotee Queue
           </CardTitle>
           <div className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 mt-2">
             <AlertCircle className="h-4 w-4 inline mr-2" />
@@ -625,20 +627,20 @@ export default function GurujiDashboard() {
         <CardContent>
           {waitingEntries.length > 0 ? (
             <div className="space-y-3">
-              {waitingEntries.map((patient) => (
+              {waitingEntries.map((devotee) => (
                 <div
-                  key={patient.id}
+                  key={devotee.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center justify-center w-8 h-8 bg-primary/10 rounded-full">
                       <span className="text-sm font-semibold text-primary">
-                        {patient.position}
+                        {devotee.position}
                       </span>
                     </div>
                     <Avatar className="h-10 w-10">
                       <AvatarFallback>
-                        {patient.user.name
+                        {devotee.user.name
                           ?.split(" ")
                           .map((n: string) => n[0])
                           .join("")
@@ -647,42 +649,34 @@ export default function GurujiDashboard() {
                     </Avatar>
                     <div>
                       <h4 className="font-medium">
-                        {patient.user.name || 'Unknown User'}
+                        {devotee.user.name || 'Unknown User'}
                       </h4>
                       <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>Position: #{patient.position}</span>
-                        {patient.user.phone && (
+                        <span>Position: #{devotee.position}</span>
+                        {devotee.user.phone && (
                           <span className="flex items-center">
                             <Phone className="mr-1 h-3 w-3" />
-                            {patient.user.phone}
+                            {devotee.user.phone}
                           </span>
                         )}
-                        {patient.estimatedWait && (
+                        {devotee.estimatedWait && (
                           <span className="flex items-center">
                             <Clock className="mr-1 h-3 w-3" />
-                            Est. wait: {patient.estimatedWait}m
+                            Est. wait: {devotee.estimatedWait}m
                           </span>
                         )}
                       </div>
 
                       {/* Appointment Details */}
-                      {patient.appointment && (
+                      {devotee.appointment && (
                         <div className="text-sm text-muted-foreground mt-2 space-y-1">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-3 w-3" />
                             <span>
                               {(() => {
-                                const date = patient.appointment.date instanceof Date
-                                  ? patient.appointment.date
-                                  : new Date(patient.appointment.date);
-                                const startTime = patient.appointment.startTime instanceof Date
-                                  ? patient.appointment.startTime
-                                  : new Date(patient.appointment.startTime);
-                                const endTime = patient.appointment.endTime
-                                  ? (patient.appointment.endTime instanceof Date
-                                    ? patient.appointment.endTime
-                                    : new Date(patient.appointment.endTime))
-                                  : null;
+                                const date = new Date(devotee.appointment.date);
+                                const startTime = new Date(devotee.appointment.startTime);
+                                const endTime = devotee.appointment.endTime ? new Date(devotee.appointment.endTime) : null;
 
                                 const formattedDate = format(isNaN(date.getTime()) ? new Date() : date, "MMM dd, yyyy");
                                 const formattedStartTime = format(isNaN(startTime.getTime()) ? new Date() : startTime, "h:mm a");
@@ -694,36 +688,36 @@ export default function GurujiDashboard() {
                               })()}
                             </span>
                           </div>
-                          {patient.appointment.reason && (
+                          {devotee.appointment.reason && (
                             <p>
-                              <strong>Appointment Reason:</strong> {patient.appointment.reason}
+                              <strong>Appointment Reason:</strong> {devotee.appointment.reason}
                             </p>
                           )}
                         </div>
                       )}
 
                       {/* Queue Notes */}
-                      {patient.notes && (
+                      {devotee.notes && (
                         <p className="text-sm text-muted-foreground mt-1">
-                          <strong>Queue Notes:</strong> {patient.notes}
+                          <strong>Queue Notes:</strong> {devotee.notes}
                         </p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Badge
-                      className={`${getPriorityColor(patient.priority || 'NORMAL')} px-2 py-1`}
+                      className={`${getPriorityColor(devotee.priority || 'NORMAL')} px-2 py-1`}
                     >
-                      {patient.priority || 'NORMAL'}
+                      {devotee.priority || 'NORMAL'}
                     </Badge>
-                    {!currentPatient && (
+                    {!currentDevotee && (
                       <Button
-                        onClick={() => onStartConsultation(patient)}
+                        onClick={() => onStartConsultation(devotee)}
                         size="sm"
                         className="bg-primary hover:bg-primary/90"
-                        disabled={startingConsultationId === patient.id}
+                        disabled={startingConsultationId === devotee.id}
                       >
-                        {startingConsultationId === patient.id ? (
+                        {startingConsultationId === devotee.id ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                             Starting...
@@ -740,8 +734,8 @@ export default function GurujiDashboard() {
                       size="sm" 
                       variant="outline"
                       onClick={() => {
-                        if (patient.user.phone) {
-                          window.open(`tel:${patient.user.phone}`, '_blank');
+                        if (devotee.user.phone) {
+                          window.open(`tel:${devotee.user.phone}`, '_blank');
                         } else {
                           commonToasts.noPhoneNumber();
                         }
@@ -758,10 +752,10 @@ export default function GurujiDashboard() {
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-muted-foreground">
-                No patients in queue
+                No devotees in queue
               </h3>
               <p className="text-sm text-muted-foreground">
-                All patients have been seen or no appointments scheduled
+                All devotees have been seen or no appointments scheduled
               </p>
             </div>
           )}
@@ -778,7 +772,7 @@ export default function GurujiDashboard() {
             setConsultationSessionId(null);
           }}
           consultationId={consultationSessionId}
-          patientName={selectedQueueEntry.user.name || "Patient"}
+          devoteeName={selectedQueueEntry.user.name || "Devotee"}
           onSuccess={async () => {
             // Clear consultation state and refresh queue data
             setConsultationStartTime(null);

@@ -585,7 +585,7 @@ export const triageAssessmentSchema = z.object({
   needsAssistance: z.boolean(),
   isEmergency: z.boolean().default(false),
   hasAppointment: z.boolean(),
-  existingPatient: z.boolean().optional(),
+  existingDevotee: z.boolean().optional(),
   preferredMethod: z.enum(["SELF_SERVICE", "ASSISTED", "FAMILY_HELP"]).optional(),
   language: z.string().optional(),
   specialNeeds: z.string().max(500).optional(),
@@ -593,9 +593,9 @@ export const triageAssessmentSchema = z.object({
 
 // Phone-based booking schema
 export const phoneBookingSchema = z.object({
-  patientName: nameSchema,
-  patientPhone: phoneSchema,
-  patientEmail: emailSchema.optional(),
+  devoteeName: nameSchema,
+  devoteePhone: phoneSchema,
+  devoteeEmail: emailSchema.optional(),
   callerName: z.string().max(100).optional(),
   callerPhone: phoneSchema.optional(),
   callerRelation: z.string().max(50).optional(),
@@ -605,16 +605,16 @@ export const phoneBookingSchema = z.object({
   reason: z.string().max(500),
   priority: PriorityEnum.default("NORMAL"),
   notes: z.string().max(1000).optional(),
-  isCallerPatient: z.boolean().default(true),
+  isCallerDevotee: z.boolean().default(true),
 });
 
 // Family/proxy booking schema
 export const familyBookingSchema = z.object({
-  patientName: nameSchema,
-  patientPhone: phoneSchema.optional(),
-  patientEmail: emailSchema.optional(),
-  patientAge: z.number().min(1).max(120).optional(),
-  patientGender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  devoteeName: nameSchema,
+  devoteePhone: phoneSchema.optional(),
+  devoteeEmail: emailSchema.optional(),
+  devoteeAge: z.number().min(1).max(120).optional(),
+  devoteeGender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   bookerName: nameSchema,
   bookerPhone: phoneSchema,
   bookerEmail: emailSchema.optional(),
@@ -625,13 +625,13 @@ export const familyBookingSchema = z.object({
   reason: z.string().max(500),
   priority: PriorityEnum.default("NORMAL"),
   notes: z.string().max(1000).optional(),
-  consentGiven: z.boolean().refine(val => val === true, "Patient consent is required"),
+  consentGiven: z.boolean().refine(val => val === true, "Devotee consent is required"),
 });
 
 // Emergency queue entry schema
 export const emergencyQueueSchema = z.object({
-  patientName: nameSchema,
-  patientPhone: phoneSchema.optional(),
+  devoteeName: nameSchema,
+  devoteePhone: phoneSchema.optional(),
   emergencyContact: phoneSchema,
   emergencyContactName: nameSchema,
   emergencyNature: z.string().max(500),

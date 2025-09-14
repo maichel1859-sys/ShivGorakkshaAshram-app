@@ -92,7 +92,7 @@ export default function CoordinatorDashboard() {
             {t("dashboard.coordinatorDashboard", "Coordinator Dashboard")}
           </h2>
           <p className="text-muted-foreground">
-            {t("dashboard.manageAppointments", "Manage appointments and patient flow")}
+            {t("dashboard.manageAppointments", "Manage appointments and devotee flow")}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -168,7 +168,7 @@ export default function CoordinatorDashboard() {
             <div className="text-2xl font-bold">
               {stats?.waitingInQueue || 0}
             </div>
-            <p className="text-xs text-muted-foreground">{t("dashboard.waitingInQueue", "Patients waiting")}</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.waitingInQueue", "Devotees waiting")}</p>
           </CardContent>
         </Card>
 
@@ -284,7 +284,7 @@ export default function CoordinatorDashboard() {
             {stats?.upcomingAppointments && stats.upcomingAppointments.length > 0 ? (
               stats.upcomingAppointments
                 .slice(0, 5)
-                .map((appointment: { id: string; patientName: string; gurujiName: string; time: string; status: string; priority: string }) => (
+                .map((appointment: { id: string; devoteeName: string; gurujiName: string; time: string; status: string; priority: string }) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-3 border rounded-lg"
@@ -292,11 +292,11 @@ export default function CoordinatorDashboard() {
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>
-                          {appointment.patientName.charAt(0).toUpperCase()}
+                          {appointment.devoteeName.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{appointment.patientName}</p>
+                        <p className="font-medium">{appointment.devoteeName}</p>
                         <p className="text-sm text-muted-foreground">
                           {appointment.gurujiName} •{" "}
                           {new Date(appointment.time).toLocaleTimeString()}

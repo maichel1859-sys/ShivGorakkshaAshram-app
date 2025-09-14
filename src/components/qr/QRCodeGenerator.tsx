@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 
 interface QRCodeGeneratorProps {
   appointmentId: string;
-  patientName: string;
+  devoteeName: string;
   gurujiName: string;
   appointmentDate: string;
   appointmentTime: string;
@@ -22,7 +22,7 @@ interface QRCodeGeneratorProps {
 
 export function QRCodeGenerator({
   appointmentId,
-  patientName,
+  devoteeName,
   gurujiName,
   appointmentDate,
   appointmentTime,
@@ -35,7 +35,7 @@ export function QRCodeGenerator({
   // Generate QR code data
   const qrData = JSON.stringify({
     appointmentId,
-    patientName,
+    devoteeName,
     gurujiName,
     appointmentDate,
     appointmentTime,
@@ -140,8 +140,8 @@ export function QRCodeGenerator({
           {/* Appointment Details */}
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="font-medium">Patient:</span>
-              <span>{patientName}</span>
+              <span className="font-medium">Devotee:</span>
+              <span>{devoteeName}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Guruji:</span>

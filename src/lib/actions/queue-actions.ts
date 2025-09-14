@@ -170,7 +170,7 @@ export async function joinQueue(formData: FormData) {
         type: 'queue',
         data: {
           queueEntryId: queueEntry.id,
-          patientName: session.user.name,
+          devoteeName: session.user.name,
           reason,
         },
       },
@@ -244,7 +244,7 @@ export async function updateQueueStatus(formData: FormData) {
       const consultationSession = await prisma.consultationSession.findFirst({
         where: {
           appointmentId: queueEntry.appointmentId,
-          patientId: queueEntry.userId,
+          devoteeId: queueEntry.userId,
           gurujiId: session.user.id,
           endTime: null, // Only active sessions
         },
@@ -286,7 +286,7 @@ export async function updateQueueStatus(formData: FormData) {
       },
     });
 
-    // Create notification for patient
+    // Create notification for devotee
     let notificationMessage = '';
     switch (data.status) {
       case 'IN_PROGRESS':
@@ -325,7 +325,7 @@ export async function updateQueueStatus(formData: FormData) {
         const consultationSession = await prisma.consultationSession.findFirst({
           where: {
             appointmentId: queueEntry.appointmentId,
-            patientId: queueEntry.userId,
+            devoteeId: queueEntry.userId,
             gurujiId: session.user.id,
             endTime: null, // Only find active sessions
           },
@@ -486,7 +486,7 @@ export async function leaveQueue(formData: FormData) {
           type: 'queue',
           data: {
             queueEntryId,
-            patientName: session.user.name,
+            devoteeName: session.user.name,
           },
         },
       });
@@ -575,11 +575,10 @@ export async function startConsultation(formData: FormData) {
     }
 
     let queueEntry;
-    let isVirtual = false;
 
     // Check if this is a virtual queue entry (checked-in appointment)
     if (queueEntryId.startsWith('virtual-')) {
-      isVirtual = true;
+      // const isVirtual = true; // Virtual queue entry indicator
       const appointmentId = queueEntryId.replace('virtual-', '');
 
       // Find the checked-in appointment
@@ -670,9 +669,9 @@ export async function startConsultation(formData: FormData) {
       }
 
       // Check if this guruji can start the consultation
-      // Allow if: (1) unassigned patient, or (2) already assigned to this guruji
+      // Allow if: (1) unassigned devotee, or (2) already assigned to this guruji
       if (queueEntry.gurujiId !== null && queueEntry.gurujiId !== session.user.id) {
-        return { success: false, error: 'This patient is already assigned to another guruji' };
+        return { success: false, error: 'This devotee is already assigned to another guruji' };
       }
 
       // Check if queue entry is in waiting status
@@ -686,7 +685,7 @@ export async function startConsultation(formData: FormData) {
         data: {
           status: 'IN_PROGRESS',
           startedAt: new Date(),
-          gurujiId: session.user.id, // Assign patient to this guruji
+          gurujiId: session.user.id, // Assign devotee to this guruji
         },
         include: {
           user: {
@@ -710,7 +709,7 @@ export async function startConsultation(formData: FormData) {
     const consultationSession = await prisma.consultationSession.create({
       data: {
         appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
+        devoteeId: queueEntry.userId,
         gurujiId: session.user.id,
         startTime: new Date(),
       },
@@ -806,7 +805,7 @@ export async function startConsultation(formData: FormData) {
       message: 'Consultation started successfully',
       consultationSessionId: consultationSession.id,
       consultationSession,
-      currentPatient: queueEntry,
+      currentDevotee: queueEntry,
     };
   } catch (error) {
     console.error('Start consultation error:', error);
@@ -875,7 +874,7 @@ export async function completeConsultation(formData: FormData) {
     const consultationSession = await prisma.consultationSession.findFirst({
       where: {
         appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
+        devoteeId: queueEntry.userId,
         gurujiId: session.user.id,
         endTime: null,
       },
@@ -954,7 +953,7 @@ export async function getConsultationSessionId(queueEntryId: string) {
     const consultationSession = await prisma.consultationSession.findFirst({
       where: {
         appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
+        devoteeId: queueEntry.userId,
         gurujiId: session.user.id,
         endTime: null, // Only active sessions
       },

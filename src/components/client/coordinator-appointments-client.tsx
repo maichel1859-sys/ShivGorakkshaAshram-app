@@ -153,7 +153,12 @@ export function CoordinatorAppointmentsClient({
         appointmentId: string;
         status: string;
         action: string;
-        appointment?: any;
+        appointment?: {
+          id: string;
+          devoteeName?: string;
+          gurujiName?: string;
+          [key: string]: unknown;
+        };
         timestamp: string;
       };
 
@@ -171,9 +176,9 @@ export function CoordinatorAppointmentsClient({
 
       // Show notification for new bookings
       if (data.action === 'booked') {
-        const patientName = (data as any).patientName || 'A patient';
-        const gurujiName = (data as any).gurujiName || 'Guruji';
-        console.log(`📅 New appointment: ${patientName} booked with ${gurujiName}`);
+        const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
+        const gurujiName = (data as { gurujiName?: string }).gurujiName || 'Guruji';
+        console.log(`📅 New appointment: ${devoteeName} booked with ${gurujiName}`);
       }
     };
 
@@ -262,7 +267,7 @@ export function CoordinatorAppointmentsClient({
       } else {
         toast.error(result.error || 'Failed to delete appointment');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred while deleting the appointment');
     } finally {
       setIsDeleting(false);
@@ -282,9 +287,9 @@ export function CoordinatorAppointmentsClient({
         setShowCheckInDialog(false);
         router.refresh();
       } else {
-        toast.error(result.error || 'Failed to check in patient');
+        toast.error(result.error || 'Failed to check in devotee');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred during check-in');
     } finally {
       setIsCheckingIn(false);
@@ -319,7 +324,7 @@ export function CoordinatorAppointmentsClient({
             {t('appointments.title', 'Appointments Management')}
           </h1>
           <p className="text-muted-foreground">
-            {t('appointments.coordinatorDescription', 'Manage all appointments and patient check-ins')}
+            {t('appointments.coordinatorDescription', 'Manage all appointments and devotee check-ins')}
           </p>
         </div>
         <div className="flex space-x-2">
@@ -422,7 +427,7 @@ export function CoordinatorAppointmentsClient({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('appointments.table.patient', 'Patient')}</TableHead>
+                  <TableHead>{t('appointments.table.devotee', 'Devotee')}</TableHead>
                   <TableHead>{t('appointments.table.appointment', 'Appointment')}</TableHead>
                   <TableHead>{t('appointments.table.guruji', 'Guruji')}</TableHead>
                   <TableHead>{t('appointments.table.status', 'Status')}</TableHead>

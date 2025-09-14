@@ -10,7 +10,7 @@ interface TimeWindowConfig {
   afterAppointment: number;  // minutes after appointment
 }
 
-const TIME_WINDOW_CONFIG: TimeWindowConfig = {
+const _TIME_WINDOW_CONFIG: TimeWindowConfig = {
   beforeAppointment: 20,
   afterAppointment: 15
 };
@@ -154,7 +154,7 @@ export async function manualCheckIn(appointmentId: string, locationId: string = 
       };
     }
 
-    // Coordinators can check in patients at any time (no time window restrictions)
+    // Coordinators can check in devotees at any time (no time window restrictions)
     // This allows flexibility for late arrivals or early check-ins
     const now = new Date();
 
@@ -364,10 +364,10 @@ export async function getAppointmentDetails(appointmentId: string) {
 }
 
 /**
- * Get all checked-in patients for today
- * Shows patients who are currently in queue or have been checked in
+ * Get all checked-in devotees for today
+ * Shows devotees who are currently in queue or have been checked in
  */
-export async function getCheckedInPatients() {
+export async function getCheckedInDevotees() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
@@ -455,7 +455,7 @@ export async function getCheckedInPatients() {
     });
 
     // Combine queue entries and checked-in appointments
-    const allPatients = [
+    const allDevotees = [
       ...queueEntries.map(qe => ({
         id: qe.id,
         type: 'queue_entry' as const,
@@ -489,7 +489,7 @@ export async function getCheckedInPatients() {
     ];
 
     // Sort by check-in time and priority
-    allPatients.sort((a, b) => {
+    allDevotees.sort((a, b) => {
       // First by status priority (IN_PROGRESS > WAITING > CHECKED_IN)
       const statusOrder: Record<string, number> = {
         'IN_PROGRESS': 0,
@@ -511,10 +511,10 @@ export async function getCheckedInPatients() {
       return a.checkedInAt.getTime() - b.checkedInAt.getTime();
     });
 
-    return { success: true, patients: allPatients };
+    return { success: true, devotees: allDevotees };
 
   } catch (error) {
-    console.error('Get checked-in patients error:', error);
-    return { success: false, error: 'Failed to fetch checked-in patients' };
+    console.error('Get checked-in devotees error:', error);
+    return { success: false, error: 'Failed to fetch checked-in devotees' };
   }
 }

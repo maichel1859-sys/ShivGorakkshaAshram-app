@@ -34,7 +34,9 @@
       "Bash(timeout 30 npx tsc --noEmit --incremental false)",
       "Bash(ls:*)",
       "Bash(timeout 15 npm run lint)",
-      "Bash(timeout 300 npx next build)"
+      "Bash(timeout 300 npx next build)",
+      "Bash(timeout 30 npx eslint . --ext .ts,.tsx,.js,.jsx)",
+      "Bash(xargs sed:*)"
     ],
     "deny": []
   }

@@ -78,7 +78,7 @@ export function FamilyBookingForm({
 
   const handleFormSubmit = async (data: FamilyBooking) => {
     if (!data.consentGiven) {
-      toast.error("Patient consent is required to proceed with booking");
+      toast.error("Devotee consent is required to proceed with booking");
       return;
     }
 
@@ -163,7 +163,7 @@ export function FamilyBookingForm({
         </div>
 
         <div className="text-center text-sm text-gray-600 mt-2">
-          {currentStep === 1 && "Patient Information"}
+          {currentStep === 1 && "Devotee Information"}
           {currentStep === 2 && "Booker Details"}
           {currentStep === 3 && "Appointment Details"}
           {currentStep === 4 && "Consent & Confirmation"}
@@ -172,54 +172,54 @@ export function FamilyBookingForm({
 
       <CardContent>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-          {/* Step 1: Patient Information */}
+          {/* Step 1: Devotee Information */}
           {currentStep === 1 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <User className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-medium">Patient Information</h3>
+                <h3 className="text-lg font-medium">Devotee Information</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="patientName" className="text-sm font-medium">Patient Full Name *</Label>
+                  <Label htmlFor="devoteeName" className="text-sm font-medium">Devotee Full Name *</Label>
                   <Input
-                    id="patientName"
-                    {...register("patientName")}
-                    placeholder="Enter patient's full name"
-                    className={`h-11 touch-target ${errors.patientName ? "border-red-500" : ""}`}
+                    id="devoteeName"
+                    {...register("devoteeName")}
+                    placeholder="Enter devotee's full name"
+                    className={`h-11 touch-target ${errors.devoteeName ? "border-red-500" : ""}`}
                   />
-                  {errors.patientName && (
-                    <p className="text-sm text-red-500">{errors.patientName.message}</p>
+                  {errors.devoteeName && (
+                    <p className="text-sm text-red-500">{errors.devoteeName.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientPhone">Patient Phone</Label>
+                  <Label htmlFor="devoteePhone">Devotee Phone</Label>
                   <Input
-                    id="patientPhone"
-                    {...register("patientPhone")}
-                    placeholder="Patient's phone number"
+                    id="devoteePhone"
+                    {...register("devoteePhone")}
+                    placeholder="Devotee's phone number"
                     type="tel"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientEmail">Patient Email</Label>
+                  <Label htmlFor="devoteeEmail">Devotee Email</Label>
                   <Input
-                    id="patientEmail"
-                    {...register("patientEmail")}
-                    placeholder="Patient's email address"
+                    id="devoteeEmail"
+                    {...register("devoteeEmail")}
+                    placeholder="Devotee's email address"
                     type="email"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientAge">Patient Age</Label>
+                  <Label htmlFor="devoteeAge">Devotee Age</Label>
                   <Input
-                    id="patientAge"
+                    id="devoteeAge"
                     type="number"
-                    {...register("patientAge", { valueAsNumber: true })}
+                    {...register("devoteeAge", { valueAsNumber: true })}
                     placeholder="Age"
                     min="1"
                     max="120"
@@ -227,8 +227,8 @@ export function FamilyBookingForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientGender">Patient Gender</Label>
-                  <Select onValueChange={(value) => setValue("patientGender", value as "MALE" | "FEMALE" | "OTHER")}>
+                  <Label htmlFor="devoteeGender">Devotee Gender</Label>
+                  <Select onValueChange={(value) => setValue("devoteeGender", value as "MALE" | "FEMALE" | "OTHER")}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
@@ -303,7 +303,7 @@ export function FamilyBookingForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="relationship">Relationship to Patient *</Label>
+                  <Label htmlFor="relationship">Relationship to Devotee *</Label>
                   <Select onValueChange={(value) => setValue("relationship", value)}>
                     <SelectTrigger className={errors.relationship ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select relationship" />
@@ -329,7 +329,7 @@ export function FamilyBookingForm({
                     <p className="text-sm font-medium text-yellow-800">Authorization Required</p>
                     <p className="text-sm text-yellow-700 mt-1">
                       By providing this information, you confirm that you are authorized to book medical 
-                      appointments for {watchedFields.patientName || "this patient"}.
+                      appointments for {watchedFields.devoteeName || "this devotee"}.
                     </p>
                   </div>
                 </div>
@@ -465,8 +465,8 @@ export function FamilyBookingForm({
                 <h4 className="font-medium">Appointment Summary</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-gray-600">Patient:</span>{" "}
-                    <span className="font-medium">{watchedFields.patientName}</span>
+                    <span className="text-gray-600">Devotee:</span>{" "}
+                    <span className="font-medium">{watchedFields.devoteeName}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Booker:</span>{" "}
@@ -496,11 +496,11 @@ export function FamilyBookingForm({
                   />
                   <div className="flex-1">
                     <Label htmlFor="consent" className="text-sm font-medium cursor-pointer">
-                      Patient Consent Confirmation *
+                      Devotee Consent Confirmation *
                     </Label>
                     <p className="text-sm text-gray-600 mt-1">
                       I confirm that I have the explicit consent of{" "}
-                      <strong>{watchedFields.patientName || "the patient"}</strong> to:
+                      <strong>{watchedFields.devoteeName || "the devotee"}</strong> to:
                     </p>
                     <ul className="text-xs text-gray-600 mt-2 space-y-1 ml-4">
                       <li>• Book this medical appointment on their behalf</li>
@@ -515,7 +515,7 @@ export function FamilyBookingForm({
                   <div className="bg-red-50 p-3 rounded-lg border border-red-200">
                     <p className="text-sm text-red-700">
                       <AlertTriangle className="h-4 w-4 inline mr-1" />
-                      Patient consent is required to proceed with the booking.
+                      Devotee consent is required to proceed with the booking.
                     </p>
                   </div>
                 )}

@@ -211,7 +211,7 @@ export default function StaticQRScanner() {
                 <div className="space-y-1 text-sm text-red-700">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                    <span>Use "Manual Input" button below to enter the QR code text</span>
+                    <span>Use &quot;Manual Input&quot; button below to enter the QR code text</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-red-400 rounded-full"></span>
@@ -278,7 +278,7 @@ export default function StaticQRScanner() {
                   <h4 className="font-semibold mb-2">📱 Chrome Mobile / Chrome Desktop:</h4>
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>Click the location icon (🔒) in the address bar</li>
-                    <li>Select "Allow" for location access</li>
+                    <li>Select &quot;Allow&quot; for location access</li>
                     <li>Refresh the page</li>
                   </ol>
                 </div>
@@ -287,7 +287,7 @@ export default function StaticQRScanner() {
                   <h4 className="font-semibold mb-2">🍎 Safari Mobile:</h4>
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>Go to Settings → Safari → Location</li>
-                    <li>Select "Ask" or "Allow"</li>
+                    <li>Select &quot;Ask&quot; or &quot;Allow&quot;</li>
                     <li>Return to this page and refresh</li>
                   </ol>
                 </div>
@@ -296,7 +296,7 @@ export default function StaticQRScanner() {
                   <h4 className="font-semibold mb-2">🦊 Firefox:</h4>
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>Click the shield icon in the address bar</li>
-                    <li>Click "Allow Location Access"</li>
+                    <li>Click &quot;Allow Location Access&quot;</li>
                     <li>Refresh the page</li>
                   </ol>
                 </div>

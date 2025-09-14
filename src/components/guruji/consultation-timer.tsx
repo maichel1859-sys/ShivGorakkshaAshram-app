@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils/helpers";
 interface ConsultationSession {
   id: string;
   appointmentId: string;
-  patientId: string;
+  devoteeId: string;
   gurujiId: string;
   startTime: string;
   endTime?: string;
   duration?: number;
-  patient: {
+  devotee: {
     id: string;
     name: string | null;
     phone: string | null;
@@ -87,7 +87,7 @@ export function ConsultationTimer({
         timestamp: string;
         elapsedTime?: number;
         duration?: number;
-        patientName?: string;
+        devoteeName?: string;
         gurujiId?: string;
       };
       if (data.consultationId === consultation.id) {
@@ -134,7 +134,7 @@ export function ConsultationTimer({
         action: 'timer_update',
         elapsedTime: elapsed,
         timestamp: new Date().toISOString(),
-        patientName: consultation.patient.name,
+        devoteeName: consultation.devotee.name,
         gurujiId: consultation.gurujiId
       });
     }, 10000); // Every 10 seconds
@@ -166,7 +166,7 @@ export function ConsultationTimer({
         consultationId: consultation.id,
         action,
         timestamp,
-        patientName: consultation.patient.name,
+        devoteeName: consultation.devotee.name,
         gurujiId: consultation.gurujiId
       });
 
@@ -195,7 +195,7 @@ export function ConsultationTimer({
           action: 'completed',
           duration: finalDuration,
           timestamp,
-          patientName: consultation.patient.name,
+          devoteeName: consultation.devotee.name,
           gurujiId: consultation.gurujiId
         });
 
@@ -237,7 +237,7 @@ export function ConsultationTimer({
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">
-            {consultation.patient.name || 'Unknown Patient'}
+            {consultation.devotee.name || 'Unknown Devotee'}
           </span>
           <Badge variant={isCompleted ? "secondary" : isPaused ? "outline" : "default"}>
             {isCompleted ? 'COMPLETED' : isPaused ? 'PAUSED' : 'ACTIVE'}

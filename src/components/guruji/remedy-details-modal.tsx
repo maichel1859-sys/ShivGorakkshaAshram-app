@@ -53,7 +53,7 @@ interface ConsultationSession {
   endTime?: string | null;
   diagnosis?: string | null;
   notes?: string | null;
-  patient: {
+  devotee: {
     id: string;
     name: string | null;
     email: string | null;
@@ -127,7 +127,7 @@ export function RemedyDetailsModal({
       try {
         await navigator.share({
           title: `Remedy: ${remedy.template.name}`,
-          text: `Remedy prescribed for ${consultation.patient.name}`,
+          text: `Remedy prescribed for ${consultation.devotee.name}`,
           url: window.location.href,
         });
       } catch (error) {
@@ -158,22 +158,22 @@ export function RemedyDetailsModal({
   const handleContact = (method: 'phone' | 'email' | 'sms') => {
     switch (method) {
       case 'phone':
-        if (consultation.patient.phone) {
-          window.open(`tel:${consultation.patient.phone}`, '_blank');
+        if (consultation.devotee.phone) {
+          window.open(`tel:${consultation.devotee.phone}`, '_blank');
         } else {
           toast.error("No phone number available");
         }
         break;
       case 'email':
-        if (consultation.patient.email) {
-          window.open(`mailto:${consultation.patient.email}`, '_blank');
+        if (consultation.devotee.email) {
+          window.open(`mailto:${consultation.devotee.email}`, '_blank');
         } else {
           toast.error("No email available");
         }
         break;
       case 'sms':
-        if (consultation.patient.phone) {
-          window.open(`sms:${consultation.patient.phone}`, '_blank');
+        if (consultation.devotee.phone) {
+          window.open(`sms:${consultation.devotee.phone}`, '_blank');
         } else {
           toast.error("No phone number available");
         }
@@ -207,7 +207,7 @@ export function RemedyDetailsModal({
             Remedy Details
           </DialogTitle>
           <DialogDescription>
-            Complete information about the prescribed remedy for {consultation.patient.name}
+            Complete information about the prescribed remedy for {consultation.devotee.name}
           </DialogDescription>
         </DialogHeader>
 
@@ -265,7 +265,7 @@ export function RemedyDetailsModal({
           <Tabs defaultValue="details" className="w-full">
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-1">
               <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
-              <TabsTrigger value="patient" className="text-xs sm:text-sm">Patient</TabsTrigger>
+              <TabsTrigger value="devotee" className="text-xs sm:text-sm">Devotee</TabsTrigger>
               <TabsTrigger value="consultation" className="text-xs sm:text-sm">Consultation</TabsTrigger>
             </TabsList>
 
@@ -369,13 +369,13 @@ export function RemedyDetailsModal({
               </Card>
             </TabsContent>
 
-            {/* Patient Tab */}
-            <TabsContent value="patient" className="space-y-4">
+            {/* Devotee Tab */}
+            <TabsContent value="devotee" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
-                    Patient Information
+                    Devotee Information
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -383,13 +383,13 @@ export function RemedyDetailsModal({
                     <div>
                       <h4 className="font-medium mb-2">Name</h4>
                       <p className="text-sm text-muted-foreground">
-                        {consultation.patient.name || "Not provided"}
+                        {consultation.devotee.name || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Contact Methods</h4>
                       <div className="space-y-2">
-                        {consultation.patient.phone && (
+                        {consultation.devotee.phone && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -397,10 +397,10 @@ export function RemedyDetailsModal({
                             className="w-full justify-start"
                           >
                             <Phone className="h-4 w-4 mr-2" />
-                            {consultation.patient.phone}
+                            {consultation.devotee.phone}
                           </Button>
                         )}
-                        {consultation.patient.email && (
+                        {consultation.devotee.email && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -408,10 +408,10 @@ export function RemedyDetailsModal({
                             className="w-full justify-start"
                           >
                             <Mail className="h-4 w-4 mr-2" />
-                            {consultation.patient.email}
+                            {consultation.devotee.email}
                           </Button>
                         )}
-                        {consultation.patient.phone && (
+                        {consultation.devotee.phone && (
                           <Button
                             variant="outline"
                             size="sm"

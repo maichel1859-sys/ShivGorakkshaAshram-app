@@ -50,7 +50,7 @@ export function useCoordinatorDashboard() {
         status?: string;
       }) => ({
         id: appointment.id,
-        patientName: appointment.user?.name || 'Unknown',
+        devoteeName: appointment.user?.name || 'Unknown',
         gurujiName: 'Unknown', // Would need to include guruji data
         time: appointment.date?.toISOString() || new Date().toISOString(),
         status: appointment.status || 'PENDING',

@@ -314,9 +314,9 @@ async function main() {
       data: {
         appointmentId: appointment.id,
         gurujiId: appointment.gurujiId!,
-        patientId: appointment.userId,
+        devoteeId: appointment.userId,
         diagnosis: 'Spiritual consultation completed successfully',
-        notes: 'Patient showed good progress in spiritual journey. Continue with daily meditation. Treatment: Meditation practices and spiritual guidance provided.',
+        notes: 'Devotee showed good progress in spiritual journey. Continue with daily meditation. Treatment: Meditation practices and spiritual guidance provided.',
         endTime: new Date(),
         duration: 45, // 45 minutes session
       }

@@ -3,7 +3,7 @@ import { ReceptionDashboard } from "@/components/coordinator/reception-dashboard
 
 export const metadata: Metadata = {
   title: "Reception Dashboard - ShivGoraksha Ashram",
-  description: "Manage walk-in patients, appointments, and reception workflows",
+  description: "Manage walk-in devotees, appointments, and reception workflows",
 };
 
 export default function ReceptionPage() {

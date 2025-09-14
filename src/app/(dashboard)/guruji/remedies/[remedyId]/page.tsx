@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/loading";
+import { useRemedyTemplate } from "@/hooks/queries/use-remedies";
+import { updateRemedyTemplate } from "@/lib/actions/remedy-actions";
 
 interface RemedyTemplate {
   id: string;
@@ -60,7 +62,7 @@ interface ConsultationSession {
   endTime?: string | null;
   diagnosis?: string | null;
   notes?: string | null;
-  patient: {
+  devotee: {
     id: string;
     name: string | null;
     email: string | null;
@@ -71,9 +73,6 @@ interface ConsultationSession {
 export default function RemedyDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const [remedy, setRemedy] = useState<RemedyDocument | null>(null);
-  const [consultation, setConsultation] = useState<ConsultationSession | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedRemedy, setEditedRemedy] = useState({
     customInstructions: "",
@@ -81,93 +80,87 @@ export default function RemedyDetailsPage() {
     customDuration: "",
   });
 
-  const fetchRemedyDetails = useCallback(async (remedyId: string) => {
-    try {
-      setIsLoading(true);
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/remedies/${remedyId}`);
-      // const data = await response.json();
-      
-      // Mock data for now
-      const mockRemedy: RemedyDocument = {
-        id: remedyId,
-        template: {
-          id: "template-1",
-          name: "Ayurvedic Digestive Tonic",
-          type: "AYURVEDIC",
-          category: "Digestive Health",
-          description: "Traditional ayurvedic formula for digestive wellness",
-          instructions: "Take 1 teaspoon twice daily with warm water before meals",
-          dosage: "1 teaspoon",
-          duration: "30 days",
-          tags: ["digestive", "tonic", "ayurvedic"],
-        },
-        customInstructions: "Take on empty stomach in the morning",
-        customDosage: "2 teaspoons",
-        customDuration: "45 days",
-        createdAt: new Date().toISOString(),
-        emailSent: true,
-        smsSent: false,
-        deliveredAt: new Date().toISOString(),
-      };
+  // Use React Query hook for data fetching
+  const {
+    data: templateData,
+    isLoading,
+    error,
+  } = useRemedyTemplate(params.remedyId as string);
 
-      const mockConsultation: ConsultationSession = {
-        id: "consultation-1",
-        startTime: new Date().toISOString(),
-        endTime: new Date().toISOString(),
-        diagnosis: "Mild digestive discomfort",
-        notes: "Patient reports occasional bloating and irregular digestion",
-        patient: {
-          id: "patient-1",
-          name: "John Doe",
-          email: "john.doe@example.com",
-          phone: "+1234567890",
-        },
-      };
+  // Transform template data to RemedyDocument format for compatibility
+  const remedy = useMemo(() => {
+    return templateData ? {
+      id: params.remedyId as string,
+      template: {
+        id: templateData.id,
+        name: templateData.name,
+        type: templateData.type,
+        category: templateData.category,
+        description: templateData.description,
+        instructions: templateData.instructions || '',
+        dosage: templateData.dosage,
+        duration: templateData.duration,
+        tags: templateData.tags || [],
+      },
+      customInstructions: templateData.description || '',
+      customDosage: templateData.dosage || '',
+      customDuration: templateData.duration || '',
+      createdAt: templateData.createdAt.toISOString(),
+      emailSent: false,
+      smsSent: false,
+      deliveredAt: templateData.createdAt.toISOString(),
+    } as RemedyDocument : null;
+  }, [templateData, params.remedyId]);
 
-      setRemedy(mockRemedy);
-      setConsultation(mockConsultation);
-      setEditedRemedy({
-        customInstructions: mockRemedy.customInstructions || "",
-        customDosage: mockRemedy.customDosage || "",
-        customDuration: mockRemedy.customDuration || "",
-      });
-    } catch (error) {
-      console.error("Failed to fetch remedy details:", error);
-      toast.error("Failed to load remedy details");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // Mock consultation data (this would come from a separate consultation hook in real implementation)
+  const consultation: ConsultationSession | null = remedy ? {
+    id: "consultation-1",
+    startTime: new Date().toISOString(),
+    endTime: new Date().toISOString(),
+    diagnosis: "Based on remedy prescription",
+    notes: "Devotee prescribed with remedy template",
+    devotee: {
+      id: "devotee-1",
+      name: "Devotee Name",
+      email: "devotee@example.com",
+      phone: "+1234567890",
+    },
+  } : null;
 
+  // Update editedRemedy when remedy data changes
   useEffect(() => {
-    if (params.remedyId) {
-      fetchRemedyDetails(params.remedyId as string);
+    if (remedy) {
+      setEditedRemedy({
+        customInstructions: remedy.customInstructions || "",
+        customDosage: remedy.customDosage || "",
+        customDuration: remedy.customDuration || "",
+      });
     }
-  }, [params.remedyId, fetchRemedyDetails]);
+  }, [remedy]);
 
   const handleSave = async () => {
-    try {
-      // TODO: Implement update remedy functionality
-      // const response = await fetch(`/api/remedies/${remedy?.id}`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(editedRemedy),
-      // });
+    if (!remedy) return;
 
-      if (remedy) {
-        setRemedy({
-          ...remedy,
-          customInstructions: editedRemedy.customInstructions,
-          customDosage: editedRemedy.customDosage,
-          customDuration: editedRemedy.customDuration,
-        });
+    try {
+      // Create FormData for the server action
+      const formData = new FormData();
+      formData.append('templateId', remedy.template.id);
+      formData.append('customInstructions', editedRemedy.customInstructions);
+      formData.append('customDosage', editedRemedy.customDosage);
+      formData.append('customDuration', editedRemedy.customDuration);
+
+      const result = await updateRemedyTemplate(formData);
+
+      if (result.success) {
+        toast.success("Remedy updated successfully");
+        setIsEditing(false);
+        // The React Query cache will be invalidated automatically
+      } else {
+        throw new Error(result.error || 'Failed to update remedy');
       }
-      
-      toast.success("Remedy updated successfully");
-      setIsEditing(false);
-    } catch {
-      toast.error("Failed to update remedy");
+    } catch (error) {
+      console.error('Failed to update remedy:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to update remedy");
     }
   };
 
@@ -184,7 +177,7 @@ export default function RemedyDetailsPage() {
       try {
         await navigator.share({
           title: `Remedy: ${remedy?.template.name}`,
-          text: `Remedy prescribed for ${consultation?.patient.name}`,
+          text: `Remedy prescribed for ${consultation?.devotee.name}`,
           url: window.location.href,
         });
       } catch (error) {
@@ -197,26 +190,26 @@ export default function RemedyDetailsPage() {
   };
 
   const handleContact = (method: 'phone' | 'email' | 'sms') => {
-    if (!consultation?.patient) return;
+    if (!consultation?.devotee) return;
 
     switch (method) {
       case 'phone':
-        if (consultation.patient.phone) {
-          window.open(`tel:${consultation.patient.phone}`, '_blank');
+        if (consultation.devotee.phone) {
+          window.open(`tel:${consultation.devotee.phone}`, '_blank');
         } else {
           toast.error("No phone number available");
         }
         break;
       case 'email':
-        if (consultation.patient.email) {
-          window.open(`mailto:${consultation.patient.email}`, '_blank');
+        if (consultation.devotee.email) {
+          window.open(`mailto:${consultation.devotee.email}`, '_blank');
         } else {
           toast.error("No email available");
         }
         break;
       case 'sms':
-        if (consultation.patient.phone) {
-          window.open(`sms:${consultation.patient.phone}`, '_blank');
+        if (consultation.devotee.phone) {
+          window.open(`sms:${consultation.devotee.phone}`, '_blank');
         } else {
           toast.error("No phone number available");
         }
@@ -243,6 +236,26 @@ export default function RemedyDetailsPage() {
 
   if (isLoading) {
     return <PageSpinner message="Loading remedy details..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-red-600 mb-2">
+            Error Loading Remedy
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {error instanceof Error ? error.message : 'Failed to load remedy details'}
+          </p>
+          <Button onClick={() => router.back()} variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (!remedy || !consultation) {
@@ -361,7 +374,7 @@ export default function RemedyDetailsPage() {
       <Tabs defaultValue="details" className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
           <TabsTrigger value="details" className="text-xs sm:text-sm">Remedy Details</TabsTrigger>
-          <TabsTrigger value="patient" className="text-xs sm:text-sm">Patient Info</TabsTrigger>
+          <TabsTrigger value="devotee" className="text-xs sm:text-sm">Devotee Info</TabsTrigger>
           <TabsTrigger value="consultation" className="text-xs sm:text-sm">Consultation</TabsTrigger>
           <TabsTrigger value="delivery" className="text-xs sm:text-sm">Delivery Status</TabsTrigger>
         </TabsList>
@@ -473,13 +486,13 @@ export default function RemedyDetailsPage() {
           </Card>
         </TabsContent>
 
-        {/* Patient Tab */}
-        <TabsContent value="patient" className="space-y-4">
+        {/* Devotee Tab */}
+        <TabsContent value="devotee" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Patient Information
+                Devotee Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -491,15 +504,15 @@ export default function RemedyDetailsPage() {
                       <Label>Name</Label>
                       <div className="mt-1 p-3 bg-muted rounded-md">
                         <p className="text-sm">
-                          {consultation.patient.name || "Not provided"}
+                          {consultation.devotee.name || "Not provided"}
                         </p>
                       </div>
                     </div>
                     <div>
-                      <Label>Patient ID</Label>
+                      <Label>Devotee ID</Label>
                       <div className="mt-1 p-3 bg-muted rounded-md">
                         <p className="text-sm font-mono">
-                          {consultation.patient.id}
+                          {consultation.devotee.id}
                         </p>
                       </div>
                     </div>
@@ -508,27 +521,27 @@ export default function RemedyDetailsPage() {
                 <div>
                   <h4 className="font-medium mb-3">Contact Methods</h4>
                   <div className="space-y-3">
-                    {consultation.patient.phone && (
+                    {consultation.devotee.phone && (
                       <Button
                         variant="outline"
                         onClick={() => handleContact('phone')}
                         className="w-full justify-start"
                       >
                         <Phone className="h-4 w-4 mr-2" />
-                        {consultation.patient.phone}
+                        {consultation.devotee.phone}
                       </Button>
                     )}
-                    {consultation.patient.email && (
+                    {consultation.devotee.email && (
                       <Button
                         variant="outline"
                         onClick={() => handleContact('email')}
                         className="w-full justify-start"
                       >
                         <Mail className="h-4 w-4 mr-2" />
-                        {consultation.patient.email}
+                        {consultation.devotee.email}
                       </Button>
                     )}
-                    {consultation.patient.phone && (
+                    {consultation.devotee.phone && (
                       <Button
                         variant="outline"
                         onClick={() => handleContact('sms')}
@@ -664,7 +677,7 @@ export default function RemedyDetailsPage() {
                   <Button
                     variant="outline"
                     onClick={() => handleContact('email')}
-                    disabled={!consultation.patient.email}
+                    disabled={!consultation.devotee.email}
                     className="flex-1 sm:flex-none"
                   >
                     <Mail className="h-4 w-4 mr-2" />
@@ -673,7 +686,7 @@ export default function RemedyDetailsPage() {
                   <Button
                     variant="outline"
                     onClick={() => handleContact('sms')}
-                    disabled={!consultation.patient.phone}
+                    disabled={!consultation.devotee.phone}
                     className="flex-1 sm:flex-none"
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />

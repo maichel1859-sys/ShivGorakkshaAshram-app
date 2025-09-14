@@ -29,7 +29,7 @@ interface PrescribeRemedyModalProps {
   isOpen: boolean;
   onClose: () => void;
   consultationId: string;
-  patientName: string;
+  devoteeName: string;
   onSuccess?: () => void;
   onSkip?: () => void;
 }
@@ -38,7 +38,7 @@ export function PrescribeRemedyModal({
   isOpen,
   onClose,
   consultationId,
-  patientName,
+  devoteeName,
   onSuccess,
   onSkip,
 }: PrescribeRemedyModalProps) {
@@ -118,7 +118,7 @@ export function PrescribeRemedyModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pill className="h-5 w-5" />
-            Prescribe Remedy - {patientName}
+            Prescribe Remedy - {devoteeName}
           </DialogTitle>
           <DialogDescription>
             Select a remedy template and customize dosage for this consultation. You can also skip if no remedy is needed.

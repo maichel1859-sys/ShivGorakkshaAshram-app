@@ -17,11 +17,11 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getCheckedInPatients } from '@/lib/actions/coordinator-actions';
+import { getCheckedInDevotees } from '@/lib/actions/coordinator-actions';
 import { format } from 'date-fns';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface CheckedInPatient {
+interface _CheckedInDevotee {
   id: string;
   status: string;
   checkedInAt: Date;
@@ -46,25 +46,25 @@ interface CheckedInPatient {
   };
 }
 
-export function CheckedInPatients() {
+export function CheckedInDevotees() {
   const { t } = useLanguage();
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Fetch checked-in patients data
+  // Fetch checked-in devotees data
   const {
-    data: patients = [],
+    data: devotees = [],
     isLoading,
     error,
     refetch,
     isRefetching
   } = useQuery({
-    queryKey: ['checkedInPatients'],
+    queryKey: ['checkedInDevotees'],
     queryFn: async () => {
-      const result = await getCheckedInPatients();
+      const result = await getCheckedInDevotees();
       if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch checked-in patients');
+        throw new Error(result.error || 'Failed to fetch checked-in devotees');
       }
-      return result.patients || [];
+      return result.devotees || [];
     },
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Refetch every 60 seconds
@@ -115,7 +115,7 @@ export function CheckedInPatients() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-600">
             <AlertCircle className="h-5 w-5" />
-            {t('reception.checkedInPatients.error', 'Error Loading Patients')}
+            {t('reception.checkedInDevotees.error', 'Error Loading Devotees')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -139,8 +139,8 @@ export function CheckedInPatients() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            {t('reception.checkedInPatients.title', 'Checked-In Patients')}
-            <Badge variant="secondary">{patients.length}</Badge>
+            {t('reception.checkedInDevotees.title', 'Checked-In Devotees')}
+            <Badge variant="secondary">{devotees.length}</Badge>
           </CardTitle>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
@@ -169,27 +169,27 @@ export function CheckedInPatients() {
               {t('common.loading', 'Loading...')}
             </span>
           </div>
-        ) : patients.length === 0 ? (
+        ) : devotees.length === 0 ? (
           <div className="text-center py-8">
             <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold text-muted-foreground">
-              {t('reception.checkedInPatients.noPatients', 'No Checked-In Patients')}
+              {t('reception.checkedInDevotees.noDevotees', 'No Checked-In Devotees')}
             </h3>
             <p className="text-sm text-muted-foreground mt-2">
-              {t('reception.checkedInPatients.noPatientsDescription', 'All patients have been seen or no appointments are checked in yet.')}
+              {t('reception.checkedInDevotees.noDevoteesDescription', 'All devotees have been seen or no appointments are checked in yet.')}
             </p>
           </div>
         ) : (
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            {patients.map((patient) => (
+            {devotees.map((devotee) => (
               <div
-                key={patient.id}
+                key={devotee.id}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-primary/10 text-primary">
-                      {patient.user.name
+                      {devotee.user.name
                         ?.split(' ')
                         .map((n: string) => n[0])
                         .join('')
@@ -198,61 +198,61 @@ export function CheckedInPatients() {
                   </Avatar>
                   <div>
                     <div className="flex items-center space-x-2 mb-1">
-                      <h4 className="font-medium">{patient.user.name}</h4>
-                      <Badge className={getStatusColor(patient.status)}>
-                        {patient.status.replace('_', ' ')}
+                      <h4 className="font-medium">{devotee.user.name}</h4>
+                      <Badge className={getStatusColor(devotee.status)}>
+                        {devotee.status.replace('_', ' ')}
                       </Badge>
-                      <Badge className={getPriorityColor(patient.priority)}>
-                        {patient.priority}
+                      <Badge className={getPriorityColor(devotee.priority)}>
+                        {devotee.priority}
                       </Badge>
                     </div>
 
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      {patient.user.phone && (
+                      {devotee.user.phone && (
                         <span className="flex items-center">
                           <Phone className="mr-1 h-3 w-3" />
-                          {patient.user.phone}
+                          {devotee.user.phone}
                         </span>
                       )}
 
                       <span className="flex items-center">
                         <Clock className="mr-1 h-3 w-3" />
-                        {t('reception.checkedInPatients.checkedInAt', 'Checked in')}: {format(patient.checkedInAt, 'HH:mm')}
+                        {t('reception.checkedInDevotees.checkedInAt', 'Checked in')}: {format(devotee.checkedInAt, 'HH:mm')}
                       </span>
 
-                      {patient.position && (
+                      {devotee.position && (
                         <span className="flex items-center">
                           <Users className="mr-1 h-3 w-3" />
-                          {t('queue.position', 'Position')}: #{patient.position}
+                          {t('queue.position', 'Position')}: #{devotee.position}
                         </span>
                       )}
                     </div>
 
                     {/* Appointment Details */}
-                    {patient.appointment && (
+                    {devotee.appointment && (
                       <div className="text-sm text-muted-foreground mt-2 space-y-1">
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {format(patient.appointment.date, 'MMM dd, yyyy')} at{' '}
-                            {format(patient.appointment.startTime, 'h:mm a')}
+                            {format(devotee.appointment.date, 'MMM dd, yyyy')} at{' '}
+                            {format(devotee.appointment.startTime, 'h:mm a')}
                           </span>
                         </div>
-                        {patient.appointment.reason && (
+                        {devotee.appointment.reason && (
                           <p>
-                            <strong>{t('appointments.reason', 'Reason')}:</strong> {patient.appointment.reason}
+                            <strong>{t('appointments.reason', 'Reason')}:</strong> {devotee.appointment.reason}
                           </p>
                         )}
                       </div>
                     )}
 
                     {/* Guruji Assignment */}
-                    {patient.guruji && (
+                    {devotee.guruji && (
                       <div className="text-sm text-muted-foreground mt-1">
                         <span className="flex items-center">
                           <User className="mr-1 h-3 w-3" />
                           <strong>{t('appointments.assignedTo', 'Assigned to')}:</strong>
-                          <span className="ml-1">{patient.guruji.name}</span>
+                          <span className="ml-1">{devotee.guruji.name}</span>
                         </span>
                       </div>
                     )}
@@ -260,25 +260,25 @@ export function CheckedInPatients() {
                 </div>
 
                 <div className="flex flex-col items-end space-y-2">
-                  {patient.estimatedWait && (
+                  {devotee.estimatedWait && (
                     <div className="text-sm text-muted-foreground text-right">
                       <span className="font-medium">
-                        {t('queue.estimatedWait', 'Est. wait')}: {patient.estimatedWait}m
+                        {t('queue.estimatedWait', 'Est. wait')}: {devotee.estimatedWait}m
                       </span>
                     </div>
                   )}
 
                   <div className="flex items-center space-x-1">
-                    {patient.status === 'WAITING' && (
+                    {devotee.status === 'WAITING' && (
                       <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
                     )}
-                    {patient.status === 'IN_PROGRESS' && (
+                    {devotee.status === 'IN_PROGRESS' && (
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                     )}
                     <span className="text-xs text-muted-foreground">
-                      {patient.status === 'WAITING' && t('queue.waiting', 'Waiting')}
-                      {patient.status === 'IN_PROGRESS' && t('queue.inProgress', 'In progress')}
-                      {patient.status === 'CHECKED_IN' && t('queue.checkedIn', 'Ready')}
+                      {devotee.status === 'WAITING' && t('queue.waiting', 'Waiting')}
+                      {devotee.status === 'IN_PROGRESS' && t('queue.inProgress', 'In progress')}
+                      {devotee.status === 'CHECKED_IN' && t('queue.checkedIn', 'Ready')}
                     </span>
                   </div>
                 </div>

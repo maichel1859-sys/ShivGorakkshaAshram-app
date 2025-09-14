@@ -55,9 +55,9 @@ export const commonToasts = {
   unauthorized: () => showToast.error('Please sign in to access this feature.', { id: 'unauthorized' }),
   
   // Queue
-  consultationStarted: (patientName: string) => showToast.success(`Started consultation with ${patientName}`),
-  consultationCompleted: (patientName: string) => showToast.success(`Completed consultation with ${patientName}`),
-  remedyPrescribed: (patientName: string) => showToast.success(`Remedy prescribed for ${patientName}`),
+  consultationStarted: (devoteeName: string) => showToast.success(`Started consultation with ${devoteeName}`),
+  consultationCompleted: (devoteeName: string) => showToast.success(`Completed consultation with ${devoteeName}`),
+  remedyPrescribed: (devoteeName: string) => showToast.success(`Remedy prescribed for ${devoteeName}`),
   
   // Network
   offline: () => showToast.warning('You are offline. Some features may not work.', { id: 'offline-status' }),

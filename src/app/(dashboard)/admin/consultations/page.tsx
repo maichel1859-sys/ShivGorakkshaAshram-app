@@ -37,7 +37,7 @@ import { Prisma } from "@prisma/client";
 interface ConsultationSession {
   id: string;
   appointmentId: string;
-  patientId: string;
+  devoteeId: string;
   gurujiId: string;
   startTime: string;
   endTime?: string;
@@ -48,7 +48,7 @@ interface ConsultationSession {
   recordings?: Prisma.JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
-  patient: {
+  devotee: {
     id: string;
     name: string | null;
     email: string | null;
@@ -106,11 +106,11 @@ export default function AdminConsultationsPage() {
   const filteredConsultations = consultations.filter(
     (consultation: ConsultationSession) => {
       const matchesSearch =
-        consultation.patient.name
+        consultation.devotee.name
           ?.toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
         false ||
-        consultation.patient.email
+        consultation.devotee.email
           ?.toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
         false ||
@@ -240,7 +240,7 @@ export default function AdminConsultationsPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by patient or guruji name..."
+                    placeholder="Search by devotee or guruji name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -305,7 +305,7 @@ export default function AdminConsultationsPage() {
                         <div>
                           <div className="flex items-center space-x-2">
                             <h3 className="font-semibold">
-                              {consultation.patient.name}
+                              {consultation.devotee.name}
                             </h3>
                             <Badge
                               className={getStatusColor(
@@ -319,7 +319,7 @@ export default function AdminConsultationsPage() {
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {consultation.patient.email}
+                            {consultation.devotee.email}
                           </p>
                           <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
                             <span className="flex items-center">

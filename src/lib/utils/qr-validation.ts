@@ -51,7 +51,7 @@ export function validateLocationQRData(qrData: string): { valid: boolean; data?:
 /**
  * Get location name from location ID
  */
-function getLocationNameFromId(locationId: string): string {
+function _getLocationNameFromId(locationId: string): string {
   if (locationId === 'ASHRAM_MAIN') {
     return 'Shiv Goraksha Ashram';
   }

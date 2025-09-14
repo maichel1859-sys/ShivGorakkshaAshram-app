@@ -16,9 +16,9 @@ const appointmentSchema = appointmentBookingSchema;
 
 // Schema for creating appointments for other users
 const createAppointmentSchema = z.object({
-  patientName: z.string().min(1, 'Patient name is required'),
-  patientPhone: z.string().min(10, 'Valid phone number is required'),
-  patientEmail: z.string().email().optional().or(z.literal('')),
+  devoteeName: z.string().min(1, 'Devotee name is required'),
+  devoteePhone: z.string().min(10, 'Valid phone number is required'),
+  devoteeEmail: z.string().email().optional().or(z.literal('')),
   gurujiId: z.string().min(1, 'Guruji selection is required'),
   date: z.string().min(1, 'Date is required'),
   startTime: z.string().min(1, 'Start time is required'),
@@ -320,8 +320,8 @@ export async function bookAppointment(formData: FormData) {
             timestamp: new Date().toISOString(),
             gurujiId: appointment.gurujiId,
             userId: appointment.userId,
-            patientName: appointment.user.name,
-            gurujiName: appointment.guruji.name,
+            devoteeName: appointment.user.name,
+            gurujiName: appointment.guruji?.name || 'Unknown',
             appointmentDate: appointment.date,
             appointmentTime: appointment.startTime,
           },
@@ -437,8 +437,8 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
             timestamp: new Date().toISOString(),
             gurujiId: updatedAppointment.gurujiId,
             userId: updatedAppointment.userId,
-            patientName: updatedAppointment.user.name,
-            gurujiName: updatedAppointment.guruji.name,
+            devoteeName: updatedAppointment.user.name,
+            gurujiName: updatedAppointment.guruji?.name || 'Unknown',
             reason: reason,
           },
           rooms: [
@@ -893,9 +893,9 @@ export async function createAppointmentForUser(formData: FormData) {
 
   try {
     const data = createAppointmentSchema.parse({
-      patientName: formData.get('patientName') as string,
-      patientPhone: formData.get('patientPhone') as string,
-      patientEmail: formData.get('patientEmail') as string || undefined,
+      devoteeName: formData.get('devoteeName') as string,
+      devoteePhone: formData.get('devoteePhone') as string,
+      devoteeEmail: formData.get('devoteeEmail') as string || undefined,
       gurujiId: formData.get('gurujiId') as string,
       date: formData.get('date') as string,
       startTime: formData.get('startTime') as string,
@@ -904,27 +904,27 @@ export async function createAppointmentForUser(formData: FormData) {
       notes: formData.get('notes') as string || undefined,
     });
 
-    // Check if patient exists, if not create them
-    let patient = await prisma.user.findUnique({
-      where: { phone: data.patientPhone },
+    // Check if devotee exists, if not create them
+    let devotee = await prisma.user.findUnique({
+      where: { phone: data.devoteePhone },
     });
 
-    if (!patient) {
-      // Create new patient user
-      patient = await prisma.user.create({
+    if (!devotee) {
+      // Create new devotee user
+      devotee = await prisma.user.create({
         data: {
-          name: data.patientName,
-          phone: data.patientPhone,
-          email: data.patientEmail,
+          name: data.devoteeName,
+          phone: data.devoteePhone,
+          email: data.devoteeEmail,
           role: 'USER',
           emailVerified: null,
         },
       });
-    } else if (patient.name !== data.patientName) {
-      // Update patient name if different
-      patient = await prisma.user.update({
-        where: { id: patient.id },
-        data: { name: data.patientName },
+    } else if (devotee.name !== data.devoteeName) {
+      // Update devotee name if different
+      devotee = await prisma.user.update({
+        where: { id: devotee.id },
+        data: { name: data.devoteeName },
       });
     }
 
@@ -962,7 +962,7 @@ export async function createAppointmentForUser(formData: FormData) {
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
-        userId: patient.id,
+        userId: devotee.id,
         gurujiId: data.gurujiId,
         date: appointmentDate,
         startTime,
@@ -1000,8 +1000,8 @@ export async function createAppointmentForUser(formData: FormData) {
         resource: 'APPOINTMENT',
         resourceId: appointment.id,
         newData: {
-          patientName: data.patientName,
-          patientPhone: data.patientPhone,
+          devoteeName: data.devoteeName,
+          devoteePhone: data.devoteePhone,
           gurujiId: data.gurujiId,
           date: data.date,
           startTime: data.startTime,

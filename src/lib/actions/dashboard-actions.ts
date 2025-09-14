@@ -176,7 +176,7 @@ const _getGurujiDashboardInternal = cache(
         todayAppointments,
         completedToday,
         pendingConsultations,
-        recentPatients
+        recentDevotees
       ] = await Promise.all([
         prisma.appointment.findMany({
           where: {
@@ -210,7 +210,7 @@ const _getGurujiDashboardInternal = cache(
 
       return {
         success: true,
-        data: { todayAppointments, completedToday, pendingConsultations, recentPatients },
+        data: { todayAppointments, completedToday, pendingConsultations, recentDevotees },
       };
     } catch (error) {
       console.error('Get guruji dashboard error:', error);

@@ -17,7 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Calendar,
   Clock,
-  User,
   Search,
   Filter,
   Phone,
@@ -28,7 +27,6 @@ import {
   CalendarDays,
   History,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { PageSpinner } from "@/components/loading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format, isToday, isTomorrow, isThisWeek, isPast } from "date-fns";
@@ -64,7 +62,6 @@ interface AppointmentData {
 }
 
 export default function GurujiAppointmentsPage() {
-  const { data: session } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -184,7 +181,7 @@ export default function GurujiAppointmentsPage() {
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-3 flex-1">
-            {/* Patient Info */}
+            {/* Devotee Info */}
             <div className="flex items-center space-x-3">
               <Avatar>
                 <AvatarFallback className="bg-blue-100 text-blue-700">
@@ -196,7 +193,7 @@ export default function GurujiAppointmentsPage() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-semibold text-lg">{apt.user.name || "Unknown Patient"}</h3>
+                <h3 className="font-semibold text-lg">{apt.user.name || "Unknown Devotee"}</h3>
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                   {apt.user.phone && (
                     <div className="flex items-center space-x-1">
@@ -370,7 +367,7 @@ export default function GurujiAppointmentsPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="search">Search Patients</Label>
+              <Label htmlFor="search">Search Devotees</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input

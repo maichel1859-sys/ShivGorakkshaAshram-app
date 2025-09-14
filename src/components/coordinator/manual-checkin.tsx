@@ -140,7 +140,7 @@ export function ManualCheckIn() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t('coordinator.searchPlaceholder', 'Enter patient name, phone number, or email')}
+                placeholder={t('coordinator.searchPlaceholder', 'Enter devotee name, phone number, or email')}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
@@ -302,14 +302,14 @@ export function ManualCheckIn() {
         </CardHeader>
         <CardContent className="text-blue-700">
           <ol className="list-decimal list-inside space-y-2 text-sm">
-            <li>Search for the patient using their name, phone number, or email</li>
+            <li>Search for the devotee using their name, phone number, or email</li>
             <li>Select the appropriate check-in location from the dropdown</li>
-            <li>Find the patient&apos;s appointment in the search results</li>
+            <li>Find the devotee&apos;s appointment in the search results</li>
             <li>Click &quot;Manual Check-in&quot; to add them to the queue</li>
-            <li>The patient will receive their queue position and estimated wait time</li>
+            <li>The devotee will receive their queue position and estimated wait time</li>
           </ol>
           <div className="mt-3 p-3 bg-blue-100 rounded border text-xs">
-            <strong>Note:</strong> Manual check-in should only be used when patients cannot scan QR codes themselves or for emergency situations. The system will validate that the appointment exists and is eligible for check-in.
+            <strong>Note:</strong> Manual check-in should only be used when devotees cannot scan QR codes themselves or for emergency situations. The system will validate that the appointment exists and is eligible for check-in.
           </div>
         </CardContent>
       </Card>

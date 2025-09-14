@@ -26,7 +26,7 @@ interface OfflineQueueEntry {
 
 interface OfflineRemedy {
   id: string;
-  patientId: string;
+  devoteeId: string;
   templateId: string;
   gurujiId: string;
   title: string;

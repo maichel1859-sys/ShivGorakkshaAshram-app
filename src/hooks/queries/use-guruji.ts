@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getGurujiQueueEntries, startConsultation, completeConsultation } from '@/lib/actions/queue-actions';
 import { getGurujiConsultations } from '@/lib/actions/consultation-actions';
+import { getDevoteeContactHistory, sendDevoteeNotification } from '@/lib/actions/guruji-actions';
 import { toast } from 'sonner';
 
 // Query keys
@@ -9,7 +10,8 @@ export const gurujiKeys = {
   queue: () => [...gurujiKeys.all, 'queue'] as const,
   consultations: () => [...gurujiKeys.all, 'consultations'] as const,
   remedies: () => [...gurujiKeys.all, 'remedies'] as const,
-  patients: () => [...gurujiKeys.all, 'patients'] as const,
+  devotees: () => [...gurujiKeys.all, 'devotees'] as const,
+  contactHistory: (devoteeId: string) => [...gurujiKeys.all, 'contact-history', devoteeId] as const,
 };
 
 // Hook for fetching guruji queue data
@@ -23,7 +25,7 @@ export function useGurujiQueue() {
       }
       
       // Transform the data to match the expected format
-      const queuePatients = (result.queueEntries || [])
+      const queueDevotees = (result.queueEntries || [])
         .filter(entry => entry.status === 'WAITING')
         .map(entry => ({
           id: entry.id,
@@ -46,7 +48,7 @@ export function useGurujiQueue() {
           checkedInAt: entry.checkedInAt,
         }));
 
-      const currentPatient = (result.queueEntries || [])
+      const currentDevotee = (result.queueEntries || [])
         .find(entry => entry.status === 'IN_PROGRESS')
         ? (() => {
             const inProgressEntry = (result.queueEntries || []).find(entry => entry.status === 'IN_PROGRESS')!;
@@ -88,8 +90,8 @@ export function useGurujiQueue() {
       };
 
       return {
-        queuePatients,
-        currentPatient,
+        queueDevotees,
+        currentDevotee,
         stats,
       };
     },
@@ -164,4 +166,50 @@ export function useGurujiConsultations() {
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 30 * 1000, // Refetch every 30 seconds
   });
-} 
+}
+
+// Hook for fetching devotee contact history
+export function useDevoteeContactHistory(devoteeId: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: gurujiKeys.contactHistory(devoteeId),
+    queryFn: async () => {
+      const result = await getDevoteeContactHistory(devoteeId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch contact history');
+      }
+      return result.data || [];
+    },
+    enabled: !!devoteeId && enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: false, // Don't auto-refetch contact history
+  });
+}
+
+// Hook for sending notification to devotee
+export function useSendDevoteeNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ devoteeId, message, type = 'CUSTOM' }: {
+      devoteeId: string;
+      message: string;
+      type?: string;
+    }) => {
+      const result = await sendDevoteeNotification(devoteeId, message, type);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send notification');
+      }
+      return result.data;
+    },
+    onSuccess: (data, variables) => {
+      toast.success('Notification sent successfully');
+      // Invalidate and refetch contact history for this devotee
+      queryClient.invalidateQueries({
+        queryKey: gurujiKeys.contactHistory(variables.devoteeId)
+      });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to send notification');
+    },
+  });
+}

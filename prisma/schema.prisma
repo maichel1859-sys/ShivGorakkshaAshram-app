@@ -94,11 +94,11 @@ model User {
 
   accounts             Account[]
   sessions             Session[]
-  patientAppointments  Appointment[]         @relation("PatientAppointments")
+  devoteeAppointments  Appointment[]         @relation("DevoteeAppointments")
   gurujiAppointments   Appointment[]         @relation("GurujiAppointments")
-  patientQueueEntries  QueueEntry[]          @relation("PatientQueueEntries")
+  devoteeQueueEntries  QueueEntry[]          @relation("DevoteeQueueEntries")
   gurujiQueueEntries   QueueEntry[]          @relation("GurujiQueueEntries")
-  consultationSessions ConsultationSession[] @relation("PatientSessions")
+  consultationSessions ConsultationSession[] @relation("DevoteeSessions")
   gurujiSessions       ConsultationSession[] @relation("GurujiSessions")
   remedyDocuments      RemedyDocument[]
   notifications        Notification[]
@@ -134,7 +134,7 @@ model Appointment {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  user                User                 @relation("PatientAppointments", fields: [userId], references: [id])
+  user                User                 @relation("DevoteeAppointments", fields: [userId], references: [id])
   guruji              User?                @relation("GurujiAppointments", fields: [gurujiId], references: [id])
   queueEntry          QueueEntry?
   consultationSession ConsultationSession?
@@ -161,7 +161,7 @@ model QueueEntry {
   updatedAt     DateTime    @updatedAt
 
   appointment Appointment @relation(fields: [appointmentId], references: [id])
-  user        User        @relation("PatientQueueEntries", fields: [userId], references: [id])
+  user        User        @relation("DevoteeQueueEntries", fields: [userId], references: [id])
   guruji      User?       @relation("GurujiQueueEntries", fields: [gurujiId], references: [id])
 
   @@map("queue_entries")
@@ -170,7 +170,7 @@ model QueueEntry {
 model ConsultationSession {
   id            String    @id @default(cuid())
   appointmentId String    @unique
-  patientId     String
+  devoteeId     String
   gurujiId      String
   startTime     DateTime  @default(now())
   endTime       DateTime?
@@ -183,7 +183,7 @@ model ConsultationSession {
   updatedAt     DateTime  @updatedAt
 
   appointment Appointment      @relation(fields: [appointmentId], references: [id])
-  patient     User             @relation("PatientSessions", fields: [patientId], references: [id])
+  devotee     User             @relation("DevoteeSessions", fields: [devoteeId], references: [id])
   guruji      User             @relation("GurujiSessions", fields: [gurujiId], references: [id])
   remedies    RemedyDocument[]
 

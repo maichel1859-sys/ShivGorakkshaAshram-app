@@ -48,7 +48,7 @@ export default function UserRemediesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchRemedies();

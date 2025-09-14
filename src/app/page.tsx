@@ -161,7 +161,7 @@ export default async function Home() {
             </CardHeader>
             <CardContent>
               <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
-                <li>• Patient history access</li>
+                <li>• Devotee history access</li>
                 <li>• Digital note taking</li>
                 <li>• Remedy prescription</li>
               </ul>

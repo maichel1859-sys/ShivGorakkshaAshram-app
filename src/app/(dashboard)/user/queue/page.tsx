@@ -65,7 +65,7 @@ function QueueStatusContent() {
     } finally {
       setRefreshing(false);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, t]);
 
   useEffect(() => {
     if (status === 'authenticated') {
