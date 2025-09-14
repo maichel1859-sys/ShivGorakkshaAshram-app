@@ -19,10 +19,10 @@ interface GeneratedQR {
 }
 
 export function QRGeneratorForm() {
-  const [locationId, setLocationId] = useState('');
-  const [locationName, setLocationName] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  const [locationId, setLocationId] = useState('ASHRAM_MAIN');
+  const [locationName, setLocationName] = useState('Shiv Goraksha Ashram');
+  const [latitude, setLatitude] = useState('19.0760');
+  const [longitude, setLongitude] = useState('72.8777');
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<{ success: boolean; data?: GeneratedQR; error?: string } | null>(null);
 

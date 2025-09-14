@@ -2,6 +2,8 @@
 
 import { useState, useTransition, useEffect, useCallback } from "react";
 import { useAppStore } from '@/store/app-store';
+import { useSocket, SocketEvents } from "@/lib/socket/socket-client";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   getAppointments,
@@ -53,6 +55,8 @@ interface Appointment {
 }
 
 export function AppointmentManager() {
+  const { data: session } = useSession();
+  const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState<AppointmentStatus | "all">("all");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [appointmentsData, setAppointmentsData] = useState<{
@@ -160,6 +164,48 @@ export function AppointmentManager() {
   useEffect(() => {
     fetchAppointments();
   }, [activeTab, fetchAppointments]);
+
+  // Socket listener for appointment updates
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const handleAppointmentUpdate = (...args: unknown[]) => {
+      const data = args[0] as {
+        appointmentId: string;
+        status: string;
+        action: string;
+        userId: string;
+        appointment?: any;
+        timestamp: string;
+      };
+
+      console.log('🔌 [User] Received appointment update:', data);
+
+      // If this appointment update is for this user, refresh appointments
+      if (data.userId === session.user.id) {
+        console.log('🔌 Refreshing user appointments for status change:', data.status);
+        fetchAppointments();
+
+        // Show toast notification
+        if (data.action === 'started') {
+          toast.success('Your consultation has started!');
+        } else if (data.action === 'completed') {
+          toast.success('Your consultation has been completed.');
+        } else if (data.action === 'booked') {
+          const gurujiName = (data as any).gurujiName || 'your Guruji';
+          toast.success(`Appointment successfully booked with ${gurujiName}!`);
+        } else if (data.action === 'cancelled') {
+          toast.info('Your appointment has been cancelled.');
+        }
+      }
+    };
+
+    socket.on(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+
+    return () => {
+      socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+    };
+  }, [socket, session?.user?.id, fetchAppointments]);
 
   const refetch = fetchAppointments;
 

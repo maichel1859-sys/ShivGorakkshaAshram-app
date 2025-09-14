@@ -303,10 +303,54 @@ export async function bookAppointment(formData: FormData) {
       },
     });
 
+    // Broadcast appointment booking via socket
+    try {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'appointment_update',
+          data: {
+            appointmentId: appointment.id,
+            status: 'BOOKED',
+            appointment: appointment,
+            action: 'booked',
+            timestamp: new Date().toISOString(),
+            gurujiId: appointment.gurujiId,
+            userId: appointment.userId,
+            patientName: appointment.user.name,
+            gurujiName: appointment.guruji.name,
+            appointmentDate: appointment.date,
+            appointmentTime: appointment.startTime,
+          },
+          rooms: [
+            `guruji:${appointment.gurujiId}`,
+            `user:${appointment.userId}`,
+            'appointments',
+            'admin',
+            'coordinator',
+            'global',
+          ],
+        }),
+      });
+
+      if (socketResponse.ok) {
+        console.log(`🔌 Broadcasted appointment booking via socket`);
+      } else {
+        console.warn(`🔌 Failed to broadcast appointment booking:`, await socketResponse.text());
+      }
+    } catch (socketError) {
+      console.error('🔌 Socket broadcast error:', socketError);
+      // Continue even if socket fails
+    }
+
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
     revalidatePath('/guruji/appointments');
-    
+    revalidatePath('/coordinator/appointments');
+
     return { success: true, appointment };
   } catch (error) {
     console.error('Book appointment error:', error);
@@ -325,7 +369,22 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { user: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -337,17 +396,77 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
       throw new Error('Unauthorized');
     }
 
-    await prisma.appointment.update({
+    const updatedAppointment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         status: 'CANCELLED',
         notes: reason ? `${appointment.notes || ''}\nCancelled: ${reason}` : appointment.notes,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    // Broadcast appointment cancellation via socket
+    try {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'appointment_update',
+          data: {
+            appointmentId: updatedAppointment.id,
+            status: 'CANCELLED',
+            appointment: updatedAppointment,
+            action: 'cancelled',
+            timestamp: new Date().toISOString(),
+            gurujiId: updatedAppointment.gurujiId,
+            userId: updatedAppointment.userId,
+            patientName: updatedAppointment.user.name,
+            gurujiName: updatedAppointment.guruji.name,
+            reason: reason,
+          },
+          rooms: [
+            `guruji:${updatedAppointment.gurujiId}`,
+            `user:${updatedAppointment.userId}`,
+            'appointments',
+            'admin',
+            'coordinator',
+            'global',
+          ],
+        }),
+      });
+
+      if (socketResponse.ok) {
+        console.log(`🔌 Broadcasted appointment cancellation via socket`);
+      } else {
+        console.warn(`🔌 Failed to broadcast appointment cancellation:`, await socketResponse.text());
+      }
+    } catch (socketError) {
+      console.error('🔌 Socket broadcast error:', socketError);
+      // Continue even if socket fails
+    }
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
-    
+    revalidatePath('/guruji/appointments');
+    revalidatePath('/coordinator/appointments');
+
     return { success: true };
   } catch (error) {
     console.error('Cancel appointment error:', error);

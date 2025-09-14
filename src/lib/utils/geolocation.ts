@@ -47,8 +47,8 @@ export function getCurrentLocation(): Promise<Coordinates> {
 
     const options: PositionOptions = {
       enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 60000 // Cache for 1 minute
+      timeout: 15000, // Increased timeout to 15 seconds
+      maximumAge: 300000 // Cache for 5 minutes to reduce battery usage
     };
 
     navigator.geolocation.getCurrentPosition(
@@ -63,13 +63,13 @@ export function getCurrentLocation(): Promise<Coordinates> {
         
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Location access denied by user';
+            errorMessage = 'Location access denied by user. Please enable location permissions in your browser settings.';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information is unavailable';
+            errorMessage = 'Location information is unavailable. Please check your device settings and internet connection.';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Location request timed out';
+            errorMessage = 'Location request timed out. Please try again or check your GPS signal.';
             break;
         }
         

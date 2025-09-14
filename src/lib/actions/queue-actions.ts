@@ -320,7 +320,7 @@ export async function updateQueueStatus(formData: FormData) {
     if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
       await recalculateQueuePositions(queueEntry.gurujiId!);
       
-      // If completing a consultation, also end the consultation session
+      // If completing a consultation, also end the consultation session and update appointment
       if (data.status === 'COMPLETED') {
         const consultationSession = await prisma.consultationSession.findFirst({
           where: {
@@ -339,6 +339,72 @@ export async function updateQueueStatus(formData: FormData) {
               duration: Math.floor((new Date().getTime() - consultationSession.startTime.getTime()) / 60000), // in minutes
             },
           });
+        }
+
+        // Update appointment status to COMPLETED
+        if (queueEntry.appointmentId) {
+          const updatedAppointment = await prisma.appointment.update({
+            where: { id: queueEntry.appointmentId },
+            data: {
+              status: 'COMPLETED',
+              updatedAt: new Date(),
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                },
+              },
+              guruji: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          });
+          console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to COMPLETED`);
+
+          // Broadcast appointment update via socket
+          try {
+            const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                event: 'appointment_update',
+                data: {
+                  appointmentId: updatedAppointment.id,
+                  status: 'COMPLETED',
+                  appointment: updatedAppointment,
+                  action: 'completed',
+                  timestamp: new Date().toISOString(),
+                  gurujiId: queueEntry.gurujiId,
+                  userId: queueEntry.userId,
+                },
+                rooms: [
+                  `guruji:${queueEntry.gurujiId}`,
+                  `user:${queueEntry.userId}`,
+                  'appointments',
+                  'admin',
+                  'coordinator',
+                  'global',
+                ],
+              }),
+            });
+
+            if (socketResponse.ok) {
+              console.log(`🔌 Broadcasted appointment completion via socket`);
+            } else {
+              console.warn(`🔌 Failed to broadcast appointment completion:`, await socketResponse.text());
+            }
+          } catch (socketError) {
+            console.error('🔌 Socket broadcast error:', socketError);
+            // Continue even if socket fails
+          }
         }
       }
     }
@@ -649,6 +715,72 @@ export async function startConsultation(formData: FormData) {
         startTime: new Date(),
       },
     });
+
+    // Update appointment status to IN_PROGRESS
+    if (queueEntry.appointmentId) {
+      const updatedAppointment = await prisma.appointment.update({
+        where: { id: queueEntry.appointmentId },
+        data: {
+          status: 'IN_PROGRESS',
+          updatedAt: new Date(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+      console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to IN_PROGRESS`);
+
+      // Broadcast appointment update via socket
+      try {
+        const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event: 'appointment_update',
+            data: {
+              appointmentId: updatedAppointment.id,
+              status: 'IN_PROGRESS',
+              appointment: updatedAppointment,
+              action: 'started',
+              timestamp: new Date().toISOString(),
+              gurujiId: session.user.id,
+              userId: queueEntry.userId,
+            },
+            rooms: [
+              `guruji:${session.user.id}`,
+              `user:${queueEntry.userId}`,
+              'appointments',
+              'admin',
+              'coordinator',
+              'global',
+            ],
+          }),
+        });
+
+        if (socketResponse.ok) {
+          console.log(`🔌 Broadcasted appointment start via socket`);
+        } else {
+          console.warn(`🔌 Failed to broadcast appointment start:`, await socketResponse.text());
+        }
+      } catch (socketError) {
+        console.error('🔌 Socket broadcast error:', socketError);
+        // Continue even if socket fails
+      }
+    }
 
     // Create notification for user
     await prisma.notification.create({

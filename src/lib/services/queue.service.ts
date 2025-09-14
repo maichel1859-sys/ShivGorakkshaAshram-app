@@ -177,7 +177,7 @@ export const getCachedGurujiQueueEntries = cache(
           },
           {
             queueEntry: {
-              status: { notIn: ['WAITING', 'IN_PROGRESS'] } // Has queue entry but not active
+              status: { notIn: ['WAITING', 'IN_PROGRESS', 'COMPLETED'] } // Has queue entry but not active or completed
             }
           }
         ]

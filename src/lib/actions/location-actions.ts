@@ -14,20 +14,15 @@ interface LocationQRData {
   };
 }
 
-// Predefined location coordinates (replace with actual ashram coordinates)
-const LOCATION_COORDINATES: Record<string, { latitude: number; longitude: number }> = {
-  'GURUJI_LOC_001': { latitude: 19.0760, longitude: 72.8777 }, // Mumbai example
-  'RECEPTION_001': { latitude: 19.0760, longitude: 72.8777 },
-  'CONSULTATION_001': { latitude: 19.0760, longitude: 72.8777 },
-  'MAIN_HALL_001': { latitude: 19.0760, longitude: 72.8777 },
-};
+// Main ashram coordinates (replace with actual ashram coordinates)
+const ASHRAM_COORDINATES = { latitude: 19.0760, longitude: 72.8777 };
 
 /**
  * Generate QR code data for a location
  * This creates the data that will be encoded in the QR code
  */
 export async function generateLocationQRData(locationId: string, locationName: string, customCoordinates?: { latitude: number; longitude: number }): Promise<string> {
-  const coordinates = customCoordinates || LOCATION_COORDINATES[locationId] || { latitude: 19.0760, longitude: 72.8777 };
+  const coordinates = customCoordinates || ASHRAM_COORDINATES;
   
   const qrData: LocationQRData = {
     locationId,
@@ -55,8 +50,8 @@ export async function generateLocationQRCode(locationId: string, locationName: s
     width: 300,
     margin: 2,
     color: {
-      dark: 'hsl(var(--foreground))',
-      light: 'hsl(var(--background))'
+      dark: '#000000',  // Black for the QR code
+      light: '#FFFFFF'  // White background
     }
   });
 
@@ -114,11 +109,9 @@ export async function getLocationQRCodes() {
   }
 
   try {
-    // Define your locations here
+    // Define single location
     const locations = [
-      { id: 'GURUJI_LOC_001', name: 'Main Consultation Room' },
-      { id: 'GURUJI_LOC_002', name: 'Waiting Area' },
-      { id: 'GURUJI_LOC_003', name: 'Reception Desk' }
+      { id: 'ASHRAM_MAIN', name: 'Shiv Goraksha Ashram' }
     ];
 
     const qrCodes = await Promise.all(

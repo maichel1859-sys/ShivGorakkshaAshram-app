@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Play, Pause, Square, User } from "lucide-react";
+import { Clock, Play, Pause, User } from "lucide-react";
+import { SimpleCompleteButton } from "./complete-consultation-button";
 import { useSocket, SocketEvents } from "@/lib/socket/socket-client";
 import { updateConsultation } from "@/lib/actions/consultation-actions";
 import { toast } from "sonner";
@@ -28,9 +29,16 @@ interface ConsultationSession {
 interface ConsultationTimerProps {
   consultation: ConsultationSession;
   onUpdate?: (consultation: ConsultationSession) => void;
+  onPrescribeAndComplete?: () => void;
+  onSkipAndComplete?: () => void;
 }
 
-export function ConsultationTimer({ consultation, onUpdate }: ConsultationTimerProps) {
+export function ConsultationTimer({
+  consultation,
+  onUpdate,
+  onPrescribeAndComplete,
+  onSkipAndComplete
+}: ConsultationTimerProps) {
   const { socket } = useSocket();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isPaused, setIsPaused] = useState(false);
@@ -279,15 +287,10 @@ export function ConsultationTimer({ consultation, onUpdate }: ConsultationTimerP
               )}
             </Button>
             
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleCompleteConsultation}
-              className="flex items-center gap-1"
-            >
-              <Square className="h-3 w-3" />
-              Complete
-            </Button>
+            <SimpleCompleteButton
+              onPrescribeAndComplete={onPrescribeAndComplete || handleCompleteConsultation}
+              onSkipAndComplete={onSkipAndComplete || handleCompleteConsultation}
+            />
           </div>
         )}
 

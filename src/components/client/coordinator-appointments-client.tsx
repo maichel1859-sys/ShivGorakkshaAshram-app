@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition, useOptimistic } from 'react';
+import { useState, useTransition, useOptimistic, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSocket, SocketEvents } from '@/lib/socket/socket-client';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -108,6 +109,7 @@ export function CoordinatorAppointmentsClient({
   const { t } = useLanguage();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { socket } = useSocket();
 
   // Local state
   const [searchTerm, setSearchTerm] = useState(initialSearchParams.search || '');
@@ -143,6 +145,44 @@ export function CoordinatorAppointmentsClient({
       }
     }
   );
+
+  // Socket listener for appointment updates
+  useEffect(() => {
+    const handleAppointmentUpdate = (...args: unknown[]) => {
+      const data = args[0] as {
+        appointmentId: string;
+        status: string;
+        action: string;
+        appointment?: any;
+        timestamp: string;
+      };
+
+      console.log('🔌 [Coordinator] Received appointment update:', data);
+
+      // Update the appointments list in real-time
+      setOptimisticAppointments({
+        type: 'update_status',
+        id: data.appointmentId,
+        status: data.status,
+      });
+
+      // Refresh the page data to get latest information
+      router.refresh();
+
+      // Show notification for new bookings
+      if (data.action === 'booked') {
+        const patientName = (data as any).patientName || 'A patient';
+        const gurujiName = (data as any).gurujiName || 'Guruji';
+        console.log(`📅 New appointment: ${patientName} booked with ${gurujiName}`);
+      }
+    };
+
+    socket.on(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+
+    return () => {
+      socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+    };
+  }, [socket, setOptimisticAppointments, router]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

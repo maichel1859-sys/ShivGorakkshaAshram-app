@@ -21,10 +21,12 @@ import {
 } from "lucide-react";
 import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
 import { ConsultationTimer } from "@/components/guruji/consultation-timer";
+import { CompleteConsultationButton } from "@/components/guruji/complete-consultation-button";
 import { PageSpinner } from "@/components/loading";
 import { useLoadingState } from "@/store";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
 import { useGurujiAppointments } from "@/hooks/queries/use-guruji-appointments";
+import { useSocket, SocketEvents } from "@/lib/socket/socket-client";
 import type { QueueEntry } from "@/types/queue";
 import { showToast, commonToasts } from "@/lib/toast";
 import {
@@ -38,6 +40,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 export default function GurujiDashboard() {
   const { data: session } = useSession();
   const { t } = useLanguage();
+  const { socket } = useSocket();
   const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
   const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
   const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
@@ -62,13 +65,22 @@ export default function GurujiDashboard() {
   });
 
   // Get appointment data
-  const { data: appointments = [], isLoading: appointmentsLoading } = useGurujiAppointments();
+  const { data: appointments = [], isLoading: appointmentsLoading, refetch: refetchAppointments } = useGurujiAppointments();
 
   // Calculate appointment statistics
   const appointmentStats = useMemo(() => {
-    const today = appointments.filter(apt => isToday(new Date(apt.date)));
-    const tomorrow = appointments.filter(apt => isTomorrow(new Date(apt.date)));
-    const thisWeek = appointments.filter(apt => isThisWeek(new Date(apt.date)));
+    const safeParseDate = (dateValue: unknown): Date => {
+      if (dateValue instanceof Date) return dateValue;
+      if (typeof dateValue === 'string' && dateValue) {
+        const parsed = new Date(dateValue);
+        return isNaN(parsed.getTime()) ? new Date() : parsed;
+      }
+      return new Date();
+    };
+
+    const today = appointments.filter(apt => isToday(safeParseDate(apt.date)));
+    const tomorrow = appointments.filter(apt => isTomorrow(safeParseDate(apt.date)));
+    const thisWeek = appointments.filter(apt => isThisWeek(safeParseDate(apt.date)));
     const total = appointments.length;
 
     return {
@@ -78,6 +90,52 @@ export default function GurujiDashboard() {
       total
     };
   }, [appointments]);
+
+  // Socket listener for appointment updates
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const handleAppointmentUpdate = (...args: unknown[]) => {
+      const data = args[0] as {
+        appointmentId: string;
+        status: string;
+        action: string;
+        gurujiId: string;
+        userId: string;
+        appointment?: unknown;
+        timestamp: string;
+      };
+
+      console.log('🔌 Received appointment update:', data);
+
+      // If this appointment update is for this Guruji, refresh appointments
+      if (data.gurujiId === session.user.id) {
+        console.log('🔌 Refreshing appointments for action:', data.action, 'status:', data.status);
+        refetchAppointments();
+
+        // Also refresh queue if consultation was completed
+        if (data.action === 'completed') {
+          invalidateCache();
+          refetch();
+        }
+
+        // Show notification for new bookings
+        if (data.action === 'booked') {
+          const patientName = (data as any).patientName || 'A patient';
+          showToast.success(`${patientName} has booked a new appointment with you`);
+        } else if (data.action === 'cancelled') {
+          const patientName = (data as any).patientName || 'A patient';
+          showToast.error(`${patientName} has cancelled their appointment`);
+        }
+      }
+    };
+
+    socket.on(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+
+    return () => {
+      socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+    };
+  }, [socket, session?.user?.id, refetchAppointments, invalidateCache, refetch]);
 
 
 
@@ -93,10 +151,16 @@ export default function GurujiDashboard() {
       if (result.success) {
         console.log('Consultation started for:', entry.user.name);
         commonToasts.consultationStarted(entry.user.name || 'Unknown User');
-        
-        // Invalidate cache and refetch data
+
+        // Invalidate cache and refetch data immediately
         invalidateCache();
         await refetch();
+
+        // Force an additional refresh after a short delay to ensure consistency
+        setTimeout(async () => {
+          invalidateCache();
+          await refetch();
+        }, 1000);
         
         return result;
       } else {
@@ -223,6 +287,39 @@ export default function GurujiDashboard() {
       setSelectedQueueEntry(entry);
       setPrescribeModalOpen(true);
     });
+  };
+
+  // Handlers for the new complete consultation options
+  const onPrescribeAndCompleteHandler = (entry: QueueEntry) => {
+    // Open prescribe modal first
+    setSelectedQueueEntry(entry);
+    setPrescribeModalOpen(true);
+    setPrescribingForId(entry.id);
+  };
+
+  const onSkipAndCompleteHandler = async (entry: QueueEntry) => {
+    try {
+      // Complete without remedy directly
+      const result = await handleCompleteConsultation(entry);
+
+      if (result && result.success) {
+        // Clear consultation state
+        setConsultationStartTime(null);
+        setActiveConsultationId(null);
+
+        // Force queue refresh to remove completed consultation
+        invalidateCache();
+        await refetch();
+
+        // Additional refresh to ensure UI consistency
+        setTimeout(async () => {
+          invalidateCache();
+          await refetch();
+        }, 500);
+      }
+    } catch {
+      // Error already handled in handleCompleteConsultation
+    }
   };
 
 
@@ -442,8 +539,15 @@ export default function GurujiDashboard() {
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-3 w-3" />
                             <span>
-                              {format(new Date(currentPatient.appointment.date), "MMM dd")} at{" "}
-                              {format(currentPatient.appointment.startTime, "h:mm a")}
+                              {(() => {
+                                const date = currentPatient.appointment.date instanceof Date
+                                  ? currentPatient.appointment.date
+                                  : new Date(currentPatient.appointment.date);
+                                const startTime = currentPatient.appointment.startTime instanceof Date
+                                  ? currentPatient.appointment.startTime
+                                  : new Date(currentPatient.appointment.startTime);
+                                return `${format(isNaN(date.getTime()) ? new Date() : date, "MMM dd")} at ${format(isNaN(startTime.getTime()) ? new Date() : startTime, "h:mm a")}`;
+                              })()}
                             </span>
                           </div>
                           {currentPatient.appointment.reason && (
@@ -457,23 +561,12 @@ export default function GurujiDashboard() {
                 
                 {/* Complete Button */}
                 <div className="flex justify-end">
-                  <Button
-                    onClick={() => onPrescribeRemedy(currentPatient)}
-                    className="bg-green-600 hover:bg-green-700"
-                    disabled={prescribingForId === currentPatient.id}
-                  >
-                    {prescribingForId === currentPatient.id ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Opening...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Complete
-                      </>
-                    )}
-                  </Button>
+                  <CompleteConsultationButton
+                    onPrescribeAndComplete={() => onPrescribeAndCompleteHandler(currentPatient)}
+                    onSkipAndComplete={() => onSkipAndCompleteHandler(currentPatient)}
+                    isLoading={prescribingForId === currentPatient.id}
+                    loadingText="Opening..."
+                  />
                 </div>
               </div>
             </CardContent>
@@ -481,13 +574,35 @@ export default function GurujiDashboard() {
 
           {/* Consultation Timer */}
           {activeConsultation && (
-            <ConsultationTimer 
+            <ConsultationTimer
               consultation={activeConsultation}
-              onUpdate={(updatedConsultation) => {
+              onUpdate={async (updatedConsultation) => {
                 if (updatedConsultation.endTime) {
-                  // Consultation completed, refresh data
+                  // Consultation completed, refresh data immediately
                   invalidateCache();
-                  refetch();
+                  await refetch();
+
+                  // Clear consultation state
+                  setConsultationStartTime(null);
+                  setActiveConsultationId(null);
+
+                  // Additional refresh to ensure completed consultation is removed from queue
+                  setTimeout(async () => {
+                    invalidateCache();
+                    await refetch();
+                  }, 1000);
+                }
+              }}
+              onPrescribeAndComplete={() => {
+                const currentPatient = queueEntries.find(p => p.status === 'IN_PROGRESS');
+                if (currentPatient) {
+                  onPrescribeAndCompleteHandler(currentPatient);
+                }
+              }}
+              onSkipAndComplete={() => {
+                const currentPatient = queueEntries.find(p => p.status === 'IN_PROGRESS');
+                if (currentPatient) {
+                  onSkipAndCompleteHandler(currentPatient);
                 }
               }}
             />
@@ -556,11 +671,27 @@ export default function GurujiDashboard() {
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-3 w-3" />
                             <span>
-                              {format(new Date(patient.appointment.date), "MMM dd, yyyy")} at {" "}
-                              {format(patient.appointment.startTime, "h:mm a")}
-                              {patient.appointment.endTime && (
-                                <> - {format(patient.appointment.endTime, "h:mm a")}</>
-                              )}
+                              {(() => {
+                                const date = patient.appointment.date instanceof Date
+                                  ? patient.appointment.date
+                                  : new Date(patient.appointment.date);
+                                const startTime = patient.appointment.startTime instanceof Date
+                                  ? patient.appointment.startTime
+                                  : new Date(patient.appointment.startTime);
+                                const endTime = patient.appointment.endTime
+                                  ? (patient.appointment.endTime instanceof Date
+                                    ? patient.appointment.endTime
+                                    : new Date(patient.appointment.endTime))
+                                  : null;
+
+                                const formattedDate = format(isNaN(date.getTime()) ? new Date() : date, "MMM dd, yyyy");
+                                const formattedStartTime = format(isNaN(startTime.getTime()) ? new Date() : startTime, "h:mm a");
+                                const formattedEndTime = endTime && !isNaN(endTime.getTime())
+                                  ? ` - ${format(endTime, "h:mm a")}`
+                                  : '';
+
+                                return `${formattedDate} at ${formattedStartTime}${formattedEndTime}`;
+                              })()}
                             </span>
                           </div>
                           {patient.appointment.reason && (
@@ -648,12 +779,20 @@ export default function GurujiDashboard() {
           }}
           consultationId={consultationSessionId}
           patientName={selectedQueueEntry.user.name || "Patient"}
-          onSuccess={() => {
+          onSuccess={async () => {
             // Clear consultation state and refresh queue data
             setConsultationStartTime(null);
             setActiveConsultationId(null);
+
+            // Force immediate queue refresh
             invalidateCache();
-            refetch();
+            await refetch();
+
+            // Additional refresh to ensure completed consultation is removed
+            setTimeout(async () => {
+              invalidateCache();
+              await refetch();
+            }, 500);
           }}
           onSkip={() => {
             // Complete consultation without remedy
