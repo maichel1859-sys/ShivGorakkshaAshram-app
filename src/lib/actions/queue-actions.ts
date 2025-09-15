@@ -16,6 +16,20 @@ import {
   getCachedGurujiQueueEntries 
 } from '@/lib/services/queue.service';
 
+// Types for action responses
+type ActionSuccess<T = Record<string, unknown>> = {
+  success: true;
+} & T;
+
+type ActionError = {
+  success: false;
+  error: string;
+  requiresRemedy?: boolean;
+  consultationSessionId?: string;
+};
+
+type ActionResponse<T = Record<string, unknown>> = ActionSuccess<T> | ActionError;
+
 // Use unified schemas for consistency
 const queueStatusSchema = z.object({
   status: QueueStatusEnum,
@@ -192,7 +206,7 @@ export async function joinQueue(formData: FormData) {
 }
 
 // Update queue status (for gurujis)
-export async function updateQueueStatus(formData: FormData) {
+export async function updateQueueStatus(formData: FormData): Promise<ActionResponse<{ queueEntry: { id: string; user: { id: string; name: string | null } } }>> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -261,7 +275,9 @@ export async function updateQueueStatus(formData: FormData) {
         if (remedyCount === 0) {
           return { 
             success: false, 
-            error: 'Cannot complete consultation without prescribing a remedy. Please prescribe a remedy first.' 
+            error: 'Cannot complete consultation without prescribing a remedy. Please prescribe a remedy first.',
+            requiresRemedy: true,
+            consultationSessionId: consultationSession.id
           };
         }
       }
@@ -489,7 +505,7 @@ export async function getGurujiQueueEntries() {
 } 
 
 // Start consultation
-export async function startConsultation(formData: FormData) {
+export async function startConsultation(formData: FormData): Promise<ActionResponse<{ message?: string; consultationSessionId: string; consultationSession: { id: string }; currentPatient: { id: string; user: { id: string; name: string | null } } }>> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -650,6 +666,33 @@ export async function completeConsultation(formData: FormData) {
       return { success: false, error: 'Queue entry is not in progress' };
     }
 
+    // Check if remedy has been prescribed for this consultation
+    const consultationSession = await prisma.consultationSession.findFirst({
+      where: {
+        appointmentId: queueEntry.appointmentId,
+        patientId: queueEntry.userId,
+        gurujiId: session.user.id,
+        endTime: null,
+      },
+      include: {
+        remedies: true,
+      },
+    });
+
+    if (!consultationSession) {
+      return { success: false, error: 'No active consultation session found' };
+    }
+
+    // Check if at least one remedy has been prescribed
+    if (!consultationSession.remedies || consultationSession.remedies.length === 0) {
+      return { 
+        success: false, 
+        error: 'Please prescribe at least one remedy before completing the consultation',
+        requiresRemedy: true,
+        consultationSessionId: consultationSession.id
+      };
+    }
+
     // Update queue entry status
     await prisma.queueEntry.update({
       where: { id: queueEntryId },
@@ -659,16 +702,7 @@ export async function completeConsultation(formData: FormData) {
       },
     });
 
-    // Find and update consultation session
-    const consultationSession = await prisma.consultationSession.findFirst({
-      where: {
-        appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
-        gurujiId: session.user.id,
-        endTime: null,
-      },
-    });
-
+    // Update consultation session end time and duration
     if (consultationSession) {
       await prisma.consultationSession.update({
         where: { id: consultationSession.id },
@@ -709,7 +743,7 @@ export async function completeConsultation(formData: FormData) {
 } 
 
 // Get consultation session ID for a queue entry
-export async function getConsultationSessionId(queueEntryId: string) {
+export async function getConsultationSessionId(queueEntryId: string): Promise<ActionResponse<{ consultationSessionId: string }>> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {

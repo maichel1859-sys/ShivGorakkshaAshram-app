@@ -574,8 +574,8 @@ graph TD
     G --> H[Choose Guruji Optional]
     H --> I[Enter Reason/Priority]
     I --> J[Review & Confirm]
-    J --> K[Generate QR Code]
-    K --> L[Send Confirmation]
+    J --> K[visit location and scan QR ]
+    K --> L[appointment gets Confirm]
     L --> M[Add to Calendar]
     F --> C
 ```
@@ -613,7 +613,7 @@ graph TD
 - **Priority Handling**: URGENT > HIGH > NORMAL > LOW
 - **Wait Time Estimation**: 15 minutes per person average
 - **Real-time Updates**: Live position and status updates
-- **Notification System**: SMS/email alerts for queue status
+- **Notification System**: notificationwai alerts for queue status
 
 ### 4. Consultation Flow
 

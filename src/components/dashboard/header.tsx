@@ -22,6 +22,7 @@ import { NotificationCenter } from "@/components/notifications/notification-cent
 import { useAuthToast } from "@/hooks/use-auth-toast";
 import { useNotifications } from "@/hooks/queries";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface HeaderProps {
   title?: string;
@@ -32,6 +33,7 @@ export function Header({ title }: HeaderProps) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { data: notificationData } = useNotifications({ limit: 5 });
   const { signOutWithToast } = useAuthToast();
+  const { t } = useLanguage();
 
   const unreadCount = notificationData?.unreadCount || 0;
 
@@ -67,7 +69,7 @@ export function Header({ title }: HeaderProps) {
           {/* Page title */}
           <div className="flex flex-1 items-center space-x-4 lg:space-x-6">
             <h1 className="text-xl font-bold lg:text-2xl text-foreground">
-              {title || "Dashboard"}
+              {title || t('dashboard.title', 'Dashboard')}
             </h1>
           </div>
 
@@ -77,7 +79,7 @@ export function Header({ title }: HeaderProps) {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search appointments, users, remedies..."
+                placeholder={t('dashboard.searchPlaceholder', 'Search appointments, users, remedies...')}
                 className="pl-10 w-full rounded-xl border-border/50 focus:border-ring/50 transition-all duration-200"
               />
             </div>
@@ -151,17 +153,17 @@ export function Header({ title }: HeaderProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
                     <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                    <span>{t('nav.profile', 'Profile')}</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <span>Settings</span>
+                    <span>{t('nav.settings', 'Settings')}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-red-600 focus:text-red-600"
                     onClick={signOutWithToast}
                   >
-                    <span>Sign out</span>
+                    <span>{t('nav.signOut', 'Sign out')}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

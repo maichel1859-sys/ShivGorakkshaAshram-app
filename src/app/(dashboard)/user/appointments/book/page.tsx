@@ -181,7 +181,7 @@ export default function BookAppointmentPage() {
             <div className="space-y-2">
               <Label htmlFor="guruji" className="text-sm font-medium">Select Guruji</Label>
               <Select value={selectedGuruji} onValueChange={setSelectedGuruji}>
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="!h-16 ">
                   <SelectValue placeholder="Choose a guruji for consultation" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -252,20 +252,21 @@ export default function BookAppointmentPage() {
                   <p className="text-sm text-muted-foreground">No available slots for this date</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {getAvailableTimeSlots().map((slot) => (
-                    <Button
-                      key={slot.time}
-                      type="button"
-                      variant={selectedTime === slot.time ? "default" : "outline"}
-                      onClick={() => setSelectedTime(slot.time)}
-                      className="h-12 flex flex-col items-center justify-center gap-1"
-                    >
-                      <Clock className="h-4 w-4" />
-                      <span className="text-sm font-medium">{slot.time}</span>
-                    </Button>
-                  ))}
-                </div>
+                <Select value={selectedTime} onValueChange={setSelectedTime}>
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Choose a time slot" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {getAvailableTimeSlots().map((slot) => (
+                      <SelectItem key={slot.time} value={slot.time} className="py-3">
+                        <div className="flex items-center space-x-3">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span className="font-medium">{slot.time}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
               {selectedDate && !availabilityLoading && getAvailableTimeSlots().length > 0 && (
                 <p className="text-xs text-muted-foreground">

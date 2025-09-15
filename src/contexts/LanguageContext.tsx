@@ -56,11 +56,12 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
     try {
       setLoadingState('language-context', true);
       const response = await fetch(`/locales/${languageCode}/common.json`);
+      
       if (response.ok) {
         const translationData = await response.json();
         setTranslations(translationData);
       } else {
-        console.warn(`Failed to load translations for ${languageCode}`);
+        console.warn(`Failed to load translations for ${languageCode}, status: ${response.status}`);
         // Fallback to English if the language file doesn't exist
         if (languageCode !== 'en') {
           const fallbackResponse = await fetch('/locales/en/common.json');

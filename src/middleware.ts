@@ -92,12 +92,8 @@ async function handleRateLimit(req: NextRequest) {
 }
 
 export default async function middleware(req: NextRequest) {
-  console.log('🚨 MIDDLEWARE TRIGGERED FOR:', req.nextUrl.pathname)
-  
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   const { pathname } = req.nextUrl
-  
-  console.log('Middleware triggered for path:', pathname, 'Token exists:', !!token)
 
     // Apply rate limiting to API routes
     if (pathname.startsWith('/api/')) {
@@ -122,6 +118,7 @@ export default async function middleware(req: NextRequest) {
       '/manifest.json',
       '/robots.txt',
       '/sitemap.xml',
+      '/locales',
     ]
 
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
@@ -134,7 +131,6 @@ export default async function middleware(req: NextRequest) {
 
     // Require authentication for all other routes
     if (!token) {
-      console.log('No token found, redirecting to signin for path:', pathname)
       return NextResponse.redirect(new URL('/signin', req.url))
     }
 

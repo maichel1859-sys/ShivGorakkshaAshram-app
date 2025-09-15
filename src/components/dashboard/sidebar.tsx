@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/contexts/LanguageContext";
 import Link from "next/link";
 import {
   Calendar,
@@ -244,11 +245,42 @@ const navItems: NavItem[] = [
   },
 ];
 
+// Create a mapping function for nav titles to translation keys
+const getTitleTranslationKey = (title: string): string => {
+  const keyMapping: Record<string, string> = {
+    "Dashboard": "dashboard",
+    "Users": "users",
+    "Appointments": "appointments",
+    "Queue": "queue",
+    "Consultations": "consultations",
+    "Remedies": "remedies",
+    "Reports": "reports",
+    "System": "system",
+    "QR Codes": "qrCodes",
+    "Database": "database",
+    "Monitoring": "monitoring",
+    "Settings": "settings",
+    "Notifications": "notifications",
+    "Performance": "performance",
+    "Reception Desk": "receptionDesk",
+    "Book Appointment": "bookAppointment",
+    "My Queue": "myQueue",
+    "My Remedies": "myRemedies",
+    "My Appointments": "myAppointments",
+    "My Consultations": "myConsultations",
+    "Queue Management": "queueManagement",
+    "QR Scanner": "qrScanner",
+    "Check In": "checkIn",
+  };
+  
+  return keyMapping[title] || title.toLowerCase().replace(/\s+/g, '');
+};
+
 export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const { signOutWithToast } = useAuthToast();
-  // const { t } = useLanguage(); // Unused for now
+  const { t } = useLanguage();
 
   const handleSignOut = () => {
     signOutWithToast();
@@ -327,7 +359,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
             <>
               <div className="mb-6">
                 <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider px-3 mb-3">
-                  Main
+                  {t('nav.main', 'Main')}
                 </h3>
                 {mainItems.map((item) => {
                   const isActive = pathname === item.href;
@@ -345,7 +377,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                         )}
                       >
                         <item.icon className="h-4 w-4" />
-                        <span className="flex-1 text-left">{item.title}</span>
+                        <span className="flex-1 text-left">{t(`nav.${getTitleTranslationKey(item.title)}`, item.title)}</span>
                         {item.badge && (
                           <span className="ml-auto bg-sidebar-primary text-sidebar-primary-foreground text-xs px-2 py-1 rounded-full shadow-sm">
                             {item.badge}
@@ -365,7 +397,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
               <Separator className="my-4" />
               <div className="mb-6">
                 <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider px-3 mb-3">
-                  System & Technical
+                  {t('nav.systemTechnical', 'System & Technical')}
                 </h3>
                 {systemItems.map((item) => {
                   const isActive = pathname === item.href;
@@ -383,7 +415,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                         )}
                       >
                         <item.icon className="h-4 w-4" />
-                        <span className="flex-1 text-left">{item.title}</span>
+                        <span className="flex-1 text-left">{t(`nav.${getTitleTranslationKey(item.title)}`, item.title)}</span>
                       </Button>
                     </Link>
                   );
@@ -398,7 +430,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
               <Separator className="my-4" />
               <div className="mb-6">
                 <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider px-3 mb-3">
-                  Configuration
+                  {t('nav.configuration', 'Configuration')}
                 </h3>
                 {configItems.map((item) => {
                   const isActive = pathname === item.href;
@@ -416,7 +448,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                         )}
                       >
                         <item.icon className="h-4 w-4" />
-                        <span className="flex-1 text-left">{item.title}</span>
+                        <span className="flex-1 text-left">{t(`nav.${getTitleTranslationKey(item.title)}`, item.title)}</span>
                       </Button>
                     </Link>
                   );

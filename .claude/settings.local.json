@@ -30,7 +30,9 @@
       "Bash(timeout 600 npm run build)",
       "Bash(git checkout:*)",
       "Bash(netstat:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": []
   }

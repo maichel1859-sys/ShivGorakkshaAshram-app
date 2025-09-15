@@ -131,3 +131,5 @@ export function SkeletonDashboard({ className }: SkeletonProps) {
     </div>
   );
 }
+
+

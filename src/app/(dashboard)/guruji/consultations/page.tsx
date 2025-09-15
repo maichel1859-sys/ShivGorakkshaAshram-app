@@ -40,6 +40,7 @@ import type { QueueEntry } from "@/types/queue";
 import React from "react";
 import { RemedyType } from "@prisma/client";
 import { showToast, commonToasts } from "@/lib/toast";
+import { startConsultation, updateQueueStatus, getConsultationSessionId } from "@/lib/actions/queue-actions";
 
 interface Patient {
   id: string;
@@ -149,40 +150,82 @@ export default function GurujiConsultationsPage() {
   // Queue action handlers
   const handleStartConsultation = async (entry: QueueEntry) => {
     try {
-      // TODO: Implement start consultation logic
-      console.log('Starting consultation for:', entry.user.name);
-      await loadQueueEntries();
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      
+      const result = await startConsultation(formData);
+      if (result.success) {
+        commonToasts.consultationStarted(entry.user.name || 'Unknown User');
+        // Store the consultation session ID for prescribing remedies
+        if (result.consultationSessionId) {
+          setConsultationSessionId(result.consultationSessionId);
+        }
+        await loadQueueEntries(); // Refresh the queue
+      } else {
+        showToast.error(result.error || 'Failed to start consultation');
+      }
     } catch (error) {
       console.error('Error starting consultation:', error);
+      showToast.error('Error starting consultation');
     }
   };
 
   const handleCompleteConsultation = async (entry: QueueEntry, onRemedyRequired?: (entry: QueueEntry) => void) => {
     try {
-      // TODO: Implement complete consultation logic
-      console.log('Completing consultation for:', entry.user.name);
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      formData.append('status', 'COMPLETED');
       
-      // Check if remedy is required
-      if (onRemedyRequired) {
-        onRemedyRequired(entry);
+      const result = await updateQueueStatus(formData);
+      if (result.success) {
+        commonToasts.consultationCompleted(entry.user.name || 'Unknown User');
+        setConsultationSessionId(null); // Clear consultation session ID
+        await loadQueueEntries(); // Refresh the queue
+      } else {
+        // Check if the error is about missing remedy
+        if (result.error?.includes('remedy') || result.requiresRemedy) {
+          showToast.error(result.error || 'Please prescribe a remedy before completing');
+          // Automatically open the prescribe remedy modal
+          if (result.consultationSessionId) {
+            setConsultationSessionId(result.consultationSessionId);
+          }
+          if (onRemedyRequired) {
+            onRemedyRequired(entry);
+          }
+        } else {
+          showToast.error(result.error || 'Failed to complete consultation');
+        }
       }
-      await loadQueueEntries();
     } catch (error) {
       console.error('Error completing consultation:', error);
+      showToast.error('Error completing consultation');
     }
   };
 
   const handlePrescribeRemedy = async (entry: QueueEntry, onSuccess?: (consultationSessionId: string, entry: QueueEntry) => void) => {
     try {
-      // TODO: Implement prescribe remedy logic
-      console.log('Prescribing remedy for:', entry.user.name);
-      const mockConsultationSessionId = `consultation-${Date.now()}`;
+      // Check if the entry is in progress
+      if (entry.status !== 'IN_PROGRESS') {
+        showToast.error('Can only prescribe remedies for consultations in progress.');
+        return;
+      }
       
-      if (onSuccess) {
-        onSuccess(mockConsultationSessionId, entry);
+      // Get the consultation session ID for this queue entry
+      const result = await getConsultationSessionId(entry.id);
+      if (!result.success) {
+        showToast.error(result.error || 'Failed to get consultation session');
+        return;
+      }
+      
+      // Store the consultation session ID temporarily for the modal
+      if (result.consultationSessionId && onSuccess) {
+        onSuccess(result.consultationSessionId, entry);
+      } else {
+        showToast.error('Failed to get consultation session ID');
       }
     } catch (error) {
-      console.error('Error prescribing remedy:', error);
+      console.error('Error preparing to prescribe remedy:', error);
+      showToast.error('Error preparing to prescribe remedy');
     }
   };
 
