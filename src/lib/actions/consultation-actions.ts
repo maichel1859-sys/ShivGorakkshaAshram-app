@@ -235,7 +235,7 @@ export async function createConsultation(formData: FormData) {
     const consultation = await prisma.consultationSession.create({
       data: {
         gurujiId: session.user.id,
-        patientId: appointment.userId,
+        devoteeId: appointment.userId,
         appointmentId: data.appointmentId,
         startTime: new Date(),
         endTime: null,
@@ -246,7 +246,7 @@ export async function createConsultation(formData: FormData) {
       },
       include: {
         guruji: true,
-        patient: true,
+        devotee: true,
         appointment: true,
       },
     });
@@ -266,7 +266,7 @@ export async function createConsultation(formData: FormData) {
         resourceId: consultation.id,
         newData: {
           appointmentId: data.appointmentId,
-          patientName: appointment.user.name,
+          devoteeName: appointment.user.name,
           symptoms: data.symptoms,
           diagnosis: data.diagnosis,
         },
@@ -519,7 +519,7 @@ export async function getAdminConsultations() {
   try {
     const consultations = await prisma.consultationSession.findMany({
       include: {
-        patient: {
+        devotee: {
           select: {
             id: true,
             name: true,
@@ -583,7 +583,7 @@ export async function getGurujiConsultations() {
         gurujiId: session.user.id,
       },
       include: {
-        patient: {
+        devotee: {
           select: {
             id: true,
             name: true,

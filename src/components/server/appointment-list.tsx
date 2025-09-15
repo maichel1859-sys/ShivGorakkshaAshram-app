@@ -3,9 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/core/auth";
 import {
   getAppointments,
-  cancelAppointment,
-  checkInAppointment,
 } from "@/lib/actions/appointment-actions";
+import { cancelAppointmentAction } from "@/lib/actions/appointment-list-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -170,17 +169,7 @@ async function AppointmentListContent({
                         Reschedule
                       </Button>
                     </form>
-                    <form
-                      action={async (formData: FormData) => {
-                        "use server";
-                        const appointmentId = formData.get(
-                          "appointmentId"
-                        ) as string;
-                        if (appointmentId) {
-                          await cancelAppointment(appointmentId);
-                        }
-                      }}
-                    >
+                    <form action={cancelAppointmentAction}>
                       <input
                         type="hidden"
                         name="appointmentId"
@@ -188,26 +177,6 @@ async function AppointmentListContent({
                       />
                       <Button size="sm" variant="destructive" type="submit">
                         Cancel
-                      </Button>
-                    </form>
-                    <form
-                      action={async (formData: FormData) => {
-                        "use server";
-                        const appointmentId = formData.get(
-                          "checkInAppointmentId"
-                        ) as string;
-                        if (appointmentId) {
-                          await checkInAppointment(appointmentId);
-                        }
-                      }}
-                    >
-                      <input
-                        type="hidden"
-                        name="checkInAppointmentId"
-                        value={appointment.id}
-                      />
-                      <Button size="sm" variant="default" type="submit">
-                        Check In
                       </Button>
                     </form>
                     {appointment.qrCode && (

@@ -148,7 +148,7 @@ export default function CoordinatorQueuePage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Queue Management</h1>
           <p className="text-muted-foreground mt-2">
-            Monitor and manage patient queues across all gurujis
+            Monitor and manage devotee queues across all gurujis
           </p>
         </div>
         <Button onClick={() => loadQueueEntries()} variant="outline">
@@ -167,7 +167,7 @@ export default function CoordinatorQueuePage() {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search patients..."
+                placeholder="Search devotees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -260,7 +260,7 @@ export default function CoordinatorQueuePage() {
               <h3 className="text-lg font-semibold mb-2">No Queue Entries</h3>
               <p className="text-muted-foreground">
                 {queueEntries.length === 0 
-                  ? "No patients in queue currently."
+                  ? "No devotees in queue currently."
                   : "No entries match your current filters."
                 }
               </p>

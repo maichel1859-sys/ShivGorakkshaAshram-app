@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRemedyTemplates, getRemedyTemplate, createRemedyTemplate, updateRemedyTemplate, deleteRemedyTemplate, getGurujiPatients, generateRemedyPreview, prescribeRemedy } from '@/lib/actions/remedy-actions';
+import { getRemedyTemplates, getRemedyTemplate, createRemedyTemplate, updateRemedyTemplate, deleteRemedyTemplate, getGurujiDevotees, generateRemedyPreview, prescribeRemedy } from '@/lib/actions/remedy-actions';
 import { toast } from 'sonner';
 
 // Query keys
@@ -122,16 +122,16 @@ export function useDeleteRemedyTemplate() {
   });
 }
 
-// Hook for fetching guruji patients
-export function useGurujiPatients() {
+// Hook for fetching guruji devotees
+export function useGurujiDevotees() {
   return useQuery({
-    queryKey: [...remedyKeys.all, 'patients'],
+    queryKey: [...remedyKeys.all, 'devotees'],
     queryFn: async () => {
-      const result = await getGurujiPatients();
+      const result = await getGurujiDevotees();
       if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch patients');
+        throw new Error(result.error || 'Failed to fetch devotees');
       }
-      return result.patients;
+      return result.devotees;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

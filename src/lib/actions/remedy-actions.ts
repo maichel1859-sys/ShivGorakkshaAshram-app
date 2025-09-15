@@ -263,7 +263,7 @@ export async function deleteRemedyTemplate(formData: FormData) {
   }
 }
 
-// Prescribe remedy to patient (enhanced version with PDF generation)
+// Prescribe remedy to devotee (enhanced version with PDF generation)
 export async function prescribeRemedy(formData: FormData) {
   const session = await getServerSession(authOptions);
   
@@ -278,14 +278,14 @@ export async function prescribeRemedy(formData: FormData) {
 
   try {
     const templateId = formData.get('templateId') as string;
-    const patientId = formData.get('patientId') as string;
+    const devoteeId = formData.get('devoteeId') as string;
     const customInstructions = formData.get('customInstructions') as string;
     const customDosage = formData.get('customDosage') as string;
     const customDuration = formData.get('customDuration') as string;
 
     // Validate input using the schema
     const validationResult = prescribeRemedySchema.safeParse({
-      consultationId: patientId, // Using patientId as consultation reference
+      consultationId: devoteeId, // Using devoteeId as consultation reference
       templateId,
       customInstructions: customInstructions || undefined,
       customDosage: customDosage || undefined,
@@ -302,8 +302,8 @@ export async function prescribeRemedy(formData: FormData) {
 
     const validatedData = validationResult.data;
 
-    if (!templateId || !patientId) {
-      return { success: false, error: 'Template ID and Patient ID are required' };
+    if (!templateId || !devoteeId) {
+      return { success: false, error: 'Template ID and Devotee ID are required' };
     }
 
     // Verify template exists
@@ -315,20 +315,20 @@ export async function prescribeRemedy(formData: FormData) {
       return { success: false, error: 'Remedy template not found' };
     }
 
-    // Verify patient exists
-    const patient = await prisma.user.findUnique({
-      where: { id: patientId },
+    // Verify devotee exists
+    const devotee = await prisma.user.findUnique({
+      where: { id: devoteeId },
       select: { id: true, name: true, email: true, phone: true },
     });
 
-    if (!patient) {
-      return { success: false, error: 'Patient not found' };
+    if (!devotee) {
+      return { success: false, error: 'Devotee not found' };
     }
 
     // Create a minimal appointment for tracking
     const appointment = await prisma.appointment.create({
       data: {
-        userId: patientId,
+        userId: devoteeId,
         gurujiId: session.user.id,
         date: new Date(),
         startTime: new Date(),
@@ -342,7 +342,7 @@ export async function prescribeRemedy(formData: FormData) {
     const consultationSession = await prisma.consultationSession.create({
       data: {
         appointmentId: appointment.id,
-        patientId: patientId,
+        devoteeId: devoteeId,
         gurujiId: session.user.id,
         startTime: new Date(),
         endTime: new Date(), // Mark as completed immediately
@@ -355,7 +355,7 @@ export async function prescribeRemedy(formData: FormData) {
       data: {
         consultationSessionId: consultationSession.id,
         templateId: validatedData.templateId,
-        userId: patientId,
+        userId: devoteeId,
         customInstructions: validatedData.customInstructions,
         customDosage: validatedData.customDosage,
         customDuration: validatedData.customDuration,
@@ -375,10 +375,10 @@ export async function prescribeRemedy(formData: FormData) {
       },
     });
 
-    // Create notification for patient
+    // Create notification for devotee
     await prisma.notification.create({
       data: {
-        userId: patientId,
+        userId: devoteeId,
         title: "New Remedy Prescribed",
         message: `${session.user.name || 'Guruji'} has prescribed a new remedy: ${template.name}`,
         type: "remedy",
@@ -399,7 +399,7 @@ export async function prescribeRemedy(formData: FormData) {
         resourceId: remedy.id,
         newData: {
           templateName: template.name,
-          patientName: patient.name,
+          devoteeName: devotee.name,
           directPrescription: true,
         },
       },
@@ -461,7 +461,7 @@ export async function generateRemedyPDF(remedyId: string) {
       remedy,
       pdfData: {
         template: remedy.template,
-        patient: remedy.consultationSession.appointment.user,
+        devotee: remedy.consultationSession.appointment.user,
         guruji: remedy.consultationSession.appointment.guruji,
         customInstructions: remedy.customInstructions,
         customDosage: remedy.customDosage,
@@ -475,21 +475,21 @@ export async function generateRemedyPDF(remedyId: string) {
   }
 }
 
-// Get guruji patients
-export async function getGurujiPatients() {
+// Get guruji devotees
+export async function getGurujiDevotees() {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
 
-  // Only Gurujis and Admins can access patient list
+  // Only Gurujis and Admins can access devotee list
   if (!['GURUJI', 'ADMIN'].includes(session.user.role)) {
     return { success: false, error: 'Access denied' };
   }
 
   try {
-    const patients = await prisma.user.findMany({
+    const devotees = await prisma.user.findMany({
       where: {
         role: 'USER',
         gurujiAppointments: {
@@ -507,10 +507,10 @@ export async function getGurujiPatients() {
       orderBy: { name: 'asc' },
     });
 
-    return { success: true, patients };
+    return { success: true, devotees };
   } catch (error) {
-    console.error('Get guruji patients error:', error);
-    return { success: false, error: 'Failed to fetch patients' };
+    console.error('Get guruji devotees error:', error);
+    return { success: false, error: 'Failed to fetch devotees' };
   }
 }
 
@@ -529,22 +529,22 @@ export async function generateRemedyPreview(formData: FormData) {
 
   try {
     const templateId = formData.get('templateId') as string;
-    const patientId = formData.get('patientId') as string;
+    const devoteeId = formData.get('devoteeId') as string;
     const customInstructions = formData.get('customInstructions') as string;
     const customDosage = formData.get('customDosage') as string;
     const customDuration = formData.get('customDuration') as string;
 
-    if (!templateId || !patientId) {
-      return { success: false, error: 'Template ID and Patient ID are required' };
+    if (!templateId || !devoteeId) {
+      return { success: false, error: 'Template ID and Devotee ID are required' };
     }
 
-    // Get template and patient data
-    const [template, patient] = await Promise.all([
+    // Get template and devotee data
+    const [template, devotee] = await Promise.all([
       prisma.remedyTemplate.findUnique({
         where: { id: templateId },
       }),
       prisma.user.findUnique({
-        where: { id: patientId },
+        where: { id: devoteeId },
         select: { id: true, name: true, email: true, phone: true },
       }),
     ]);
@@ -553,14 +553,14 @@ export async function generateRemedyPreview(formData: FormData) {
       return { success: false, error: 'Template not found' };
     }
 
-    if (!patient) {
-      return { success: false, error: 'Patient not found' };
+    if (!devotee) {
+      return { success: false, error: 'Devotee not found' };
     }
 
     // Generate preview data
     const preview = {
       template,
-      patient,
+      devotee,
       customInstructions: customInstructions || template.instructions,
       customDosage: customDosage || template.dosage,
       customDuration: customDuration || template.duration,
@@ -638,7 +638,7 @@ export async function getUserRemedies(options?: {
   }
 }
 
-// Update remedy status (for patients to mark as taken/completed)
+// Update remedy status (for devotees to mark as taken/completed)
 export async function updateRemedyStatus(formData: FormData) {
   const session = await getServerSession(authOptions);
   
@@ -796,7 +796,7 @@ export async function prescribeRemedyDuringConsultation(formData: FormData) {
       },
     });
 
-    // Create notification for the patient
+    // Create notification for the devotee
     await prisma.notification.create({
       data: {
         userId: consultation.appointment.userId,

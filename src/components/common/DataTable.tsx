@@ -9,7 +9,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Download, Plus } from "lucide-react";
+import { Search, Download, Plus, MoreVertical } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Column<T> {
   key: keyof T;
@@ -17,6 +24,8 @@ interface Column<T> {
   render?: (value: unknown, item: T) => React.ReactNode;
   sortable?: boolean;
   filterable?: boolean;
+  mobileHide?: boolean; // Hide this column on mobile
+  mobileLabel?: string; // Custom mobile label
 }
 
 interface DataTableProps<T> {
@@ -56,6 +65,7 @@ export function DataTable<T extends Record<string, unknown>>({
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const isMobile = useIsMobile();
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -138,37 +148,41 @@ export function DataTable<T extends Record<string, unknown>>({
       </CardHeader>
       <CardContent>
         {/* Filters */}
-        <div className="flex items-center space-x-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
           {searchKey && (
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative flex-1 max-w-full sm:max-w-sm">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-8"
+                className="pl-8 w-full"
               />
             </div>
           )}
-          {filterOptions?.map((filter) => (
-            <select
-              key={String(filter.key)}
-              value={filters[String(filter.key)] || "all"}
-              onChange={(e) => handleFilter(String(filter.key), e.target.value)}
-              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-              aria-label={`Filter by ${filter.label}`}
-            >
-              <option value="all">{filter.label}</option>
-              {filter.options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+          {filterOptions && filterOptions.length > 0 && (
+            <div className="flex flex-wrap gap-2 sm:gap-4">
+              {filterOptions.map((filter) => (
+                <select
+                  key={String(filter.key)}
+                  value={filters[String(filter.key)] || "all"}
+                  onChange={(e) => handleFilter(String(filter.key), e.target.value)}
+                  className="px-3 py-2 border border-input bg-background rounded-md text-sm min-w-[120px] touch-target"
+                  aria-label={`Filter by ${filter.label}`}
+                >
+                  <option value="all">{filter.label}</option>
+                  {filter.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               ))}
-            </select>
-          ))}
+            </div>
+          )}
         </div>
 
-        {/* Table */}
+        {/* Table/Cards */}
         <div className="space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -178,8 +192,55 @@ export function DataTable<T extends Record<string, unknown>>({
             <div className="text-center py-8 text-muted-foreground">
               {emptyMessage}
             </div>
+          ) : isMobile ? (
+            /* Mobile Card View */
+            <div className="space-y-3">
+              {filteredData.map((item, index) => (
+                <Card key={index} className="p-4 hover:shadow-md transition-shadow">
+                  <div className="space-y-3">
+                    {columns.filter(col => !col.mobileHide).map((column) => (
+                      <div key={String(column.key)} className="flex justify-between items-start gap-3">
+                        <span className="text-sm font-medium text-muted-foreground min-w-0 flex-shrink-0">
+                          {column.mobileLabel || column.header}:
+                        </span>
+                        <div className="text-sm text-right min-w-0 flex-1">
+                          {renderCell(column, item)}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Mobile Actions */}
+                    <div className="flex justify-end pt-2 border-t">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 touch-target">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           ) : (
+            /* Desktop Table View */
             <div className="space-y-2">
+              {/* Table Header */}
+              <div className="hidden sm:flex items-center px-4 py-2 border-b bg-muted/30 rounded-t-lg">
+                {columns.map((column) => (
+                  <div key={String(column.key)} className="flex-1 px-2 text-sm font-medium">
+                    {column.header}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Table Rows */}
               {filteredData.map((item, index) => (
                 <div
                   key={index}

@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Camera, CheckCircle, AlertCircle, Clock, MapPin } from 'lucide-react';
+import { Camera, CheckCircle, AlertCircle, Clock, MapPin, Navigation, Settings, Info } from 'lucide-react';
 import { processQRScanSimple } from '@/lib/actions/qr-scan-actions-simple';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast';
+import { getCurrentLocation } from '@/lib/utils/geolocation';
 
 interface QRScanResult {
   success: boolean;
@@ -25,10 +26,50 @@ export default function StaticQRScanner() {
   const [scanResult, setScanResult] = useState<QRScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<'checking' | 'allowed' | 'denied' | 'error'>('checking');
+  const [showLocationHelp, setShowLocationHelp] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const router = useRouter();
+
+  // Get user location on component mount
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        setLocationStatus('checking');
+
+        // Check if geolocation is supported
+        if (!navigator.geolocation) {
+          setLocationStatus('error');
+          setError('Geolocation is not supported by this browser');
+          return;
+        }
+
+        // Request location with improved options
+        const location = await getCurrentLocation();
+        setUserLocation(location);
+        setLocationStatus('allowed');
+        setError(null);
+      } catch (error) {
+        console.error('Location error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to get location';
+
+        // Check if it's a permission denied error specifically
+        if (errorMessage.includes('denied')) {
+          setLocationStatus('denied');
+          setShowLocationHelp(true);
+        } else {
+          setLocationStatus('error');
+        }
+
+        setError(errorMessage);
+      }
+    };
+
+    getLocation();
+  }, []);
 
   // Initialize camera
   useEffect(() => {
@@ -92,7 +133,8 @@ export default function StaticQRScanner() {
     setScanResult(null);
 
     try {
-      const result = await processQRScanSimple(qrData);
+      // Pass user location for geolocation validation
+      const result = await processQRScanSimple(qrData, userLocation || undefined);
       setScanResult(result);
 
       if (result.success) {
@@ -114,9 +156,16 @@ export default function StaticQRScanner() {
   };
 
   const handleManualQRInput = () => {
-    const qrData = prompt('Please enter the QR code data:');
-    if (qrData) {
-      processQRCode(qrData);
+    const qrData = prompt(
+      'Enter QR code data in any of these formats:\n' +
+      '• Full QR code JSON data\n' +
+      '• ASHRAM_MAIN\n' +
+      '• ASHRAM\n' +
+      '• MAIN\n\n' +
+      'What is displayed on your QR code?'
+    );
+    if (qrData?.trim()) {
+      processQRCode(qrData.trim());
     }
   };
 
@@ -134,6 +183,167 @@ export default function StaticQRScanner() {
 
   return (
     <div className="space-y-6">
+      {/* Location Status */}
+      <Alert className={locationStatus === 'allowed' ? 'border-green-200 bg-green-50' : locationStatus === 'denied' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'}>
+        <div className="flex items-start gap-2">
+          {locationStatus === 'checking' ? (
+            <Navigation className="h-4 w-4 text-blue-600 mt-0.5 animate-spin" />
+          ) : locationStatus === 'allowed' ? (
+            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+          )}
+          <div>
+            <AlertDescription className={locationStatus === 'allowed' ? 'text-green-800' : locationStatus === 'denied' ? 'text-red-800' : 'text-blue-800'}>
+              {locationStatus === 'checking' && 'Getting your location...'}
+              {locationStatus === 'allowed' && 'Location access granted. You can scan QR codes within 100m of their location.'}
+              {locationStatus === 'denied' && 'Location access denied. Please enable location access to use QR code scanning with location validation.'}
+              {locationStatus === 'error' && 'Location error occurred.'}
+            </AlertDescription>
+            {userLocation && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Your location: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}
+              </p>
+            )}
+            {locationStatus === 'denied' && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-red-800">Alternative options:</p>
+                <div className="space-y-1 text-sm text-red-700">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                    <span>Use &quot;Manual Input&quot; button below to enter the QR code text</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                    <span>Ask reception staff to manually check you in</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                    <span>Enable location in browser settings and refresh page</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        setLocationStatus('checking');
+                        const location = await getCurrentLocation();
+                        setUserLocation(location);
+                        setLocationStatus('allowed');
+                        setError(null);
+                        setShowLocationHelp(false);
+                      } catch (error) {
+                        console.error('Location error:', error);
+                        setLocationStatus('denied');
+                        setError(error instanceof Error ? error.message : 'Failed to get location');
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Navigation className="h-3 w-3 mr-1" />
+                    Try Again
+                  </Button>
+
+                  <Button
+                    onClick={() => setShowLocationHelp(true)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Info className="h-3 w-3 mr-1" />
+                    Help
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Alert>
+
+      {/* Location Help Card */}
+      {showLocationHelp && locationStatus === 'denied' && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2 text-blue-800">
+              <Settings className="h-5 w-5" />
+              How to Enable Location Access
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-sm text-blue-700">
+              <p className="mb-3">To use QR code scanning with location validation, please enable location access in your browser:</p>
+
+              <div className="space-y-4">
+                <div className="bg-white p-3 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold mb-2">📱 Chrome Mobile / Chrome Desktop:</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <li>Click the location icon (🔒) in the address bar</li>
+                    <li>Select &quot;Allow&quot; for location access</li>
+                    <li>Refresh the page</li>
+                  </ol>
+                </div>
+
+                <div className="bg-white p-3 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold mb-2">🍎 Safari Mobile:</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <li>Go to Settings → Safari → Location</li>
+                    <li>Select &quot;Ask&quot; or &quot;Allow&quot;</li>
+                    <li>Return to this page and refresh</li>
+                  </ol>
+                </div>
+
+                <div className="bg-white p-3 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold mb-2">🦊 Firefox:</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <li>Click the shield icon in the address bar</li>
+                    <li>Click &quot;Allow Location Access&quot;</li>
+                    <li>Refresh the page</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>💡 Tip:</strong> Location access is used to verify you&apos;re physically present at the ashram for check-in security.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  try {
+                    setLocationStatus('checking');
+                    const location = await getCurrentLocation();
+                    setUserLocation(location);
+                    setLocationStatus('allowed');
+                    setError(null);
+                    setShowLocationHelp(false);
+                  } catch (error) {
+                    console.error('Location error:', error);
+                    setLocationStatus('denied');
+                    setError(error instanceof Error ? error.message : 'Failed to get location');
+                  }
+                }}
+                variant="default"
+                size="sm"
+              >
+                <Navigation className="h-3 w-3 mr-1" />
+                Try Again
+              </Button>
+
+              <Button
+                onClick={() => setShowLocationHelp(false)}
+                variant="outline"
+                size="sm"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Scanner Status */}
       {scanResult && (
         <Alert className={scanResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
@@ -222,6 +432,16 @@ export default function StaticQRScanner() {
             )}
           </div>
 
+          {/* Manual Input Helper */}
+          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+            <p className="font-medium mb-1">💡 Manual Input Formats:</p>
+            <div className="space-y-1">
+              <p>• Full QR data: JSON string from QR code</p>
+              <p>• Location ID: ASHRAM_MAIN</p>
+              <p>• Simple format: ASHRAM or MAIN</p>
+            </div>
+          </div>
+
           {/* Scanner Controls */}
           <div className="flex gap-2">
             {!isScanning ? (
@@ -243,10 +463,11 @@ export default function StaticQRScanner() {
               </Button>
             )}
             
-            <Button 
+            <Button
               onClick={handleManualQRInput}
               variant="outline"
               disabled={isProcessing}
+              title="Enter QR code data manually (supports multiple formats)"
             >
               Manual Input
             </Button>

@@ -21,7 +21,7 @@ export default function CoordinatorSettingsPage() {
     name: "Coordinator User",
     email: "coordinator@ashram.com",
     phone: "+1234567890",
-    department: "Patient Care",
+    department: "Devotee Care",
     role: "COORDINATOR",
   });
 
@@ -37,7 +37,7 @@ export default function CoordinatorSettingsPage() {
 
   const [workflowSettings, setWorkflowSettings] = useState({
     autoAssignAppointments: true,
-    autoNotifyPatients: true,
+    autoNotifyDevotees: true,
     queueManagement: "manual",
     appointmentReminders: 24,
     maxQueueLength: 50,
@@ -249,14 +249,14 @@ export default function CoordinatorSettingsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label>Auto-Notify Patients</Label>
+                      <Label>Auto-Notify Devotees</Label>
                       <p className="text-sm text-muted-foreground">
-                        Automatically send notifications to patients
+                        Automatically send notifications to devotees
                       </p>
                     </div>
                     <Switch
-                      checked={workflowSettings.autoNotifyPatients}
-                      onCheckedChange={(checked) => setWorkflowSettings({...workflowSettings, autoNotifyPatients: checked})}
+                      checked={workflowSettings.autoNotifyDevotees}
+                      onCheckedChange={(checked) => setWorkflowSettings({...workflowSettings, autoNotifyDevotees: checked})}
                     />
                   </div>
                   <div className="space-y-2">

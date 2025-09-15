@@ -29,19 +29,24 @@ interface PrescribeRemedyModalProps {
   isOpen: boolean;
   onClose: () => void;
   consultationId: string;
-  patientName: string;
+  devoteeName: string;
+  onSuccess?: () => void;
+  onSkip?: () => void;
 }
 
 export function PrescribeRemedyModal({
   isOpen,
   onClose,
   consultationId,
-  patientName,
+  devoteeName,
+  onSuccess,
+  onSkip,
 }: PrescribeRemedyModalProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [customInstructions, setCustomInstructions] = useState("");
   const [customDosage, setCustomDosage] = useState("");
   const [customDuration, setCustomDuration] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get remedy templates
   const { data: templatesData, isLoading: templatesLoading } = useRemedyTemplates({
@@ -59,6 +64,7 @@ export function PrescribeRemedyModal({
       return;
     }
 
+    setIsSubmitting(true);
     const formData = new FormData();
     formData.append("consultationId", consultationId);
     formData.append("templateId", selectedTemplate);
@@ -71,18 +77,37 @@ export function PrescribeRemedyModal({
       
       if (result.success) {
         toast.success(result.message || "Remedy prescribed successfully!");
+        resetForm();
         onClose();
-        // Reset form
-        setSelectedTemplate("");
-        setCustomInstructions("");
-        setCustomDosage("");
-        setCustomDuration("");
+        // Trigger success callback to refresh data
+        if (onSuccess) {
+          onSuccess();
+        }
       } else {
         toast.error(result.error || "Failed to prescribe remedy");
       }
     } catch {
       toast.error("An error occurred while prescribing the remedy");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleSkip = () => {
+    if (confirm('Are you sure you want to complete this consultation without prescribing a remedy?')) {
+      resetForm();
+      onClose();
+      if (onSkip) {
+        onSkip();
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedTemplate("");
+    setCustomInstructions("");
+    setCustomDosage("");
+    setCustomDuration("");
   };
 
   const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
@@ -93,10 +118,10 @@ export function PrescribeRemedyModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pill className="h-5 w-5" />
-            Prescribe Remedy
+            Prescribe Remedy - {devoteeName}
           </DialogTitle>
           <DialogDescription>
-            Prescribe a remedy for {patientName} during this consultation session.
+            Select a remedy template and customize dosage for this consultation. You can also skip if no remedy is needed.
           </DialogDescription>
         </DialogHeader>
 
@@ -198,14 +223,37 @@ export function PrescribeRemedyModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+          <div className="flex justify-between pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleSkip}
+              className="text-orange-600 border-orange-300 hover:bg-orange-50"
+            >
+              Skip & Complete
             </Button>
-            <Button type="submit" disabled={!selectedTemplate}>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Prescribe Remedy
-            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={!selectedTemplate || isSubmitting}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Prescribing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Prescribe Remedy
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

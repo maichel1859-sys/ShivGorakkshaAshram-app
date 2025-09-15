@@ -16,21 +16,31 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Search, Filter, Users, UserPlus } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
+import { UsersPagination } from "@/components/admin/users-pagination";
 
 // Server Component for User List
 async function UserListServer({
   searchParams,
 }: {
-  searchParams: { search?: string; role?: string; active?: string };
+  searchParams: { 
+    search?: string; 
+    role?: string; 
+    active?: string;
+    page?: string;
+    pageSize?: string;
+  };
 }) {
-  const { search, role, active } = searchParams;
+  const { search, role, active, page = "1", pageSize = "20" } = searchParams;
+
+  const currentPage = Math.max(1, parseInt(page));
+  const currentPageSize = Math.max(1, Math.min(100, parseInt(pageSize)));
 
   const options = {
     search: search || undefined,
     role: role || undefined,
     active: active === "true" ? true : active === "false" ? false : undefined,
-    limit: 50,
-    offset: 0,
+    limit: currentPageSize,
+    offset: (currentPage - 1) * currentPageSize,
   };
 
   const result = await getUsers(options);
@@ -47,6 +57,7 @@ async function UserListServer({
   }
 
   const { users = [], total = 0 } = result;
+  const totalPages = Math.ceil(total / currentPageSize);
 
   return (
     <div className="space-y-4">
@@ -197,6 +208,17 @@ async function UserListServer({
           </CardContent>
         </Card>
       )}
+
+      {/* Pagination */}
+      {users.length > 0 && (
+        <UsersPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={total}
+          itemsPerPage={currentPageSize}
+          searchParams={searchParams}
+        />
+      )}
     </div>
   );
 }
@@ -204,7 +226,13 @@ async function UserListServer({
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; role?: string; active?: string }>;
+  searchParams: Promise<{ 
+    search?: string; 
+    role?: string; 
+    active?: string;
+    page?: string;
+    pageSize?: string;
+  }>;
 }) {
   const params = await searchParams;
   return (

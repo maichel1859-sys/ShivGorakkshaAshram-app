@@ -19,10 +19,12 @@ import {
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
 import { PageSpinner } from "@/components/loading";
+import { useLanguage } from "@/contexts/LanguageContext";
 import Link from "next/link";
 
 export default function CoordinatorDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { t } = useLanguage();
 
   // React Query hook
   const { data: stats, isLoading, error } = useCoordinatorDashboard();
@@ -62,7 +64,7 @@ export default function CoordinatorDashboard() {
   };
 
   if (isLoading) {
-    return <PageSpinner message="Loading dashboard..." />;
+    return <PageSpinner message={t("common.loading", "Loading dashboard...")} />;
   }
 
   if (error) {
@@ -71,10 +73,10 @@ export default function CoordinatorDashboard() {
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-red-600">
-            Error Loading Dashboard
+            {t("common.error", "Error Loading Dashboard")}
           </h3>
           <p className="text-muted-foreground">
-            Failed to load coordinator data. Please try again.
+            {t("dashboard.failedToLoad", "Failed to load coordinator data. Please try again.")}
           </p>
         </div>
       </div>
@@ -87,10 +89,10 @@ export default function CoordinatorDashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Coordinator Dashboard
+            {t("dashboard.coordinatorDashboard", "Coordinator Dashboard")}
           </h2>
           <p className="text-muted-foreground">
-            Manage appointments and patient flow
+            {t("dashboard.manageAppointments", "Manage appointments and devotee flow")}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -106,19 +108,19 @@ export default function CoordinatorDashboard() {
             <Link href="/coordinator/reception">
               <Button className="text-sm">
                 <Users className="h-4 w-4 mr-2" />
-                Reception
+                {t("nav.reception", "Reception")}
               </Button>
             </Link>
             <Link href="/coordinator/appointments">
               <Button variant="outline" className="text-sm">
                 <UserPlus className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Book </span>Appointment
+                <span className="hidden sm:inline">{t("appointments.book", "Book")} </span>{t("nav.appointments", "Appointment")}
               </Button>
             </Link>
             <Link href="/coordinator/queue">
               <Button variant="outline" className="text-sm">
                 <ListChecks className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Manage </span>Queue
+                <span className="hidden sm:inline">{t("queue.manage", "Manage")} </span>{t("nav.queue", "Queue")}
               </Button>
             </Link>
           </div>
@@ -130,7 +132,7 @@ export default function CoordinatorDashboard() {
         <Card className="spiritual-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Today&apos;s Appointments
+              {t("dashboard.todaysAppointments", "Today's Appointments")}
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -138,13 +140,13 @@ export default function CoordinatorDashboard() {
             <div className="text-2xl font-bold">
               {stats?.totalAppointmentsToday || 0}
             </div>
-            <p className="text-xs text-muted-foreground">Total scheduled</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.totalScheduled", "Total scheduled")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.pending", "Pending")}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -152,28 +154,28 @@ export default function CoordinatorDashboard() {
               {stats?.pendingApprovals || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Awaiting confirmation
+              {t("dashboard.awaitingConfirmation", "Awaiting confirmation")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Queue</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.activeQueue", "Active Queue")}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {stats?.waitingInQueue || 0}
             </div>
-            <p className="text-xs text-muted-foreground">Patients waiting</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.waitingInQueue", "Devotees waiting")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Recent Check-ins
+              {t("dashboard.recentCheckIns", "Recent Check-ins")}
             </CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -181,7 +183,7 @@ export default function CoordinatorDashboard() {
             <div className="text-2xl font-bold">
               {stats?.checkedInToday || 0}
             </div>
-            <p className="text-xs text-muted-foreground">Last hour</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.lastHour", "Last hour")}</p>
           </CardContent>
         </Card>
       </div>
@@ -193,7 +195,7 @@ export default function CoordinatorDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Current Queue Status
+              {t("dashboard.currentQueueStatus", "Current Queue Status")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -204,25 +206,25 @@ export default function CoordinatorDashboard() {
                     <div>
                       <p className="font-medium">{queue.gurujiName}</p>
                       <p className="text-sm text-muted-foreground">
-                        {queue.waitingCount} waiting • {queue.inProgressCount} in progress
+                        {queue.waitingCount} {t("queue.waiting", "waiting")} • {queue.inProgressCount} {t("queue.inProgress", "in progress")}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">~{queue.averageWaitTime}min</p>
-                      <p className="text-xs text-muted-foreground">avg wait</p>
+                      <p className="text-xs text-muted-foreground">{t("queue.avgWait", "avg wait")}</p>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-4">
                   <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No active queues</p>
+                  <p className="text-sm text-muted-foreground">{t("queue.noActiveQueues", "No active queues")}</p>
                 </div>
               )}
               <Link href="/coordinator/queue">
                 <Button variant="outline" className="w-full">
                   <ListChecks className="h-4 w-4 mr-2" />
-                  View Full Queue
+                  {t("queue.viewFullQueue", "View Full Queue")}
                 </Button>
               </Link>
             </div>
@@ -234,7 +236,7 @@ export default function CoordinatorDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Today&apos;s Summary
+              {t("dashboard.todaysSummary", "Today's Summary")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -242,26 +244,26 @@ export default function CoordinatorDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-2xl font-bold">{stats?.todayStats?.appointments || 0}</p>
-                  <p className="text-sm text-muted-foreground">Appointments</p>
+                  <p className="text-sm text-muted-foreground">{t("nav.appointments", "Appointments")}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats?.todayStats?.checkins || 0}</p>
-                  <p className="text-sm text-muted-foreground">Check-ins</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.checkIns", "Check-ins")}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats?.todayStats?.completions || 0}</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-sm text-muted-foreground">{t("queue.completed", "Completed")}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats?.todayStats?.cancellations || 0}</p>
-                  <p className="text-sm text-muted-foreground">Cancelled</p>
+                  <p className="text-sm text-muted-foreground">{t("appointments.cancelled", "Cancelled")}</p>
                 </div>
               </div>
               <Separator />
               <Link href="/coordinator/appointments">
                 <Button variant="outline" className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
-                  Book New Appointment
+                  {t("appointments.bookNew", "Book New Appointment")}
                 </Button>
               </Link>
             </div>
@@ -274,7 +276,7 @@ export default function CoordinatorDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Upcoming Appointments
+            {t("appointments.upcoming", "Upcoming Appointments")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -282,7 +284,7 @@ export default function CoordinatorDashboard() {
             {stats?.upcomingAppointments && stats.upcomingAppointments.length > 0 ? (
               stats.upcomingAppointments
                 .slice(0, 5)
-                .map((appointment: { id: string; patientName: string; gurujiName: string; time: string; status: string; priority: string }) => (
+                .map((appointment: { id: string; devoteeName: string; gurujiName: string; time: string; status: string; priority: string }) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-3 border rounded-lg"
@@ -290,11 +292,11 @@ export default function CoordinatorDashboard() {
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback>
-                          {appointment.patientName.charAt(0).toUpperCase()}
+                          {appointment.devoteeName.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{appointment.patientName}</p>
+                        <p className="font-medium">{appointment.devoteeName}</p>
                         <p className="text-sm text-muted-foreground">
                           {appointment.gurujiName} •{" "}
                           {new Date(appointment.time).toLocaleTimeString()}
@@ -303,10 +305,10 @@ export default function CoordinatorDashboard() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge className={getStatusColor(appointment.status)}>
-                        {appointment.status}
+                        {t(`appointments.status.${appointment.status.toLowerCase()}`, appointment.status)}
                       </Badge>
                       <Badge className={getPriorityColor(appointment.priority)}>
-                        {appointment.priority}
+                        {t(`common.priority.${appointment.priority.toLowerCase()}`, appointment.priority)}
                       </Badge>
                     </div>
                   </div>
@@ -314,11 +316,11 @@ export default function CoordinatorDashboard() {
             ) : (
               <div className="text-center py-8">
                 <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No upcoming appointments</p>
+                <p className="text-sm text-muted-foreground">{t("appointments.noUpcoming", "No upcoming appointments")}</p>
                 <Link href="/coordinator/appointments" className="inline-block mt-2">
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Book First Appointment
+                    {t("appointments.bookFirst", "Book First Appointment")}
                   </Button>
                 </Link>
               </div>

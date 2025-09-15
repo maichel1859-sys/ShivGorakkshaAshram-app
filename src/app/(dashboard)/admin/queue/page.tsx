@@ -98,7 +98,7 @@ export default function AdminQueuePage() {
       if (action === 'start') {
         const result = await startConsultation(formData);
         if (result.success) {
-          commonToasts.consultationStarted('Patient');
+          commonToasts.consultationStarted('Devotee');
         } else {
           showToast.error(result.error || 'Failed to start consultation');
         }
@@ -106,7 +106,7 @@ export default function AdminQueuePage() {
         formData.append('status', 'COMPLETED');
         const result = await updateQueueStatus(formData);
         if (result.success) {
-          commonToasts.consultationCompleted('Patient');
+          commonToasts.consultationCompleted('Devotee');
         } else {
           showToast.error(result.error || 'Failed to complete consultation');
         }
@@ -211,7 +211,7 @@ export default function AdminQueuePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{waitingCount}</div>
-              <p className="text-xs text-muted-foreground">Patients waiting</p>
+              <p className="text-xs text-muted-foreground">Devotees waiting</p>
             </CardContent>
           </Card>
           <Card>

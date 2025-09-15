@@ -184,7 +184,7 @@ export async function joinQueue(formData: FormData) {
         type: 'queue',
         data: {
           queueEntryId: queueEntry.id,
-          patientName: session.user.name,
+          devoteeName: session.user.name,
           reason,
         },
       },
@@ -258,7 +258,7 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
       const consultationSession = await prisma.consultationSession.findFirst({
         where: {
           appointmentId: queueEntry.appointmentId,
-          patientId: queueEntry.userId,
+          devoteeId: queueEntry.userId,
           gurujiId: session.user.id,
           endTime: null, // Only active sessions
         },
@@ -302,7 +302,7 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
       },
     });
 
-    // Create notification for patient
+    // Create notification for devotee
     let notificationMessage = '';
     switch (data.status) {
       case 'IN_PROGRESS':
@@ -336,12 +336,12 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
     if (data.status === 'COMPLETED' || data.status === 'CANCELLED') {
       await recalculateQueuePositions(queueEntry.gurujiId!);
       
-      // If completing a consultation, also end the consultation session
+      // If completing a consultation, also end the consultation session and update appointment
       if (data.status === 'COMPLETED') {
         const consultationSession = await prisma.consultationSession.findFirst({
           where: {
             appointmentId: queueEntry.appointmentId,
-            patientId: queueEntry.userId,
+            devoteeId: queueEntry.userId,
             gurujiId: session.user.id,
             endTime: null, // Only find active sessions
           },
@@ -355,6 +355,72 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
               duration: Math.floor((new Date().getTime() - consultationSession.startTime.getTime()) / 60000), // in minutes
             },
           });
+        }
+
+        // Update appointment status to COMPLETED
+        if (queueEntry.appointmentId) {
+          const updatedAppointment = await prisma.appointment.update({
+            where: { id: queueEntry.appointmentId },
+            data: {
+              status: 'COMPLETED',
+              updatedAt: new Date(),
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                },
+              },
+              guruji: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          });
+          console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to COMPLETED`);
+
+          // Broadcast appointment update via socket
+          try {
+            const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                event: 'appointment_update',
+                data: {
+                  appointmentId: updatedAppointment.id,
+                  status: 'COMPLETED',
+                  appointment: updatedAppointment,
+                  action: 'completed',
+                  timestamp: new Date().toISOString(),
+                  gurujiId: queueEntry.gurujiId,
+                  userId: queueEntry.userId,
+                },
+                rooms: [
+                  `guruji:${queueEntry.gurujiId}`,
+                  `user:${queueEntry.userId}`,
+                  'appointments',
+                  'admin',
+                  'coordinator',
+                  'global',
+                ],
+              }),
+            });
+
+            if (socketResponse.ok) {
+              console.log(`🔌 Broadcasted appointment completion via socket`);
+            } else {
+              console.warn(`🔌 Failed to broadcast appointment completion:`, await socketResponse.text());
+            }
+          } catch (socketError) {
+            console.error('🔌 Socket broadcast error:', socketError);
+            // Continue even if socket fails
+          }
         }
       }
     }
@@ -436,7 +502,7 @@ export async function leaveQueue(formData: FormData) {
           type: 'queue',
           data: {
             queueEntryId,
-            patientName: session.user.name,
+            devoteeName: session.user.name,
           },
         },
       });
@@ -519,72 +585,217 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
 
   try {
     const queueEntryId = formData.get('queueEntryId') as string;
-    
+
     if (!queueEntryId) {
       return { success: false, error: 'Queue entry ID is required' };
     }
 
-    // Find the queue entry
-    const queueEntry = await prisma.queueEntry.findUnique({
-      where: { id: queueEntryId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
+    let queueEntry;
+
+    // Check if this is a virtual queue entry (checked-in appointment)
+    if (queueEntryId.startsWith('virtual-')) {
+      // const isVirtual = true; // Virtual queue entry indicator
+      const appointmentId = queueEntryId.replace('virtual-', '');
+
+      // Find the checked-in appointment
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        guruji: {
-          select: {
-            id: true,
-            name: true,
+      });
+
+      if (!appointment) {
+        return { success: false, error: 'Appointment not found' };
+      }
+
+      if (appointment.status !== 'CHECKED_IN') {
+        return { success: false, error: 'Appointment is not checked in' };
+      }
+
+      if (appointment.gurujiId !== session.user.id) {
+        return { success: false, error: 'This appointment is not assigned to you' };
+      }
+
+      // Create a real queue entry for this checked-in appointment
+      queueEntry = await prisma.queueEntry.create({
+        data: {
+          appointmentId: appointment.id,
+          userId: appointment.userId,
+          gurujiId: appointment.gurujiId,
+          status: 'IN_PROGRESS',
+          position: 1, // Since we're starting immediately
+          estimatedWait: 0,
+          checkedInAt: appointment.checkedInAt || new Date(),
+          startedAt: new Date(),
+          notes: `Started from checked-in appointment`,
+          priority: appointment.priority || 'NORMAL'
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
-
-    if (!queueEntry) {
-      return { success: false, error: 'Queue entry not found' };
-    }
-
-    // Check if this guruji owns the queue entry
-    if (queueEntry.gurujiId !== session.user.id) {
-      return { success: false, error: 'You can only start consultations for your own queue' };
-    }
-
-    // Check if queue entry is in waiting status
-    if (queueEntry.status !== 'WAITING') {
-      return { success: false, error: 'Queue entry is not in waiting status' };
-    }
-
-    // Update queue entry status
-    const updatedQueueEntry = await prisma.queueEntry.update({
-      where: { id: queueEntryId },
-      data: {
-        status: 'IN_PROGRESS',
-        startedAt: new Date(),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
+      });
+    } else {
+      // Find the real queue entry
+      queueEntry = await prisma.queueEntry.findUnique({
+        where: { id: queueEntryId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
+      });
+
+      if (!queueEntry) {
+        return { success: false, error: 'Queue entry not found' };
+      }
+
+      // Check if this guruji can start the consultation
+      // Allow if: (1) unassigned devotee, or (2) already assigned to this guruji
+      if (queueEntry.gurujiId !== null && queueEntry.gurujiId !== session.user.id) {
+        return { success: false, error: 'This devotee is already assigned to another guruji' };
+      }
+
+      // Check if queue entry is in waiting status
+      if (queueEntry.status !== 'WAITING') {
+        return { success: false, error: 'Queue entry is not in waiting status' };
+      }
+
+      // Update queue entry status and assign to this guruji if not already assigned
+      queueEntry = await prisma.queueEntry.update({
+        where: { id: queueEntryId },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+          gurujiId: session.user.id, // Assign devotee to this guruji
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+    }
 
     // Create consultation session record
     const consultationSession = await prisma.consultationSession.create({
       data: {
         appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
+        devoteeId: queueEntry.userId,
         gurujiId: session.user.id,
         startTime: new Date(),
       },
     });
+
+    // Update appointment status to IN_PROGRESS
+    if (queueEntry.appointmentId) {
+      const updatedAppointment = await prisma.appointment.update({
+        where: { id: queueEntry.appointmentId },
+        data: {
+          status: 'IN_PROGRESS',
+          updatedAt: new Date(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          guruji: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+      console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to IN_PROGRESS`);
+
+      // Broadcast appointment update via socket
+      try {
+        const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event: 'appointment_update',
+            data: {
+              appointmentId: updatedAppointment.id,
+              status: 'IN_PROGRESS',
+              appointment: updatedAppointment,
+              action: 'started',
+              timestamp: new Date().toISOString(),
+              gurujiId: session.user.id,
+              userId: queueEntry.userId,
+            },
+            rooms: [
+              `guruji:${session.user.id}`,
+              `user:${queueEntry.userId}`,
+              'appointments',
+              'admin',
+              'coordinator',
+              'global',
+            ],
+          }),
+        });
+
+        if (socketResponse.ok) {
+          console.log(`🔌 Broadcasted appointment start via socket`);
+        } else {
+          console.warn(`🔌 Failed to broadcast appointment start:`, await socketResponse.text());
+        }
+      } catch (socketError) {
+        console.error('🔌 Socket broadcast error:', socketError);
+        // Continue even if socket fails
+      }
+    }
 
     // Create notification for user
     await prisma.notification.create({
@@ -605,12 +816,12 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
     revalidatePath('/guruji/queue');
     revalidatePath('/user/queue');
     
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'Consultation started successfully',
       consultationSessionId: consultationSession.id,
       consultationSession,
-      currentPatient: updatedQueueEntry,
+      currentDevotee: queueEntry,
     };
   } catch (error) {
     console.error('Start consultation error:', error);
@@ -776,7 +987,7 @@ export async function getConsultationSessionId(queueEntryId: string): Promise<Ac
     const consultationSession = await prisma.consultationSession.findFirst({
       where: {
         appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
+        devoteeId: queueEntry.userId,
         gurujiId: session.user.id,
         endTime: null, // Only active sessions
       },

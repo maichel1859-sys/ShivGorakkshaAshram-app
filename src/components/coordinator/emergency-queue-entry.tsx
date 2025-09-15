@@ -112,11 +112,11 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
       const result = await createEmergencyQueueEntry(formData);
       
       if (!result.success) {
-        toast.error(result.error || "Failed to register emergency patient");
+        toast.error(result.error || "Failed to register emergency devotee");
         return;
       }
       
-      toast.success("Emergency patient added to priority queue!");
+      toast.success("Emergency devotee added to priority queue!");
       
       onSuccess(data);
       reset();
@@ -124,7 +124,7 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
       setSelectedEmergencyType("");
     } catch (error) {
       console.error("Emergency registration error:", error);
-      toast.error("Failed to register emergency patient. Please try again.");
+      toast.error("Failed to register emergency devotee. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -145,7 +145,7 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
       <CardHeader className="bg-red-50">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-6 w-6 text-red-600 animate-pulse" />
-          <CardTitle className="text-xl text-red-800">Emergency Patient Registration</CardTitle>
+          <CardTitle className="text-xl text-red-800">Emergency Devotee Registration</CardTitle>
           <Badge variant="destructive" className="ml-auto">
             PRIORITY
           </Badge>
@@ -171,7 +171,7 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
               2
             </div>
             <span className={`text-sm ${currentStep >= 2 ? 'text-red-700 font-medium' : 'text-gray-500'}`}>
-              Patient Info
+              Devotee Info
             </span>
           </div>
           <div className="flex-1 h-px bg-gray-200 mx-2" />
@@ -234,38 +234,38 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
                     <span className="text-sm font-medium">Emergency Priority: {selectedType.priority}</span>
                   </div>
                   <p className="text-sm text-red-700 mt-1">
-                    This patient will be placed at the front of the queue and seen immediately.
+                    This devotee will be placed at the front of the queue and seen immediately.
                   </p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Step 2: Patient Information */}
+          {/* Step 2: Devotee Information */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Patient Information</h3>
+              <h3 className="text-lg font-medium text-gray-900">Devotee Information</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="patientName">Patient Name *</Label>
+                  <Label htmlFor="devoteeName">Devotee Name *</Label>
                   <Input
-                    id="patientName"
-                    {...register("patientName")}
-                    placeholder="Full name of the patient"
-                    className={errors.patientName ? "border-red-500" : ""}
+                    id="devoteeName"
+                    {...register("devoteeName")}
+                    placeholder="Full name of the devotee"
+                    className={errors.devoteeName ? "border-red-500" : ""}
                   />
-                  {errors.patientName && (
-                    <p className="text-sm text-red-500">{errors.patientName.message}</p>
+                  {errors.devoteeName && (
+                    <p className="text-sm text-red-500">{errors.devoteeName.message}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="patientPhone">Patient Phone</Label>
+                  <Label htmlFor="devoteePhone">Devotee Phone</Label>
                   <Input
-                    id="patientPhone"
-                    {...register("patientPhone")}
-                    placeholder="Patient's phone number"
+                    id="devoteePhone"
+                    {...register("devoteePhone")}
+                    placeholder="Devotee's phone number"
                     type="tel"
                   />
                 </div>
@@ -373,8 +373,8 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
                       </Badge>
                     </div>
                     <div>
-                      <span className="text-gray-600">Patient:</span>{" "}
-                      <span className="font-medium">{watchedFields.patientName || "Not entered"}</span>
+                      <span className="text-gray-600">Devotee:</span>{" "}
+                      <span className="font-medium">{watchedFields.devoteeName || "Not entered"}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">Emergency Contact:</span>{" "}
@@ -389,7 +389,7 @@ export function EmergencyQueueEntry({ onSuccess, onCancel }: EmergencyQueueEntry
                     <div>
                       <p className="text-sm font-medium text-red-800">Priority Queue Placement</p>
                       <p className="text-sm text-red-700 mt-1">
-                        This patient will skip the normal queue and be seen by the next available guruji immediately.
+                        This devotee will skip the normal queue and be seen by the next available guruji immediately.
                       </p>
                     </div>
                   </div>

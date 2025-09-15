@@ -10,6 +10,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuthToast } from "@/hooks/use-auth-toast";
 import { FullScreenSpinner } from "@/components/loading";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const signinSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -20,7 +21,9 @@ type SigninFormData = z.infer<typeof signinSchema>;
 
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const { isLoading, signInWithToast, signInWithGoogle } = useAuthToast();
+  const { t } = useLanguage();
 
   const {
     register,
@@ -31,35 +34,52 @@ export default function SignInPage() {
   });
 
   const onSubmit = async (data: SigninFormData) => {
-    await signInWithToast({
+    const result = await signInWithToast({
       email: data.email,
       password: data.password,
     });
+    
+    // Set redirecting state if login was successful
+    if (result?.success) {
+      setIsRedirecting(true);
+    }
   };
+
+  // Show full screen loading during authentication or redirect
+  if (isLoading || isRedirecting) {
+    return (
+      <FullScreenSpinner 
+        message={
+          isRedirecting 
+            ? t('auth.redirecting', 'Redirecting to dashboard...')
+            : t('auth.signingIn', 'Signing you in...')
+        } 
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {isLoading && <FullScreenSpinner message="Signing you in..." />}
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Sign in to your account
+          {t('auth.signInToAccount', 'Sign in to your account')}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Enter your credentials to access the system
+          {t('auth.enterCredentials', 'Enter your credentials to access the system')}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium">
-            Email
+            {t('auth.email', 'Email')}
           </label>
           <Input
             id="email"
             type="email"
-            placeholder="Enter your email"
+            placeholder={t('auth.enterEmail', 'Enter your email')}
             {...register("email")}
-            disabled={isLoading}
+            disabled={isLoading || isRedirecting}
           />
           {errors.email && (
             <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -68,15 +88,15 @@ export default function SignInPage() {
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium">
-            Password
+            {t('auth.password', 'Password')}
           </label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
+              placeholder={t('auth.enterPassword', 'Enter your password')}
               {...register("password")}
-              disabled={isLoading}
+              disabled={isLoading || isRedirecting}
             />
             <button
               type="button"
@@ -93,9 +113,9 @@ export default function SignInPage() {
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLoading ? "Signing in..." : "Sign In"}
+        <Button type="submit" className="w-full" disabled={isLoading || isRedirecting}>
+          {(isLoading || isRedirecting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isRedirecting ? t('auth.redirecting', 'Redirecting...') : isLoading ? t('auth.signingIn', 'Signing in...') : t('auth.signIn', 'Sign In')}
         </Button>
       </form>
 
@@ -105,7 +125,7 @@ export default function SignInPage() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
+            {t('auth.orContinueWith', 'Or continue with')}
           </span>
         </div>
       </div>
@@ -135,18 +155,18 @@ export default function SignInPage() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        Continue with Google
+        {t('auth.continueWithGoogle', 'Continue with Google')}
       </Button>
 
       <div className="text-center text-sm">
         <span className="text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          {t('auth.dontHaveAccount', "Don't have an account?")}{" "}
         </span>
         <Link
           href="/signup"
           className="font-medium text-primary hover:underline"
         >
-          Sign up
+          {t('auth.signUp', 'Sign up')}
         </Link>
       </div>
 

@@ -99,7 +99,7 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
       const result = await searchUsers(formData);
       
       if (!result.success) {
-        toast.error(result.error || "Failed to search patients");
+        toast.error(result.error || "Failed to search devotees");
         setSearchResults([]);
         return;
       }
@@ -107,11 +107,11 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
       setSearchResults(result.users || []);
       
       if (result.users && result.users.length === 0) {
-        toast.info("No patients found matching your search criteria");
+        toast.info("No devotees found matching your search criteria");
       }
     } catch (error) {
       console.error("Search error:", error);
-      toast.error("Failed to search patients. Please try again.");
+      toast.error("Failed to search devotees. Please try again.");
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -142,8 +142,8 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
     switch (searchType) {
       case "PHONE": return "Enter phone number (e.g., 9876543210)";
       case "EMAIL": return "Enter email address";
-      case "NAME": return "Enter patient name";
-      case "ID": return "Enter patient ID";
+      case "NAME": return "Enter devotee name";
+      case "ID": return "Enter devotee ID";
       default: return "Enter search term";
     }
   };
@@ -167,7 +167,7 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            Find Existing Patient
+            Find Existing Devotee
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -184,9 +184,9 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PHONE">Phone Number</SelectItem>
-                    <SelectItem value="NAME">Patient Name</SelectItem>
+                    <SelectItem value="NAME">Devotee Name</SelectItem>
                     <SelectItem value="EMAIL">Email Address</SelectItem>
-                    <SelectItem value="ID">Patient ID</SelectItem>
+                    <SelectItem value="ID">Devotee ID</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -228,7 +228,7 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
               <span>Search Results</span>
               {searchResults.length > 0 && (
                 <Badge variant="outline">
-                  {searchResults.length} patient{searchResults.length !== 1 ? 's' : ''} found
+                  {searchResults.length} devotee{searchResults.length !== 1 ? 's' : ''} found
                 </Badge>
               )}
             </CardTitle>
@@ -237,18 +237,18 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
             {isSearching ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                <span className="ml-2 text-gray-600">Searching patients...</span>
+                <span className="ml-2 text-gray-600">Searching devotees...</span>
               </div>
             ) : searchResults.length === 0 ? (
               <div className="text-center py-8">
                 <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No patients found</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No devotees found</h3>
                 <p className="text-gray-600 mb-4">
-                  No patients match your search criteria. This might be a new patient.
+                  No devotees match your search criteria. This might be a new devotee.
                 </p>
                 <Button onClick={handleCreateNew}>
                   <UserCheck className="h-4 w-4 mr-2" />
-                  Register New Patient
+                  Register New Devotee
                 </Button>
               </div>
             ) : (
@@ -337,7 +337,7 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
                         {selectedUser.upcomingAppointments > 0 ? (
                           <Button onClick={() => handleConfirmSelection("checkin")}>
                             <UserCheck className="h-4 w-4 mr-2" />
-                            Check-in Patient
+                            Check-in Devotee
                           </Button>
                         ) : (
                           <Button onClick={() => handleConfirmSelection("book")}>
@@ -354,7 +354,7 @@ export function UserLookupComponent({ onComplete, onCancel, autoFocus = true }: 
                 <div className="pt-4 border-t">
                   <Button variant="outline" onClick={handleCreateNew} className="w-full">
                     <UserCheck className="h-4 w-4 mr-2" />
-                    Register as New Patient Instead
+                    Register as New Devotee Instead
                   </Button>
                 </div>
               </div>

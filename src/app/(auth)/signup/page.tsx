@@ -10,6 +10,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useAuthToast } from "@/hooks/use-auth-toast";
 import { FullScreenSpinner } from "@/components/loading";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const signupSchema = z
   .object({
@@ -30,6 +31,7 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { isLoading, signUpWithToast, signInWithGoogle } = useAuthToast();
+  const { t } = useLanguage();
 
   const {
     register,
@@ -50,25 +52,25 @@ export default function SignUpPage() {
 
   return (
     <div className="space-y-6">
-      {isLoading && <FullScreenSpinner message="Creating your account..." />}
+      {isLoading && <FullScreenSpinner message={t('auth.creatingAccountMessage', 'Creating your account...')} />}
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Create your account
+          {t('auth.createYourAccount', 'Create your account')}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Join us to access the ashram management system
+          {t('auth.joinAshramSystem', 'Join us to access the ashram management system')}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="name" className="text-sm font-medium">
-            Full Name
+            {t('auth.fullName', 'Full Name')}
           </label>
           <Input
             id="name"
             type="text"
-            placeholder="Enter your full name"
+            placeholder={t('auth.enterFullName', 'Enter your full name')}
             {...register("name")}
             disabled={isLoading}
           />
@@ -79,12 +81,12 @@ export default function SignUpPage() {
 
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium">
-            Email
+            {t('auth.email', 'Email')}
           </label>
           <Input
             id="email"
             type="email"
-            placeholder="Enter your email"
+            placeholder={t('auth.enterEmail', 'Enter your email')}
             {...register("email")}
             disabled={isLoading}
           />
@@ -95,12 +97,12 @@ export default function SignUpPage() {
 
         <div className="space-y-2">
           <label htmlFor="phone" className="text-sm font-medium">
-            Phone Number (Optional)
+            {t('auth.phoneNumberOptional', 'Phone Number (Optional)')}
           </label>
           <Input
             id="phone"
             type="tel"
-            placeholder="Enter your phone number"
+            placeholder={t('auth.enterPhoneNumber', 'Enter your phone number')}
             {...register("phone")}
             disabled={isLoading}
           />
@@ -111,13 +113,13 @@ export default function SignUpPage() {
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium">
-            Password
+            {t('auth.password', 'Password')}
           </label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Create a password"
+              placeholder={t('auth.createPassword', 'Create a password')}
               {...register("password")}
               disabled={isLoading}
             />
@@ -138,13 +140,13 @@ export default function SignUpPage() {
 
         <div className="space-y-2">
           <label htmlFor="confirmPassword" className="text-sm font-medium">
-            Confirm Password
+            {t('auth.confirmPassword', 'Confirm Password')}
           </label>
           <div className="relative">
             <Input
               id="confirmPassword"
               type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirm your password"
+              placeholder={t('auth.confirmYourPassword', 'Confirm your password')}
               {...register("confirmPassword")}
               disabled={isLoading}
             />
@@ -165,7 +167,7 @@ export default function SignUpPage() {
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLoading ? "Creating account..." : "Create Account"}
+          {isLoading ? t('auth.creatingAccount', 'Creating account...') : t('auth.createAccount', 'Create Account')}
         </Button>
       </form>
 
@@ -175,7 +177,7 @@ export default function SignUpPage() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
+            {t('auth.orContinueWith', 'Or continue with')}
           </span>
         </div>
       </div>
@@ -205,16 +207,16 @@ export default function SignUpPage() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        Continue with Google
+        {t('auth.continueWithGoogle', 'Continue with Google')}
       </Button>
 
       <div className="text-center text-sm">
-        <span className="text-muted-foreground">Already have an account? </span>
+        <span className="text-muted-foreground">{t('auth.alreadyHaveAccount', 'Already have an account?')} </span>
         <Link
           href="/signin"
           className="font-medium text-primary hover:underline"
         >
-          Sign in
+          {t('auth.signIn', 'Sign in')}
         </Link>
       </div>
     </div>

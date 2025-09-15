@@ -336,7 +336,7 @@ export function RoleBasedQuickActions({
           {
             id: "view-queue",
             title: "Queue Status",
-            description: "Check waiting patients",
+            description: "Check waiting devotees",
             icon: Plus, // Replace with Clock icon
             onClick: onViewQueue,
             color: "blue",

@@ -24,6 +24,8 @@ import { TriageAssessmentComponent } from "./triage-assessment";
 import { QuickRegistrationForm } from "./quick-registration-form";
 import { UserLookupComponent } from "./user-lookup";
 import { EmergencyQueueEntry } from "./emergency-queue-entry";
+import { ManualCheckIn } from "./manual-checkin";
+import { CheckedInDevotees } from "./checked-in-devotees";
 import { toast } from "sonner";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
 
@@ -35,10 +37,11 @@ type WorkflowStep =
   | "emergency"
   | "booking" 
   | "checkin" 
+  | "manual-checkin"
   | "complete";
 
 interface WorkflowData {
-  patientInfo?: Record<string, unknown>;
+  devoteeInfo?: Record<string, unknown>;
   assessment?: Record<string, unknown>;
   lookupResult?: Record<string, unknown>;
   bookingData?: Record<string, unknown>;
@@ -70,7 +73,7 @@ export function ReceptionDashboard() {
     newRegistrations: queueEntries?.filter(entry => 
       new Date(entry.checkedInAt).toDateString() === new Date().toDateString()
     ).length || 0,
-    emergencyPatients: queueEntries?.filter(entry => entry.priority === 'EMERGENCY').length || 0,
+    emergencyDevotees: queueEntries?.filter(entry => entry.priority === 'EMERGENCY').length || 0,
     waitingInQueue: stats?.waiting || 0,
     averageWaitTime: stats?.averageWaitTime ? `${Math.round(stats.averageWaitTime)} min` : "N/A",
     nextAvailableSlot: "N/A", // This would need appointment slot logic
@@ -110,14 +113,14 @@ export function ReceptionDashboard() {
   };
 
   const showSelfCheckinGuidance = () => {
-    toast.success("Please direct the patient to scan the QR code for self check-in", {
+    toast.success("Please direct the devotee to scan the QR code for self check-in", {
       duration: 5000,
     });
     resetWorkflow();
   };
 
   const showSelfBookingGuidance = () => {
-    toast.success("Please guide the patient to use the booking QR code", {
+    toast.success("Please guide the devotee to use the booking QR code", {
       duration: 5000,
     });
     resetWorkflow();
@@ -137,27 +140,28 @@ export function ReceptionDashboard() {
     }
   };
 
-  const handleRegistrationComplete = (patientInfo: Record<string, unknown>) => {
-    setWorkflowData(prev => ({ ...prev, patientInfo }));
+  const handleRegistrationComplete = (devoteeInfo: Record<string, unknown>) => {
+    setWorkflowData(prev => ({ ...prev, devoteeInfo }));
     setCurrentStep("booking");
-    toast.success("Patient registered successfully! Now booking appointment...");
+    toast.success("Devotee registered successfully! Now booking appointment...");
   };
 
   const handleEmergencyComplete = (emergencyData: Record<string, unknown>) => {
     setWorkflowData(prev => ({ ...prev, emergencyData }));
     setCurrentStep("complete");
-    toast.success("Emergency patient added to priority queue!");
+    toast.success("Emergency devotee added to priority queue!");
   };
 
   const getStepTitle = () => {
     switch (currentStep) {
       case "welcome": return "Welcome - Choose Action";
-      case "triage": return "Patient Assessment";
-      case "lookup": return "Find Existing Patient";
-      case "registration": return "New Patient Registration";
+      case "triage": return "Devotee Assessment";
+      case "lookup": return "Find Existing Devotee";
+      case "registration": return "New Devotee Registration";
       case "emergency": return "Emergency Registration";
       case "booking": return "Book Appointment";
-      case "checkin": return "Check-in Patient";
+      case "checkin": return "Check-in Devotee";
+      case "manual-checkin": return "Manual Check-in";
       case "complete": return "Process Complete";
       default: return "Reception Desk";
     }
@@ -200,6 +204,9 @@ export function ReceptionDashboard() {
             onCancel={resetWorkflow}
           />
         );
+      
+      case "manual-checkin":
+        return <ManualCheckIn />;
       
       case "complete":
         return <CompletionScreen onReset={resetWorkflow} />;
@@ -252,7 +259,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
   stats: {
     totalCheckins: number;
     newRegistrations: number;
-    emergencyPatients: number;
+    emergencyDevotees: number;
     waitingInQueue: number;
     averageWaitTime: string;
     nextAvailableSlot: string;
@@ -269,7 +276,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Button
               onClick={() => onStepSelect("triage")}
               className="h-24 flex-col gap-2 text-left"
@@ -277,7 +284,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
             >
               <Users className="h-8 w-8 text-blue-500" />
               <div>
-                <div className="font-medium">New Patient Visit</div>
+                <div className="font-medium">New Devotee Visit</div>
                 <div className="text-sm text-gray-500">Start triage assessment</div>
               </div>
             </Button>
@@ -289,8 +296,20 @@ function WelcomeScreen({ onStepSelect, stats }: {
             >
               <Search className="h-8 w-8 text-green-500" />
               <div>
-                <div className="font-medium">Find Existing Patient</div>
+                <div className="font-medium">Find Existing Devotee</div>
                 <div className="text-sm text-gray-500">Search by phone/name</div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => onStepSelect("manual-checkin")}
+              className="h-24 flex-col gap-2 text-left border-green-200 hover:bg-green-50"
+              variant="outline"
+            >
+              <UserCheck className="h-8 w-8 text-green-500" />
+              <div>
+                <div className="font-medium text-green-700">Manual Check-in</div>
+                <div className="text-sm text-green-500">Help with appointment check-in</div>
               </div>
             </Button>
 
@@ -301,7 +320,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
             >
               <AlertTriangle className="h-8 w-8 text-red-500" />
               <div>
-                <div className="font-medium text-red-700">Emergency Patient</div>
+                <div className="font-medium text-red-700">Emergency Devotee</div>
                 <div className="text-sm text-red-500">Priority registration</div>
               </div>
             </Button>
@@ -314,7 +333,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
               <UserPlus className="h-8 w-8 text-purple-500" />
               <div>
                 <div className="font-medium">Quick Registration</div>
-                <div className="text-sm text-gray-500">New patient form</div>
+                <div className="text-sm text-gray-500">New devotee form</div>
               </div>
             </Button>
           </div>
@@ -337,10 +356,10 @@ function WelcomeScreen({ onStepSelect, stats }: {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{stats.newRegistrations}</div>
-              <div className="text-sm text-gray-600">New Patients</div>
+              <div className="text-sm text-gray-600">New Devotees</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{stats.emergencyPatients}</div>
+              <div className="text-2xl font-bold text-red-600">{stats.emergencyDevotees}</div>
               <div className="text-sm text-gray-600">Emergency</div>
             </div>
             <div className="text-center">
@@ -369,7 +388,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <QrCode className="h-5 w-5" />
-            Self-Service Options for Tech-Savvy Patients
+            Self-Service Options for Tech-Savvy Devotees
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -381,7 +400,7 @@ function WelcomeScreen({ onStepSelect, stats }: {
               <div>
                 <h3 className="font-medium">Book Appointment</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Point patients to the QR code poster for self-booking appointments
+                  Point devotees to the QR code poster for self-booking appointments
                 </p>
               </div>
             </div>
@@ -412,6 +431,11 @@ function WelcomeScreen({ onStepSelect, stats }: {
           </div>
         </CardContent>
       </Card>
+
+      {/* Checked-in Devotees - Full Width */}
+      <div className="lg:col-span-3">
+        <CheckedInDevotees />
+      </div>
     </div>
   );
 }
@@ -470,17 +494,17 @@ function CompletionScreen({ onReset }: { onReset: () => void }) {
       </CardHeader>
       <CardContent className="space-y-4 text-center">
         <p className="text-gray-600">
-          The patient has been successfully processed and is ready for their consultation.
+          The devotee has been successfully processed and is ready for their consultation.
         </p>
         
         <div className="bg-green-50 p-4 rounded-lg">
           <p className="text-sm text-green-800">
-            Next: Direct the patient to the waiting area. They will be called when it&apos;s their turn.
+            Next: Direct the devotee to the waiting area. They will be called when it&apos;s their turn.
           </p>
         </div>
 
         <Button onClick={onReset} className="w-full">
-          Help Next Patient
+          Help Next Devotee
         </Button>
       </CardContent>
     </Card>

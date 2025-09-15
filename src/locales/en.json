@@ -99,7 +99,7 @@
     "cancel": "Cancel",
     "viewDetails": "View Details",
     "appointmentDetails": "Appointment Details",
-    "patientName": "Patient Name",
+    "devoteeName": "Devotee Name",
     "gurujiName": "Guruji Name",
     "appointmentDate": "Appointment Date",
     "appointmentTime": "Appointment Time",
@@ -141,7 +141,8 @@
     "leaveQueue": "Leave Queue",
     "queueUpdated": "Queue position updated",
     "queueJoined": "Successfully joined queue",
-    "queueLeft": "Successfully left queue"
+    "queueLeft": "Successfully left queue",
+    "waitingDevotees": "Total devotees today"
   },
   "remedies": {
     "title": "Remedies",

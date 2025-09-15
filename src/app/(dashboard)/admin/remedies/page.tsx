@@ -49,7 +49,7 @@ interface RemedyTemplateUI {
 interface Prescription {
   id: string;
   templateName: string;
-  patientName: string;
+  devoteeName: string;
   gurujiName: string;
   status: string;
   createdAt: string;
@@ -291,7 +291,7 @@ export default function AdminRemediesPage() {
                           {prescription.templateName}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Patient: {prescription.patientName} • Guruji:{" "}
+                          Devotee: {prescription.devoteeName} • Guruji:{" "}
                           {prescription.gurujiName}
                         </p>
                       </div>

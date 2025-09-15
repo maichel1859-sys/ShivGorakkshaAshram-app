@@ -46,7 +46,7 @@ interface RemedyDocument {
 
 interface ConsultationSession {
   id: string;
-  patient: {
+  devotee: {
     id: string;
     name: string;
     email: string;
@@ -88,11 +88,11 @@ export default function UserRemedyDetailsPage() {
         // Transform consultation session to match local interface
         const transformedConsultation: ConsultationSession = {
           id: result.remedy.consultationSession.id,
-          patient: {
-            id: result.remedy.consultationSession.patient.id,
-            name: result.remedy.consultationSession.patient.name || '',
-            email: result.remedy.consultationSession.patient.email || '',
-            phone: result.remedy.consultationSession.patient.phone,
+          devotee: {
+            id: result.remedy.consultationSession.devotee.id,
+            name: result.remedy.consultationSession.devotee.name || '',
+            email: result.remedy.consultationSession.devotee.email || '',
+            phone: result.remedy.consultationSession.devotee.phone,
           },
           appointment: {
             id: result.remedy.consultationSession.appointment.id,
@@ -144,7 +144,7 @@ Dosage: ${remedy.customDosage || remedy.template.dosage || 'As prescribed'}
 Duration: ${remedy.customDuration || remedy.template.duration || 'As needed'}
 
 Prescribed on: ${new Date(remedy.createdAt).toLocaleDateString()}
-Guruji: ${consultation?.patient.name || 'N/A'}
+Guruji: ${consultation?.devotee.name || 'N/A'}
 
 Om Shanti 🙏
       `.trim();
@@ -323,27 +323,27 @@ Om Shanti 🙏
               <CardContent className="space-y-6">
                 {consultation && (
                   <div className="grid grid-cols-1 gap-6">
-                    {/* Patient Info */}
+                    {/* Devotee Info */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold">Patient Information</h4>
+                      <h4 className="font-semibold">Devotee Information</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Name:</strong> {consultation.patient.name}
+                            <strong>Name:</strong> {consultation.devotee.name}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Email:</strong> {consultation.patient.email}
+                            <strong>Email:</strong> {consultation.devotee.email}
                           </span>
                         </div>
-                        {consultation.patient.phone && (
+                        {consultation.devotee.phone && (
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm">
-                              <strong>Phone:</strong> {consultation.patient.phone}
+                              <strong>Phone:</strong> {consultation.devotee.phone}
                             </span>
                           </div>
                         )}

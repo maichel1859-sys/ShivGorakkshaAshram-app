@@ -16,9 +16,9 @@ const appointmentSchema = appointmentBookingSchema;
 
 // Schema for creating appointments for other users
 const createAppointmentSchema = z.object({
-  patientName: z.string().min(1, 'Patient name is required'),
-  patientPhone: z.string().min(10, 'Valid phone number is required'),
-  patientEmail: z.string().email().optional().or(z.literal('')),
+  devoteeName: z.string().min(1, 'Devotee name is required'),
+  devoteePhone: z.string().min(10, 'Valid phone number is required'),
+  devoteeEmail: z.string().email().optional().or(z.literal('')),
   gurujiId: z.string().min(1, 'Guruji selection is required'),
   date: z.string().min(1, 'Date is required'),
   startTime: z.string().min(1, 'Start time is required'),
@@ -303,10 +303,54 @@ export async function bookAppointment(formData: FormData) {
       },
     });
 
+    // Broadcast appointment booking via socket
+    try {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'appointment_update',
+          data: {
+            appointmentId: appointment.id,
+            status: 'BOOKED',
+            appointment: appointment,
+            action: 'booked',
+            timestamp: new Date().toISOString(),
+            gurujiId: appointment.gurujiId,
+            userId: appointment.userId,
+            devoteeName: appointment.user.name,
+            gurujiName: appointment.guruji?.name || 'Unknown',
+            appointmentDate: appointment.date,
+            appointmentTime: appointment.startTime,
+          },
+          rooms: [
+            `guruji:${appointment.gurujiId}`,
+            `user:${appointment.userId}`,
+            'appointments',
+            'admin',
+            'coordinator',
+            'global',
+          ],
+        }),
+      });
+
+      if (socketResponse.ok) {
+        console.log(`🔌 Broadcasted appointment booking via socket`);
+      } else {
+        console.warn(`🔌 Failed to broadcast appointment booking:`, await socketResponse.text());
+      }
+    } catch (socketError) {
+      console.error('🔌 Socket broadcast error:', socketError);
+      // Continue even if socket fails
+    }
+
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
     revalidatePath('/guruji/appointments');
-    
+    revalidatePath('/coordinator/appointments');
+
     return { success: true, appointment };
   } catch (error) {
     console.error('Book appointment error:', error);
@@ -325,7 +369,22 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { user: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -337,17 +396,77 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
       throw new Error('Unauthorized');
     }
 
-    await prisma.appointment.update({
+    const updatedAppointment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         status: 'CANCELLED',
         notes: reason ? `${appointment.notes || ''}\nCancelled: ${reason}` : appointment.notes,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    // Broadcast appointment cancellation via socket
+    try {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'appointment_update',
+          data: {
+            appointmentId: updatedAppointment.id,
+            status: 'CANCELLED',
+            appointment: updatedAppointment,
+            action: 'cancelled',
+            timestamp: new Date().toISOString(),
+            gurujiId: updatedAppointment.gurujiId,
+            userId: updatedAppointment.userId,
+            devoteeName: updatedAppointment.user.name,
+            gurujiName: updatedAppointment.guruji?.name || 'Unknown',
+            reason: reason,
+          },
+          rooms: [
+            `guruji:${updatedAppointment.gurujiId}`,
+            `user:${updatedAppointment.userId}`,
+            'appointments',
+            'admin',
+            'coordinator',
+            'global',
+          ],
+        }),
+      });
+
+      if (socketResponse.ok) {
+        console.log(`🔌 Broadcasted appointment cancellation via socket`);
+      } else {
+        console.warn(`🔌 Failed to broadcast appointment cancellation:`, await socketResponse.text());
+      }
+    } catch (socketError) {
+      console.error('🔌 Socket broadcast error:', socketError);
+      // Continue even if socket fails
+    }
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
-    
+    revalidatePath('/guruji/appointments');
+    revalidatePath('/coordinator/appointments');
+
     return { success: true };
   } catch (error) {
     console.error('Cancel appointment error:', error);
@@ -355,97 +474,6 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
   }
 }
 
-// Check-in appointment Server Action
-export async function checkInAppointment(appointmentId: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    throw new Error('Authentication required');
-  }
-
-  try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: { 
-        user: true,
-        guruji: true,
-      },
-    });
-
-    if (!appointment) {
-      throw new Error('Appointment not found');
-    }
-
-    if (appointment.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      throw new Error('Unauthorized');
-    }
-
-    // Check if appointment is already checked in
-    if (appointment.status === 'CHECKED_IN') {
-      throw new Error('Appointment is already checked in');
-    }
-
-    // Get the next position in the queue for this guruji
-    const lastQueueEntry = await prisma.queueEntry.findFirst({
-      where: {
-        gurujiId: appointment.gurujiId,
-        status: { in: ['WAITING', 'IN_PROGRESS'] },
-      },
-      orderBy: { position: 'desc' },
-    });
-
-    const nextPosition = (lastQueueEntry?.position || 0) + 1;
-
-    // Update appointment status and create queue entry in a transaction
-    const [, queueEntry] = await prisma.$transaction([
-      prisma.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          status: 'CHECKED_IN',
-          checkedInAt: new Date(),
-        },
-      }),
-      prisma.queueEntry.create({
-        data: {
-          appointmentId: appointmentId,
-          userId: appointment.userId,
-          gurujiId: appointment.gurujiId!,
-          position: nextPosition,
-          status: 'WAITING',
-          priority: appointment.priority,
-          checkedInAt: new Date(),
-          estimatedWait: 0, // No wait time for development
-        },
-      }),
-    ]);
-
-    // Create notification for the guruji
-    await prisma.notification.create({
-      data: {
-        userId: appointment.gurujiId!,
-        title: 'New Patient Checked In',
-        message: `${appointment.user.name} has checked in and is ready for consultation`,
-        type: 'queue',
-        data: {
-          appointmentId: appointmentId,
-          patientName: appointment.user.name,
-          position: nextPosition,
-          estimatedWait: 0,
-        },
-      },
-    });
-
-    revalidatePath('/user/appointments');
-    revalidatePath('/admin/appointments');
-    revalidatePath('/guruji/queue');
-    revalidatePath('/user/queue');
-    
-    return { success: true, queueEntry };
-  } catch (error) {
-    console.error('Check-in appointment error:', error);
-    throw new Error('Failed to check in');
-  }
-}
 
 // Reschedule appointment Server Action
 export async function rescheduleAppointment(appointmentId: string, formData: FormData) {
@@ -865,9 +893,9 @@ export async function createAppointmentForUser(formData: FormData) {
 
   try {
     const data = createAppointmentSchema.parse({
-      patientName: formData.get('patientName') as string,
-      patientPhone: formData.get('patientPhone') as string,
-      patientEmail: formData.get('patientEmail') as string || undefined,
+      devoteeName: formData.get('devoteeName') as string,
+      devoteePhone: formData.get('devoteePhone') as string,
+      devoteeEmail: formData.get('devoteeEmail') as string || undefined,
       gurujiId: formData.get('gurujiId') as string,
       date: formData.get('date') as string,
       startTime: formData.get('startTime') as string,
@@ -876,27 +904,27 @@ export async function createAppointmentForUser(formData: FormData) {
       notes: formData.get('notes') as string || undefined,
     });
 
-    // Check if patient exists, if not create them
-    let patient = await prisma.user.findUnique({
-      where: { phone: data.patientPhone },
+    // Check if devotee exists, if not create them
+    let devotee = await prisma.user.findUnique({
+      where: { phone: data.devoteePhone },
     });
 
-    if (!patient) {
-      // Create new patient user
-      patient = await prisma.user.create({
+    if (!devotee) {
+      // Create new devotee user
+      devotee = await prisma.user.create({
         data: {
-          name: data.patientName,
-          phone: data.patientPhone,
-          email: data.patientEmail,
+          name: data.devoteeName,
+          phone: data.devoteePhone,
+          email: data.devoteeEmail,
           role: 'USER',
           emailVerified: null,
         },
       });
-    } else if (patient.name !== data.patientName) {
-      // Update patient name if different
-      patient = await prisma.user.update({
-        where: { id: patient.id },
-        data: { name: data.patientName },
+    } else if (devotee.name !== data.devoteeName) {
+      // Update devotee name if different
+      devotee = await prisma.user.update({
+        where: { id: devotee.id },
+        data: { name: data.devoteeName },
       });
     }
 
@@ -934,7 +962,7 @@ export async function createAppointmentForUser(formData: FormData) {
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
-        userId: patient.id,
+        userId: devotee.id,
         gurujiId: data.gurujiId,
         date: appointmentDate,
         startTime,
@@ -972,8 +1000,8 @@ export async function createAppointmentForUser(formData: FormData) {
         resource: 'APPOINTMENT',
         resourceId: appointment.id,
         newData: {
-          patientName: data.patientName,
-          patientPhone: data.patientPhone,
+          devoteeName: data.devoteeName,
+          devoteePhone: data.devoteePhone,
           gurujiId: data.gurujiId,
           date: data.date,
           startTime: data.startTime,
@@ -1004,11 +1032,4 @@ export async function createAppointmentForUser(formData: FormData) {
   }
 }
 
-// Development helper server action for check-in
-export async function devCheckInAppointment(formData: FormData) {
-  const appointmentId = formData.get("appointmentId") as string;
-  if (appointmentId) {
-    return await checkInAppointment(appointmentId);
-  }
-  return { success: false, error: 'Appointment ID is required' };
-} 
+ 

@@ -8,44 +8,94 @@ interface LocationQRData {
   locationId: string;
   locationName: string;
   timestamp: number;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
 }
+
+// Main ashram coordinates (replace with actual ashram coordinates)
+const ASHRAM_COORDINATES = { latitude: 19.0760, longitude: 72.8777 };
 
 /**
  * Generate QR code data for a location
  * This creates the data that will be encoded in the QR code
  */
-export async function generateLocationQRData(locationId: string, locationName: string): Promise<string> {
+export async function generateLocationQRData(locationId: string, locationName: string, customCoordinates?: { latitude: number; longitude: number }): Promise<string> {
+  const coordinates = customCoordinates || ASHRAM_COORDINATES;
+  
   const qrData: LocationQRData = {
     locationId,
     locationName,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    coordinates
   };
   
   return JSON.stringify(qrData);
 }
 
 /**
- * Generate QR code image for a location
+ * Generate QR code image for a location with custom coordinates
  * This creates the actual QR code image that can be printed and stuck on the wall
  */
-export async function generateLocationQRCode(locationId: string, locationName: string): Promise<string> {
+export async function generateLocationQRCode(locationId: string, locationName: string, coordinates?: { latitude: number; longitude: number }): Promise<string> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id || session.user.role !== 'ADMIN') {
     throw new Error('Admin access required');
   }
 
-  const qrData = await generateLocationQRData(locationId, locationName);
+  const qrData = await generateLocationQRData(locationId, locationName, coordinates);
   const qrCodeImage = await QRCode.toDataURL(qrData, {
     width: 300,
     margin: 2,
     color: {
-      dark: 'hsl(var(--foreground))',
-      light: 'hsl(var(--background))'
+      dark: '#000000',  // Black for the QR code
+      light: '#FFFFFF'  // White background
     }
   });
 
   return qrCodeImage;
+}
+
+/**
+ * Create QR code with custom coordinates
+ */
+export async function createQRCodeWithCoordinates(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id || session.user.role !== 'ADMIN') {
+    return { success: false, error: 'Admin access required' };
+  }
+
+  try {
+    const locationId = formData.get('locationId') as string;
+    const locationName = formData.get('locationName') as string;
+    const latitude = parseFloat(formData.get('latitude') as string);
+    const longitude = parseFloat(formData.get('longitude') as string);
+
+    if (!locationId || !locationName || isNaN(latitude) || isNaN(longitude)) {
+      return { success: false, error: 'Invalid input data' };
+    }
+
+    const coordinates = { latitude, longitude };
+    const qrCodeImage = await generateLocationQRCode(locationId, locationName, coordinates);
+    const qrData = await generateLocationQRData(locationId, locationName, coordinates);
+
+    return { 
+      success: true, 
+      data: {
+        qrCodeImage,
+        qrData,
+        locationId,
+        locationName,
+        coordinates
+      }
+    };
+  } catch (error) {
+    console.error('Create QR code error:', error);
+    return { success: false, error: 'Failed to create QR code' };
+  }
 }
 
 /**
@@ -59,11 +109,9 @@ export async function getLocationQRCodes() {
   }
 
   try {
-    // Define your locations here
+    // Define single location
     const locations = [
-      { id: 'GURUJI_LOC_001', name: 'Main Consultation Room' },
-      { id: 'GURUJI_LOC_002', name: 'Waiting Area' },
-      { id: 'GURUJI_LOC_003', name: 'Reception Desk' }
+      { id: 'ASHRAM_MAIN', name: 'Shiv Goraksha Ashram' }
     ];
 
     const qrCodes = await Promise.all(

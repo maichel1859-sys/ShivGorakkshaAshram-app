@@ -56,20 +56,24 @@ export function Header({ title }: HeaderProps) {
           {/* Mobile menu */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <Menu className="h-5 w-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden h-11 w-11 touch-target"
+              >
+                <Menu className="h-6 w-6" />
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0 rounded-r-2xl">
+            <SheetContent side="left" className="w-72 sm:w-80 p-0">
               <Sidebar />
             </SheetContent>
           </Sheet>
 
           {/* Page title */}
-          <div className="flex flex-1 items-center space-x-4 lg:space-x-6">
-            <h1 className="text-xl font-bold lg:text-2xl text-foreground">
-              {title || t('dashboard.title', 'Dashboard')}
+          <div className="flex flex-1 items-center space-x-2 lg:space-x-4">
+            <h1 className="text-lg font-semibold sm:text-xl lg:text-2xl text-foreground truncate">
+              {title || t("nav.dashboard", "Dashboard")}
             </h1>
           </div>
 
@@ -79,14 +83,17 @@ export function Header({ title }: HeaderProps) {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder={t('dashboard.searchPlaceholder', 'Search appointments, users, remedies...')}
+                placeholder={t(
+                  "common.searchPlaceholder",
+                  "Search appointments, users, remedies..."
+                )}
                 className="pl-10 w-full rounded-xl border-border/50 focus:border-ring/50 transition-all duration-200"
               />
             </div>
           </div>
 
           {/* Right side */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-3">
             {/* Language Switcher */}
             <LanguageSwitcher
               variant="compact"
@@ -101,7 +108,7 @@ export function Header({ title }: HeaderProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="relative h-10 w-10 rounded-xl hover:bg-accent/50 transition-all duration-200"
+              className="relative h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 rounded-xl hover:bg-accent/50 transition-all duration-200 touch-target"
               onClick={() => setIsNotificationOpen(true)}
             >
               <Bell className="h-5 w-5" />
@@ -121,7 +128,7 @@ export function Header({ title }: HeaderProps) {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="relative h-10 w-10 rounded-xl hover:bg-accent/50 transition-all duration-200"
+                    className="relative h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 rounded-xl hover:bg-accent/50 transition-all duration-200 touch-target"
                   >
                     <Avatar className="h-8 w-8 rounded-lg">
                       <AvatarImage
@@ -134,7 +141,11 @@ export function Header({ title }: HeaderProps) {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64 rounded-xl border-border/50 shadow-lg" align="end" forceMount>
+                <DropdownMenuContent
+                  className="w-64 rounded-xl border-border/50 shadow-lg"
+                  align="end"
+                  forceMount
+                >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -153,17 +164,17 @@ export function Header({ title }: HeaderProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
                     <User className="mr-2 h-4 w-4" />
-                    <span>{t('nav.profile', 'Profile')}</span>
+                    <span>{t("nav.profile", "Profile")}</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <span>{t('nav.settings', 'Settings')}</span>
+                    <span>{t("nav.settings", "Settings")}</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-red-600 focus:text-red-600"
                     onClick={signOutWithToast}
                   >
-                    <span>{t('nav.signOut', 'Sign out')}</span>
+                    <span>{t("nav.signOut", "Sign out")}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

@@ -16,15 +16,15 @@
 
 ## System Overview
 
-The **Shivgoraksha Ashram Management System** is a comprehensive healthcare management platform built for spiritual healthcare institutions. It manages patient appointments, consultations, remedy prescriptions, and queue management with role-based access control.
+The **Shivgoraksha Ashram Management System** is a comprehensive healthcare management platform built for spiritual healthcare institutions. It manages devotee appointments, consultations, remedy prescriptions, and queue management with role-based access control.
 
 ### Key Features
 - **Multi-role System**: USER, COORDINATOR, GURUJI, ADMIN
 - **Appointment Management**: Booking, scheduling, check-in, cancellation
-- **Queue Management**: Real-time patient queue with position tracking
+- **Queue Management**: Real-time devotee queue with position tracking
 - **Consultation System**: Session management with timing and documentation
 - **Remedy System**: Digital prescription management with templates
-- **QR Code Integration**: Quick check-in and patient identification
+- **QR Code Integration**: Quick check-in and devotee identification
 - **Real-time Updates**: Live queue status and notifications
 - **Multi-language Support**: English, Hindi, Sanskrit
 
@@ -105,7 +105,7 @@ Session {
 ```typescript
 Appointment {
   id: String (CUID)
-  userId: String (patient)
+  userId: String (devotee)
   gurujiId: String? (assigned guruji)
   date: DateTime
   startTime: DateTime
@@ -125,7 +125,7 @@ Appointment {
 QueueEntry {
   id: String (CUID)
   appointmentId: String (unique)
-  userId: String (patient)
+  userId: String (devotee)
   gurujiId: String? (assigned guruji)
   position: Int
   status: QueueStatus (WAITING|IN_PROGRESS|COMPLETED|CANCELLED|NO_SHOW|LATE_ARRIVAL)
@@ -145,7 +145,7 @@ QueueEntry {
 ConsultationSession {
   id: String (CUID)
   appointmentId: String (unique)
-  patientId: String
+  devoteeId: String
   gurujiId: String
   startTime: DateTime (default: now)
   endTime: DateTime?
@@ -304,7 +304,7 @@ requireAdminAccess() // Admin-only shorthand
 ## User Roles & Permissions
 
 ### 1. USER Role
-**Primary Functions**: Patient management, appointments, consultations
+**Primary Functions**: Devotee management, appointments, consultations
 
 #### Accessible Routes
 - `/user` - Personal dashboard
@@ -338,41 +338,41 @@ requireAdminAccess() // Admin-only shorthand
 - `/coordinator/settings` - Role-specific preferences
 
 #### Permissions
-- **Read**: All appointments, patient check-in status, queue metrics
-- **Update**: Appointment statuses, priorities, patient flow optimization
-- **Limited User Access**: View patient information during coordination
+- **Read**: All appointments, devotee check-in status, queue metrics
+- **Update**: Appointment statuses, priorities, devotee flow optimization
+- **Limited User Access**: View devotee information during coordination
 
 #### Key Features
 - **Appointment Oversight**: Monitor all system appointments with status tracking
-- **Queue Coordination**: Optimize patient flow and manage wait times
+- **Queue Coordination**: Optimize devotee flow and manage wait times
 - **Priority Management**: Handle urgent cases and escalate when needed
 - **Real-time Metrics**: Dashboard with live appointment and queue statistics
 
 ### 3. GURUJI Role
-**Primary Functions**: Consultations, remedy prescriptions, patient care
+**Primary Functions**: Consultations, remedy prescriptions, devotee care
 
 #### Accessible Routes
 - `/guruji` - Consultation dashboard
 - `/guruji/appointments` - Personal appointment schedule
-- `/guruji/queue` - Real-time patient queue management
+- `/guruji/queue` - Real-time devotee queue management
 - `/guruji/remedies` - Remedy template management
 - `/guruji/remedies/prescribe/[templateId]` - Custom prescription creation
 - `/guruji/settings` - Professional preferences
 
 #### Permissions
-- **Full Access**: Own appointments, assigned patient queue
+- **Full Access**: Own appointments, assigned devotee queue
 - **Create/Edit**: Remedy templates, prescriptions, consultation notes
 - **Session Control**: Start/complete consultations with timing
-- **Patient Data**: Access during active consultations only
+- **Devotee Data**: Access during active consultations only
 
 #### Key Features
-- **Queue Management**: Real-time patient queue with priority indicators
+- **Queue Management**: Real-time devotee queue with priority indicators
 - **Session Control**: Start/stop consultations with automatic timing
 - **Remedy System**: 
   - Create/manage templates (Homeopathic, Ayurvedic, Spiritual, Lifestyle, Dietary)
   - Custom prescriptions with personalized instructions
   - Multi-language support (English, Hindi, Sanskrit)
-- **Consultation Tracking**: Session duration, patient notes, follow-up scheduling
+- **Consultation Tracking**: Session duration, devotee notes, follow-up scheduling
 
 ### 4. ADMIN Role
 **Primary Functions**: System administration, user management, oversight
@@ -473,7 +473,7 @@ leaveQueue(queueEntryId: string) // Remove from queue
 updateQueueStatus(id: string, status: QueueStatus) // Status updates
 getCachedQueueStatus() // Real-time cached queue data
 getCachedUserQueueStatus(userId: string) // User-specific queue position
-getCachedGurujiQueueEntries(gurujiId: string) // Guruji's patient queue
+getCachedGurujiQueueEntries(gurujiId: string) // Guruji's devotee queue
 ```
 
 ### Consultation Actions
@@ -619,7 +619,7 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Patient in Queue] --> B[Guruji Available]
+    A[Devotee in Queue] --> B[Guruji Available]
     B --> C[Start Consultation]
     C --> D[Session Timer Starts]
     D --> E[Consultation Process]
@@ -629,15 +629,15 @@ graph TD
     G -->|No| I[Complete Session]
     H --> J[Customize Prescription]
     J --> K[Generate PDF]
-    K --> L[Send to Patient]
+    K --> L[Send to Devotee]
     L --> I
     I --> M[Update Records]
-    M --> N[Next Patient]
+    M --> N[Next Devotee]
 ```
 
 **Consultation Features**:
 - **Session Timing**: Automatic start/stop with duration tracking
-- **Patient History**: Access to previous consultations and remedies
+- **Devotee History**: Access to previous consultations and remedies
 - **Remedy Templates**: Pre-built templates for common treatments
 - **Custom Prescriptions**: Personalized instructions, dosage, duration
 - **Multi-language**: Templates in English, Hindi, Sanskrit
@@ -651,7 +651,7 @@ graph TD
     B --> C[Store in Database]
     C --> D[Send Email Notification]
     D --> E[Send SMS Alert]
-    E --> F[Patient Dashboard Update]
+    E --> F[Devotee Dashboard Update]
     F --> G[User Downloads PDF]
     G --> H{Follow-up Needed?}
     H -->|Yes| I[Schedule Follow-up]
@@ -662,10 +662,10 @@ graph TD
 
 **Remedy System Features**:
 - **Template Library**: Categorized by health conditions
-- **Custom Creation**: Guruji can create patient-specific remedies
+- **Custom Creation**: Guruji can create devotee-specific remedies
 - **Multi-format Delivery**: PDF download, email, SMS
-- **Progress Tracking**: Delivery status and patient acknowledgment
-- **Historical Access**: Complete remedy history for patients
+- **Progress Tracking**: Delivery status and devotee acknowledgment
+- **Historical Access**: Complete remedy history for devotees
 
 ### 6. Administrative Workflow
 
@@ -812,7 +812,7 @@ src/
 │   │   │   └── page.tsx      # Coordinator dashboard
 │   │   ├── guruji/           # Guruji pages
 │   │   │   ├── appointments/ # Personal appointments
-│   │   │   ├── queue/        # Patient queue management
+│   │   │   ├── queue/        # Devotee queue management
 │   │   │   ├── remedies/     # Remedy templates
 │   │   │   └── page.tsx      # Guruji dashboard
 │   │   └── user/             # User pages

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -41,8 +42,13 @@ import {
   Shield,
   Search,
   Loader2,
+  User,
+  Mail,
+  Phone,
+  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface UsersTableProps {
   initialFilters?: {
@@ -55,6 +61,7 @@ interface UsersTableProps {
 export function UsersTable({ initialFilters }: UsersTableProps) {
   // UI State (Zustand)
   const { setError: setAppError } = useAppStore();
+  const isMobile = useIsMobile();
 
   // Local state for filters
   const [filters, setFilters] = useState({
@@ -130,134 +137,113 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex-1">
           <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search users by name or email..."
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="pl-8"
+              className="pl-10 h-11 touch-target"
             />
           </div>
         </div>
-        <Select
-          value={filters.role}
-          onValueChange={(value) => handleFilterChange("role", value)}
-        >
-          <SelectTrigger className="w-full md:w-[180px]">
-            <SelectValue placeholder="Filter by role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="USER">Users</SelectItem>
-            <SelectItem value="COORDINATOR">Coordinators</SelectItem>
-            <SelectItem value="GURUJI">Gurujis</SelectItem>
-            <SelectItem value="ADMIN">Admins</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.active?.toString()}
-          onValueChange={(value) =>
-            handleFilterChange(
-              "active",
-              value === "true" ? true : value === "false" ? false : undefined
-            )
-          }
-        >
-          <SelectTrigger className="w-full md:w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="true">Active Only</SelectItem>
-            <SelectItem value="false">Inactive Only</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Select
+            value={filters.role}
+            onValueChange={(value) => handleFilterChange("role", value)}
+          >
+            <SelectTrigger className="w-full sm:w-[180px] h-11 touch-target">
+              <SelectValue placeholder="Filter by role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="USER">Users</SelectItem>
+              <SelectItem value="COORDINATOR">Coordinators</SelectItem>
+              <SelectItem value="GURUJI">Gurujis</SelectItem>
+              <SelectItem value="ADMIN">Admins</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.active?.toString()}
+            onValueChange={(value) =>
+              handleFilterChange(
+                "active",
+                value === "true" ? true : value === "false" ? false : undefined
+              )
+            }
+          >
+            <SelectTrigger className="w-full sm:w-[180px] h-11 touch-target">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="true">Active Only</SelectItem>
+              <SelectItem value="false">Inactive Only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Users Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-32" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-48" />
-                    </TableCell>
-                    <TableCell>
+      {/* Users Display */}
+      {isMobile ? (
+        /* Mobile Card View */
+        <div className="space-y-3">
+          {isLoading
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <Card key={i} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
                       <Skeleton className="h-6 w-16" />
-                    </TableCell>
-                    <TableCell>
                       <Skeleton className="h-6 w-16" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-8 w-20" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              : users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        {user.phone && (
-                          <div className="text-xs text-muted-foreground">
-                            {user.phone}
+                    </div>
+                  </div>
+                </Card>
+              ))
+            : users.map((user) => (
+                <Card key={user.id} className="p-4 hover:shadow-md transition-all duration-200">
+                  <CardContent className="p-0 space-y-4">
+                    {/* User Info Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-base truncate">{user.name}</h3>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Mail className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{user.email}</span>
                           </div>
-                        )}
+                          {user.phone && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3 flex-shrink-0" />
+                              <span>{user.phone}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          user.role === "ADMIN" ? "destructive" : "secondary"
-                        }
-                      >
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.isActive ? "default" : "secondary"}>
-                        {user.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
+                      
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="h-8 w-8 p-0"
+                            size="sm"
+                            className="h-10 w-10 p-0 touch-target"
                             disabled={isDeleting || isToggling}
                           >
                             {isDeleting || isToggling ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <MoreHorizontal className="h-4 w-4" />
+                              <MoreHorizontal className="h-5 w-5" />
                             )}
                           </Button>
                         </DropdownMenuTrigger>
@@ -287,17 +273,164 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-          </TableBody>
-        </Table>
-        {users.length === 0 && !isLoading && (
-          <div className="text-center py-8 text-muted-foreground">
-            No users found matching your criteria
-          </div>
-        )}
-      </div>
+                    </div>
+
+                    {/* Status and Role */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            user.role === "ADMIN" ? "destructive" : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {user.role}
+                        </Badge>
+                        <Badge variant={user.isActive ? "default" : "secondary"} className="text-xs">
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          {users.length === 0 && !isLoading && (
+            <Card className="p-8">
+              <div className="text-center text-muted-foreground">
+                <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No users found matching your criteria</p>
+              </div>
+            </Card>
+          )}
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Skeleton className="h-4 w-32" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-48" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-6 w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-6 w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-8 w-20" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{user.name}</div>
+                          {user.phone && (
+                            <div className="text-xs text-muted-foreground">
+                              {user.phone}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            user.role === "ADMIN" ? "destructive" : "secondary"
+                          }
+                        >
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.isActive ? "default" : "secondary"}>
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              disabled={isDeleting || isToggling}
+                            >
+                              {isDeleting || isToggling ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit User
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleToggleStatus(user.id, user.isActive)
+                              }
+                              disabled={isToggling}
+                            >
+                              <Shield className="mr-2 h-4 w-4" />
+                              {user.isActive ? "Deactivate" : "Activate"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={isDeleting}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+            </TableBody>
+          </Table>
+          {users.length === 0 && !isLoading && (
+            <div className="text-center py-8 text-muted-foreground">
+              No users found matching your criteria
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="text-sm text-muted-foreground">

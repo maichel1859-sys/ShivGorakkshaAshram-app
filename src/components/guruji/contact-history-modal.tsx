@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useAppStore } from '@/store/app-store';
+import { useState } from "react";
+import { useDevoteeContactHistory, useSendDevoteeNotification } from '@/hooks/queries/use-guruji';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface ContactHistory {
+interface _ContactHistory {
   id: string;
   type: 'notification' | 'phone';
   method: string;
@@ -39,7 +39,7 @@ interface ContactHistory {
   errorMessage?: string;
 }
 
-interface Patient {
+interface Devotee {
   id: string;
   name: string | null;
   email: string | null;
@@ -49,77 +49,28 @@ interface Patient {
 interface ContactHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  patient: Patient;
+  devotee: Devotee;
 }
 
 export function ContactHistoryModal({
   isOpen,
   onClose,
-  patient,
+  devotee,
 }: ContactHistoryModalProps) {
   const [activeTab, setActiveTab] = useState<'history' | 'new'>('history');
-  const [contactHistory, setContactHistory] = useState<ContactHistory[]>([]);
-  const { setLoadingState, loadingStates } = useAppStore();
-  const isLoading = loadingStates['contact-history'] || false;
   const [newMessage, setNewMessage] = useState({
     type: 'notification' as 'notification' | 'phone',
     message: '',
   });
 
-  const fetchContactHistory = useCallback(async () => {
-    try {
-      setLoadingState('contact-history', true);
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/patients/${patient.id}/contact-history`);
-      // const data = await response.json();
-      
-      // Mock data for now - only showing in-app notifications and phone calls
-      const mockHistory: ContactHistory[] = [
-        {
-          id: '1',
-          type: 'notification',
-          method: 'In-App Notification',
-          recipient: patient.name || 'Patient',
-          message: 'Your remedy prescription has been updated with new instructions.',
-          status: 'delivered',
-          sentAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          deliveredAt: new Date(Date.now() - 24 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
-        },
-        {
-          id: '2',
-          type: 'notification',
-          method: 'In-App Notification',
-          recipient: patient.name || 'Patient',
-          message: 'Remedy: Take 2 teaspoons daily. Follow up in 2 weeks.',
-          status: 'sent',
-          sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: '3',
-          type: 'phone',
-          method: 'Phone Call',
-          recipient: patient.phone || 'No phone',
-          message: 'Called to discuss remedy side effects',
-          status: 'delivered',
-          sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          deliveredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 2 * 60 * 1000).toISOString(),
-        },
-      ];
-      
-      setContactHistory(mockHistory);
-    } catch (error) {
-      console.error('Failed to fetch contact history:', error);
-      toast.error('Failed to load contact history');
-    } finally {
-      setLoadingState('contact-history', false);
-    }
-  }, [patient.phone, patient.name, setLoadingState]);
+  // Use React Query hooks
+  const {
+    data: contactHistory = [],
+    isLoading,
+    refetch: refetchContactHistory,
+  } = useDevoteeContactHistory(devotee.id, isOpen);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchContactHistory();
-    }
-  }, [isOpen, fetchContactHistory]);
+  const sendNotificationMutation = useSendDevoteeNotification();
 
   const handleSendMessage = async () => {
     if (!newMessage.message.trim()) {
@@ -128,36 +79,18 @@ export function ContactHistoryModal({
     }
 
     try {
-      setLoadingState('contact-history', true);
-      
-      // For now, we'll use a mock API call since we don't have a direct contact API
-      // TODO: Create a dedicated contact API endpoint
-      const mockResponse = await new Promise<{ success: boolean }>(resolve => 
-        setTimeout(() => resolve({ success: true }), 1000)
-      );
+      await sendNotificationMutation.mutateAsync({
+        devoteeId: devotee.id,
+        message: newMessage.message,
+        type: 'CUSTOM'
+      });
 
-      if (mockResponse.success) {
-        const newContact: ContactHistory = {
-          id: Date.now().toString(),
-          type: newMessage.type,
-          method: 'In-App Notification',
-          recipient: patient.name || 'Patient',
-          message: newMessage.message,
-          status: 'pending',
-          sentAt: new Date().toISOString(),
-        };
-
-        setContactHistory(prev => [newContact, ...prev]);
-        setNewMessage({ type: 'notification', message: '' });
-        setActiveTab('history');
-        
-        toast.success('Notification sent successfully');
-      }
+      // Reset form and switch to history tab
+      setNewMessage({ type: 'notification', message: '' });
+      setActiveTab('history');
     } catch (error) {
+      // Error is already handled by the mutation hook
       console.error('Failed to send message:', error);
-      toast.error('Failed to send message');
-    } finally {
-      setLoadingState('contact-history', false);
     }
   };
 
@@ -220,25 +153,25 @@ export function ContactHistoryModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Contact History - {patient.name || 'Unknown Patient'}
+            Contact History - {devotee.name || 'Unknown Devotee'}
           </DialogTitle>
           <DialogDescription>
-            View and manage communication history with this patient
+            View and manage communication history with this devotee
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Patient Info */}
+          {/* Devotee Info */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Patient Information</CardTitle>
+              <CardTitle className="text-lg">Devotee Information</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Name</Label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {patient.name || 'Not provided'}
+                    {devotee.name || 'Not provided'}
                   </p>
                 </div>
                 <div>
@@ -248,7 +181,7 @@ export function ContactHistoryModal({
                       <MessageSquare className="h-3 w-3" />
                       In-App Notifications
                     </Badge>
-                    {patient.phone && (
+                    {devotee.phone && (
                       <Badge variant="outline" className="flex items-center gap-1">
                         <Phone className="h-3 w-3" />
                         Phone (Manual)
@@ -270,7 +203,7 @@ export function ContactHistoryModal({
             <TabsContent value="history" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Recent Communications</h3>
-                <Button variant="outline" size="sm" onClick={fetchContactHistory}>
+                <Button variant="outline" size="sm" onClick={() => refetchContactHistory()}>
                   Refresh
                 </Button>
               </div>
@@ -286,7 +219,7 @@ export function ContactHistoryModal({
                     <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No Contact History</h3>
                     <p className="text-muted-foreground">
-                      No previous communications found with this patient.
+                      No previous communications found with this devotee.
                     </p>
                   </CardContent>
                 </Card>
@@ -363,7 +296,7 @@ export function ContactHistoryModal({
                   <div>
                     <Label>Notification Type</Label>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Send an in-app notification directly to the patient&apos;s dashboard.
+                      Send an in-app notification directly to the devotee&apos;s dashboard.
                       External email and SMS services have been disabled.
                     </p>
                   </div>
@@ -374,7 +307,7 @@ export function ContactHistoryModal({
                       id="message"
                       value={newMessage.message}
                       onChange={(e) => setNewMessage(prev => ({ ...prev, message: e.target.value }))}
-                      placeholder="Enter your notification message for the patient..."
+                      placeholder="Enter your notification message for the devotee..."
                       rows={4}
                       className="mt-2"
                     />
@@ -382,15 +315,15 @@ export function ContactHistoryModal({
 
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="text-sm text-muted-foreground">
-                      <span>Recipient: {patient.name || 'Patient'} (In-App Notification)</span>
+                      <span>Recipient: {devotee.name || 'Devotee'} (In-App Notification)</span>
                     </div>
                     <Button
                       onClick={handleSendMessage}
-                      disabled={isLoading || !newMessage.message.trim()}
+                      disabled={sendNotificationMutation.isPending || !newMessage.message.trim()}
                       className="w-full sm:w-auto"
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      {isLoading ? 'Sending...' : 'Send Notification'}
+                      {sendNotificationMutation.isPending ? 'Sending...' : 'Send Notification'}
                     </Button>
                   </div>
                 </CardContent>
