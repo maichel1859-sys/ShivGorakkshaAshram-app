@@ -303,7 +303,7 @@ export async function bookAppointment(formData: FormData) {
       },
     });
 
-    // Broadcast appointment booking via socket
+    // Broadcast appointment booking to all stakeholders
     try {
       const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
         method: 'POST',
@@ -311,33 +311,44 @@ export async function bookAppointment(formData: FormData) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          event: 'appointment_update',
+          event: 'appointment_booking',
           data: {
             appointmentId: appointment.id,
             status: 'BOOKED',
             appointment: appointment,
             action: 'booked',
             timestamp: new Date().toISOString(),
-            gurujiId: appointment.gurujiId,
-            userId: appointment.userId,
-            devoteeName: appointment.user.name,
-            gurujiName: appointment.guruji?.name || 'Unknown',
+            user: {
+              id: appointment.userId,
+              name: appointment.user.name,
+              email: appointment.user.email,
+              phone: appointment.user.phone
+            },
+            guruji: {
+              id: appointment.gurujiId,
+              name: appointment.guruji?.name || 'Unknown',
+              email: appointment.guruji?.email
+            },
             appointmentDate: appointment.date,
             appointmentTime: appointment.startTime,
+            reason: appointment.reason,
+            priority: appointment.priority,
+            isRecurring: appointment.isRecurring,
           },
           rooms: [
-            `guruji:${appointment.gurujiId}`,
-            `user:${appointment.userId}`,
             'appointments',
             'admin',
             'coordinator',
+            `guruji:${appointment.gurujiId}`,
+            `user:${appointment.userId}`,
+            'notifications',
             'global',
           ],
         }),
       });
 
       if (socketResponse.ok) {
-        console.log(`🔌 Broadcasted appointment booking via socket`);
+        console.log(`🔌 Broadcasted appointment booking to all stakeholders`);
       } else {
         console.warn(`🔌 Failed to broadcast appointment booking:`, await socketResponse.text());
       }
@@ -420,7 +431,7 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
       },
     });
 
-    // Broadcast appointment cancellation via socket
+    // Broadcast appointment cancellation to all stakeholders
     try {
       const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
         method: 'POST',
@@ -428,32 +439,42 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          event: 'appointment_update',
+          event: 'appointment_cancellation',
           data: {
             appointmentId: updatedAppointment.id,
             status: 'CANCELLED',
             appointment: updatedAppointment,
             action: 'cancelled',
             timestamp: new Date().toISOString(),
-            gurujiId: updatedAppointment.gurujiId,
-            userId: updatedAppointment.userId,
-            devoteeName: updatedAppointment.user.name,
-            gurujiName: updatedAppointment.guruji?.name || 'Unknown',
+            user: {
+              id: updatedAppointment.userId,
+              name: updatedAppointment.user.name,
+              email: updatedAppointment.user.email
+            },
+            guruji: {
+              id: updatedAppointment.gurujiId,
+              name: updatedAppointment.guruji?.name || 'Unknown',
+              email: updatedAppointment.guruji?.email
+            },
+            appointmentDate: updatedAppointment.date,
+            appointmentTime: updatedAppointment.startTime,
             reason: reason,
+            cancelledBy: session.user.role,
           },
           rooms: [
-            `guruji:${updatedAppointment.gurujiId}`,
-            `user:${updatedAppointment.userId}`,
             'appointments',
             'admin',
             'coordinator',
+            `guruji:${updatedAppointment.gurujiId}`,
+            `user:${updatedAppointment.userId}`,
+            'notifications',
             'global',
           ],
         }),
       });
 
       if (socketResponse.ok) {
-        console.log(`🔌 Broadcasted appointment cancellation via socket`);
+        console.log(`🔌 Broadcasted appointment cancellation to all stakeholders`);
       } else {
         console.warn(`🔌 Failed to broadcast appointment cancellation:`, await socketResponse.text());
       }
@@ -1009,6 +1030,64 @@ export async function createAppointmentForUser(formData: FormData) {
         },
       },
     });
+
+    // Broadcast appointment creation for user to all stakeholders
+    try {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'appointment_created_for_user',
+          data: {
+            appointmentId: appointment.id,
+            status: 'BOOKED',
+            appointment: appointment,
+            action: 'created_for_user',
+            timestamp: new Date().toISOString(),
+            user: {
+              id: appointment.userId,
+              name: appointment.user.name,
+              email: appointment.user.email,
+              phone: appointment.user.phone
+            },
+            guruji: {
+              id: appointment.gurujiId,
+              name: appointment.guruji?.name || 'Unknown',
+              email: appointment.guruji?.email
+            },
+            appointmentDate: appointment.date,
+            appointmentTime: appointment.startTime,
+            reason: appointment.reason,
+            priority: appointment.priority,
+            createdBy: {
+              id: session.user.id,
+              role: session.user.role,
+              name: session.user.name
+            },
+          },
+          rooms: [
+            'appointments',
+            'admin',
+            'coordinator',
+            `guruji:${appointment.gurujiId}`,
+            `user:${appointment.userId}`,
+            'notifications',
+            'global',
+          ],
+        }),
+      });
+
+      if (socketResponse.ok) {
+        console.log(`🔌 Broadcasted appointment creation for user to all stakeholders`);
+      } else {
+        console.warn(`🔌 Failed to broadcast appointment creation for user:`, await socketResponse.text());
+      }
+    } catch (socketError) {
+      console.error('🔌 Socket broadcast error:', socketError);
+      // Continue even if socket fails
+    }
 
     revalidatePath('/coordinator/appointments');
     revalidatePath('/admin/appointments');

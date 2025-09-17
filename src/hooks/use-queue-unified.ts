@@ -164,15 +164,25 @@ export const useQueueUnified = (options: UseQueueOptions) => {
 
     // Subscribe to role-specific queue updates
     socket.on('queue_updated', handleQueueUpdate);
-    socket.on('entry_added', handleQueueUpdate);
-    socket.on('entry_updated', handleQueueUpdate);
-    socket.on('entry_removed', handleQueueUpdate);
+    socket.on('queue_entry_added', handleQueueUpdate);
+    socket.on('queue_entry_updated', handleQueueUpdate);
+    socket.on('queue_entry_removed', handleQueueUpdate);
+    socket.on('guruji_queue_updated', handleQueueUpdate);
+    socket.on('checkin_update', handleQueueUpdate);
+    socket.on('appointment_booking', handleQueueUpdate);
+    socket.on('appointment_cancellation', handleQueueUpdate);
+    socket.on('appointment_created_for_user', handleQueueUpdate);
 
     return () => {
       socket.off('queue_updated', handleQueueUpdate);
-      socket.off('entry_added', handleQueueUpdate);
-      socket.off('entry_updated', handleQueueUpdate);
-      socket.off('entry_removed', handleQueueUpdate);
+      socket.off('queue_entry_added', handleQueueUpdate);
+      socket.off('queue_entry_updated', handleQueueUpdate);
+      socket.off('queue_entry_removed', handleQueueUpdate);
+      socket.off('guruji_queue_updated', handleQueueUpdate);
+      socket.off('checkin_update', handleQueueUpdate);
+      socket.off('appointment_booking', handleQueueUpdate);
+      socket.off('appointment_cancellation', handleQueueUpdate);
+      socket.off('appointment_created_for_user', handleQueueUpdate);
     };
   }, [socket, connectionStatus.connected, enableRealtime, role, queryClient]);
 

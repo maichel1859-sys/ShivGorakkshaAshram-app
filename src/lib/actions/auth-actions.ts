@@ -14,6 +14,7 @@ import {
   userRegistrationSchema,
   normalizePhoneNumber
 } from '@/lib/validation/unified-schemas';
+import crypto from 'crypto';
 
 // Helper function to clean and validate phone number using unified schemas
 function cleanAndValidatePhone(phone: string): { phone: string; isValid: boolean; error?: string } {
@@ -673,6 +674,249 @@ export async function registerFamilyContact(formData: FormData) {
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to register family contact' 
+    };
+  }
+}
+
+// Generate a secure reset token
+function generateResetToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Hash the reset token for storage
+async function hashResetToken(token: string): Promise<string> {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// Request password reset
+export async function requestPasswordReset(formData: FormData) {
+  try {
+    const email = formData.get('email') as string;
+    
+    if (!email) {
+      return { success: false, error: 'Email is required' };
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+      select: { id: true, name: true, email: true, isActive: true }
+    });
+
+    if (!user || !user.isActive) {
+      // Don't reveal if user exists or not for security
+      return { 
+        success: true, 
+        message: 'If an account with that email exists, we have sent a password reset link.' 
+      };
+    }
+
+    // Generate reset token
+    const resetToken = generateResetToken();
+    const hashedToken = await hashResetToken(resetToken);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour from now
+
+    // Store reset token in database
+    await prisma.verificationToken.create({
+      data: {
+        identifier: user.email,
+        token: hashedToken,
+        expires: expiresAt,
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'PASSWORD_RESET_REQUESTED',
+        resource: 'USER',
+        resourceId: user.id,
+        newData: {
+          email: user.email,
+          requestedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    // Create notification in the system (since email is disabled)
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        title: 'Password Reset Requested',
+        message: `A password reset was requested for your account. If you didn't request this, please ignore this notification.`,
+        type: 'security',
+        data: {
+          resetToken: resetToken, // For development/testing
+          expiresAt: expiresAt.toISOString(),
+        },
+      },
+    });
+
+    revalidatePath('/auth');
+    return { 
+      success: true, 
+      message: 'Password reset link has been sent to your email.',
+      // For development/testing - remove in production
+      resetToken: resetToken,
+      resetUrl: `/auth/reset-password?token=${resetToken}`
+    };
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to request password reset' 
+    };
+  }
+}
+
+// Reset password with token
+export async function resetPassword(formData: FormData) {
+  try {
+    const token = formData.get('token') as string;
+    const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+
+    if (!token || !password || !confirmPassword) {
+      return { success: false, error: 'All fields are required' };
+    }
+
+    if (password !== confirmPassword) {
+      return { success: false, error: 'Passwords do not match' };
+    }
+
+    if (password.length < 8) {
+      return { success: false, error: 'Password must be at least 8 characters' };
+    }
+
+    // Hash the provided token to compare with stored token
+    const hashedToken = await hashResetToken(token);
+
+    // Find the verification token
+    const verificationToken = await prisma.verificationToken.findFirst({
+      where: {
+        token: hashedToken,
+        expires: {
+          gt: new Date(), // Token must not be expired
+        },
+      },
+    });
+
+    if (!verificationToken) {
+      return { 
+        success: false, 
+        error: 'Invalid or expired reset token. Please request a new password reset.' 
+      };
+    }
+
+    // Find the user by email
+    const user = await prisma.user.findUnique({
+      where: { email: verificationToken.identifier },
+      select: { id: true, email: true, name: true }
+    });
+
+    if (!user) {
+      return { 
+        success: false, 
+        error: 'User not found. Please request a new password reset.' 
+      };
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Update user password
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Delete the used verification token
+    await prisma.verificationToken.delete({
+      where: {
+        identifier_token: {
+          identifier: verificationToken.identifier,
+          token: hashedToken,
+        },
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'PASSWORD_RESET_COMPLETED',
+        resource: 'USER',
+        resourceId: user.id,
+        newData: {
+          email: user.email,
+          resetAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    // Create notification for user
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        title: 'Password Reset Successful',
+        message: 'Your password has been successfully reset. If you did not make this change, please contact support immediately.',
+        type: 'security',
+        data: {
+          resetAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    revalidatePath('/auth');
+    return { 
+      success: true, 
+      message: 'Password has been reset successfully. You can now sign in with your new password.' 
+    };
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to reset password' 
+    };
+  }
+}
+
+// Verify reset token (for the reset password page)
+export async function verifyResetToken(token: string) {
+  try {
+    if (!token) {
+      return { success: false, error: 'Reset token is required' };
+    }
+
+    const hashedToken = await hashResetToken(token);
+
+    const verificationToken = await prisma.verificationToken.findFirst({
+      where: {
+        token: hashedToken,
+        expires: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!verificationToken) {
+      return { 
+        success: false, 
+        error: 'Invalid or expired reset token' 
+      };
+    }
+
+    return { 
+      success: true, 
+      message: 'Reset token is valid',
+      email: verificationToken.identifier 
+    };
+  } catch (error) {
+    console.error('Verify reset token error:', error);
+    return { 
+      success: false, 
+      error: 'Failed to verify reset token' 
     };
   }
 } 

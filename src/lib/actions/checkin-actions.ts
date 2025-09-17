@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/core/auth';
 import { prisma } from '@/lib/database/prisma';
@@ -9,6 +9,58 @@ import {
   qrCheckinSchema,
   manualCheckinSchema
 } from '@/lib/validation/unified-schemas';
+import { CACHE_TAGS } from '@/lib/cache';
+
+// Function to broadcast check-in events to all stakeholders
+async function broadcastCheckInEvents(queueEntry: any, appointment: any, eventType: string) {
+  try {
+    const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: 'checkin_update',
+        data: {
+          queueEntry,
+          appointment,
+          eventType,
+          timestamp: new Date().toISOString(),
+          user: {
+            id: appointment.userId,
+            name: appointment.user?.name,
+            phone: appointment.user?.phone
+          },
+          guruji: {
+            id: appointment.gurujiId,
+            name: appointment.guruji?.name
+          },
+          action: eventType === 'qr_checkin' ? 'qr_checkin' : 'manual_checkin',
+          position: queueEntry.position,
+          estimatedWait: queueEntry.estimatedWait,
+        },
+        rooms: [
+          'queue',
+          'admin',
+          'coordinator',
+          `guruji:${appointment.gurujiId}`,
+          `user:${appointment.userId}`,
+          'notifications',
+          'global'
+        ],
+      }),
+    });
+
+    if (socketResponse.ok) {
+      console.log(`🔌 Broadcasted check-in event via socket: ${eventType}`);
+    } else {
+      console.warn(`🔌 Failed to broadcast check-in event:`, await socketResponse.text());
+    }
+  } catch (socketError) {
+    console.error('🔌 Socket broadcast error:', socketError);
+    // Continue even if socket fails
+  }
+}
 
 // Check-in via QR code
 export async function checkInWithQR(formData: FormData) {
@@ -131,10 +183,22 @@ export async function checkInWithQR(formData: FormData) {
       },
     });
 
-    // Invalidate relevant caches
+    // Broadcast check-in events to all stakeholders (primary mechanism)
+    await broadcastCheckInEvents(queueEntry, updatedAppointment, 'qr_checkin');
+    
+    // Invalidate cache tags (fallback mechanism)
+    revalidateTag(CACHE_TAGS.queue);
+    revalidateTag(CACHE_TAGS.appointments);
+    revalidateTag(CACHE_TAGS.dashboard);
+    
+    // Invalidate specific guruji cache
+    revalidateTag(`${CACHE_TAGS.queue}-guruji-${appointment.gurujiId}`);
+    
+    // Invalidate paths as additional fallback
     revalidatePath('/coordinator');
     revalidatePath('/user/checkin');
     revalidatePath('/user/queue');
+    revalidatePath('/guruji');
     revalidatePath('/guruji/queue');
     revalidatePath('/coordinator/queue');
     
@@ -278,10 +342,22 @@ export async function manualCheckIn(formData: FormData) {
       },
     });
 
-    // Invalidate relevant caches
+    // Broadcast check-in events to all stakeholders (primary mechanism)
+    await broadcastCheckInEvents(queueEntry2, updatedAppointment, 'manual_checkin');
+    
+    // Invalidate cache tags (fallback mechanism)
+    revalidateTag(CACHE_TAGS.queue);
+    revalidateTag(CACHE_TAGS.appointments);
+    revalidateTag(CACHE_TAGS.dashboard);
+    
+    // Invalidate specific guruji cache
+    revalidateTag(`${CACHE_TAGS.queue}-guruji-${appointment.gurujiId}`);
+    
+    // Invalidate paths as additional fallback
     revalidatePath('/coordinator');
     revalidatePath('/user/checkin');
     revalidatePath('/user/queue');
+    revalidatePath('/guruji');
     revalidatePath('/guruji/queue');
     revalidatePath('/coordinator/queue');
     

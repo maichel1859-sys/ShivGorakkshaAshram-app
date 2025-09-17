@@ -244,6 +244,52 @@ export async function createNotification(formData: FormData) {
       },
     });
 
+    // Broadcast notification creation to all stakeholders
+    try {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'notification_created',
+          data: {
+            notificationId: notification.id,
+            notification: notification,
+            action: 'created',
+            timestamp: new Date().toISOString(),
+            targetUser: {
+              id: data.userId,
+            },
+            createdBy: {
+              id: session.user.id,
+              role: session.user.role,
+              name: session.user.name
+            },
+            type: data.type,
+            title: data.title,
+            message: data.message,
+          },
+          rooms: [
+            'notifications',
+            'admin',
+            'coordinator',
+            `user:${data.userId}`,
+            'global',
+          ],
+        }),
+      });
+
+      if (socketResponse.ok) {
+        console.log(`🔌 Broadcasted notification creation to all stakeholders`);
+      } else {
+        console.warn(`🔌 Failed to broadcast notification creation:`, await socketResponse.text());
+      }
+    } catch (socketError) {
+      console.error('🔌 Socket broadcast error:', socketError);
+      // Continue even if socket fails
+    }
+
     revalidatePath('/user/notifications');
     
     return { success: true, notification };

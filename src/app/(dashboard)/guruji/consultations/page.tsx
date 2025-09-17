@@ -42,7 +42,7 @@ import { RemedyType } from "@prisma/client";
 import { showToast, commonToasts } from "@/lib/toast";
 import { startConsultation, updateQueueStatus, getConsultationSessionId } from "@/lib/actions/queue-actions";
 
-interface Patient {
+interface Devotee {
   id: string;
   name: string | null;
   email: string | null;
@@ -68,7 +68,7 @@ interface RemedyItem {
 interface ConsultationSession {
   id: string;
   appointmentId: string;
-  patientId: string;
+  devoteeId: string;
   gurujiId: string;
   startTime: string;
   endTime?: string;
@@ -79,7 +79,7 @@ interface ConsultationSession {
   recordings?: unknown;
   createdAt: Date;
   updatedAt: Date;
-  patient: Patient;
+  devotee: Devotee;
   appointment: {
     id: string;
     date: string;
@@ -126,7 +126,7 @@ export default function GurujiConsultationsPage() {
     emailSent: false,
     smsSent: false,
   });
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedDevotee, setSelectedDevotee] = useState<Devotee | null>(null);
 
   // Use React Query for data fetching
   const {
@@ -261,7 +261,7 @@ export default function GurujiConsultationsPage() {
   const onCompleteConsultation = async (entry: QueueEntry) => {
     // Check if remedy has been prescribed
     const hasRemedy = consultations.some(consultation => 
-      consultation.patientId === entry.user.id && 
+      consultation.devoteeId === entry.user.id && 
       consultation.endTime === null &&
       consultation.diagnosis && consultation.diagnosis.trim() !== ''
     );
@@ -299,8 +299,8 @@ export default function GurujiConsultationsPage() {
   // Filter consultations based on search and status
   const filteredConsultations = consultations.filter((consultation) => {
     const status = getConsultationStatus(consultation);
-    const matchesSearch = consultation.patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         consultation.patient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = consultation.devotee.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         consultation.devotee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          consultation.symptoms?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          consultation.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -320,7 +320,7 @@ export default function GurujiConsultationsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Consultations</h1>
             <p className="text-muted-foreground mt-2">
-              Manage patient consultations and prescribe remedies
+              Manage devotee consultations and prescribe remedies
             </p>
           </div>
         </div>
@@ -352,7 +352,7 @@ export default function GurujiConsultationsPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Consultations</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Manage patient consultations and prescribe remedies
+            Manage devotee consultations and prescribe remedies
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -375,7 +375,7 @@ export default function GurujiConsultationsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by patient name, email, symptoms, or diagnosis..."
+                  placeholder="Search by devotee name, email, symptoms, or diagnosis..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -397,24 +397,24 @@ export default function GurujiConsultationsPage() {
         </CardContent>
       </Card>
 
-      {/* Checked-in Patients Ready for Consultation */}
+      {/* Checked-in Devotees Ready for Consultation */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserCheck className="h-5 w-5" />
-            Checked-in Patients Ready for Consultation
+            Checked-in Devotees Ready for Consultation
           </CardTitle>
           <CardDescription>
-            Patients who have checked in and are waiting for consultation
+            Devotees who have checked in and are waiting for consultation
           </CardDescription>
         </CardHeader>
         <CardContent>
           {filteredQueueEntries.filter(entry => entry.status === 'WAITING').length === 0 ? (
             <div className="text-center py-8">
               <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Patients Waiting</h3>
+              <h3 className="text-lg font-semibold mb-2">No Devotees Waiting</h3>
               <p className="text-muted-foreground">
-                No patients are currently checked in and waiting for consultation.
+                No devotees are currently checked in and waiting for consultation.
               </p>
             </div>
           ) : (
@@ -514,7 +514,7 @@ export default function GurujiConsultationsPage() {
             Active Consultations
           </CardTitle>
           <CardDescription>
-            Patients currently being consulted
+            Devotees currently being consulted
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -523,7 +523,7 @@ export default function GurujiConsultationsPage() {
               <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Active Consultations</h3>
               <p className="text-muted-foreground">
-                No patients are currently being consulted.
+                No devotees are currently being consulted.
               </p>
             </div>
           ) : (
@@ -533,7 +533,7 @@ export default function GurujiConsultationsPage() {
                 .map((entry) => {
                   // Find matching consultation session for this entry
                   const activeConsultation = filteredConsultations.find(consultation => 
-                    consultation.patientId === entry.user.id && 
+                    consultation.devoteeId === entry.user.id && 
                     !consultation.endTime
                   );
 
@@ -546,15 +546,15 @@ export default function GurujiConsultationsPage() {
                             consultation={{
                               id: activeConsultation.id,
                               appointmentId: activeConsultation.appointmentId,
-                              patientId: activeConsultation.patientId,
+                              devoteeId: activeConsultation.devoteeId,
                               gurujiId: activeConsultation.gurujiId,
                               startTime: activeConsultation.startTime,
                               endTime: activeConsultation.endTime,
                               duration: activeConsultation.duration || undefined,
-                              patient: {
-                                id: activeConsultation.patient.id,
-                                name: activeConsultation.patient.name,
-                                phone: activeConsultation.patient.phone
+                              devotee: {
+                                id: activeConsultation.devotee.id,
+                                name: activeConsultation.devotee.name,
+                                phone: activeConsultation.devotee.phone
                               }
                             }}
                             onUpdate={() => {
@@ -565,7 +565,7 @@ export default function GurujiConsultationsPage() {
                         </div>
                       )}
                       
-                      {/* Patient Info and Controls */}
+                      {/* Devotee Info and Controls */}
                       <div className="flex items-center justify-between p-4 border rounded-lg bg-blue-50 border-blue-200">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -686,7 +686,7 @@ export default function GurujiConsultationsPage() {
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold">{consultation.patient.name || 'Unknown User'}</h3>
+                          <h3 className="font-semibold">{consultation.devotee.name || 'Unknown User'}</h3>
                           <Badge className="bg-green-100 text-green-800">COMPLETED</Badge>
                           {consultation.remedies && consultation.remedies.length > 0 && (
                             <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
@@ -698,7 +698,7 @@ export default function GurujiConsultationsPage() {
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <span className="flex items-center">
                             <Phone className="mr-1 h-3 w-3" />
-                            {consultation.patient.phone || 'No phone'}
+                            {consultation.devotee.phone || 'No phone'}
                           </span>
                           <span className="flex items-center">
                             <Clock className="mr-1 h-3 w-3" />
@@ -715,19 +715,19 @@ export default function GurujiConsultationsPage() {
                         <div className="mt-2 p-2 bg-gray-50 rounded border-l-4 border-gray-200">
                           <div className="text-xs font-medium text-gray-800 mb-1">Contact Information</div>
                           <div className="text-xs text-gray-700 space-y-1">
-                            {consultation.patient.phone && (
+                            {consultation.devotee.phone && (
                               <span className="flex items-center">
                                 <Phone className="mr-1 h-3 w-3" />
-                                {consultation.patient.phone}
+                                {consultation.devotee.phone}
                               </span>
                             )}
-                            {consultation.patient.email && (
+                            {consultation.devotee.email && (
                               <span className="flex items-center">
                                 <Mail className="mr-1 h-3 w-3" />
-                                {consultation.patient.email}
+                                {consultation.devotee.email}
                               </span>
                             )}
-                            {!consultation.patient.phone && !consultation.patient.email && (
+                            {!consultation.devotee.phone && !consultation.devotee.email && (
                               <span className="text-red-600">No contact information available</span>
                             )}
                           </div>
@@ -749,7 +749,7 @@ export default function GurujiConsultationsPage() {
                             setSelectedRemedy({ remedy, consultation });
                             setRemedyDetailsModalOpen(true);
                           } else {
-                            showToast.info(`No remedies prescribed for ${consultation.patient.name || 'Unknown'} yet`);
+                            showToast.info(`No remedies prescribed for ${consultation.devotee.name || 'Unknown'} yet`);
                           }
                         }}
                         className="flex-1 sm:flex-none"
@@ -761,7 +761,7 @@ export default function GurujiConsultationsPage() {
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          setSelectedPatient(consultation.patient);
+                          setSelectedDevotee(consultation.devotee);
                           setContactHistoryModalOpen(true);
                         }}
                         className="flex-1 sm:flex-none"
@@ -786,7 +786,7 @@ export default function GurujiConsultationsPage() {
             setSelectedQueueEntry(null);
           }}
           consultationId={consultationSessionId}
-          patientName={selectedQueueEntry.user.name || 'Unknown User'}
+          devoteeName={selectedQueueEntry.user.name || 'Unknown User'}
         />
       )}
 
@@ -804,14 +804,14 @@ export default function GurujiConsultationsPage() {
       )}
 
       {/* Contact History Modal */}
-      {selectedPatient && (
+      {selectedDevotee && (
         <ContactHistoryModal
           isOpen={contactHistoryModalOpen}
           onClose={() => {
             setContactHistoryModalOpen(false);
-            setSelectedPatient(null);
+            setSelectedDevotee(null);
           }}
-          patient={selectedPatient}
+          devotee={selectedDevotee}
         />
       )}
     </div>

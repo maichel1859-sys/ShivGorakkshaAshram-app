@@ -38,8 +38,13 @@
       "Bash(timeout 15 npm run lint)",
       "Bash(timeout 300 npx next build)",
       "Bash(timeout 30 npx eslint . --ext .ts,.tsx,.js,.jsx)",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Bash(timeout 300 npx prisma db push)",
+      "Bash(timeout 300 npx prisma db push --force-reset)",
+      "Bash(timeout 30 npm run build)",
+      "Bash(node:*)"
     ],
     "deny": []
-  }
+  },
+  "outputStyle": "default"
 }

@@ -571,7 +571,7 @@ export async function getGurujiQueueEntries() {
 } 
 
 // Start consultation
-export async function startConsultation(formData: FormData): Promise<ActionResponse<{ message?: string; consultationSessionId: string; consultationSession: { id: string }; currentPatient: { id: string; user: { id: string; name: string | null } } }>> {
+export async function startConsultation(formData: FormData): Promise<ActionResponse<{ message?: string; consultationSessionId: string; consultationSession: { id: string }; currentDevotee: { id: string; user: { id: string; name: string | null } } }>> {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -881,7 +881,7 @@ export async function completeConsultation(formData: FormData) {
     const consultationSession = await prisma.consultationSession.findFirst({
       where: {
         appointmentId: queueEntry.appointmentId,
-        patientId: queueEntry.userId,
+        devoteeId: queueEntry.userId,
         gurujiId: session.user.id,
         endTime: null,
       },
