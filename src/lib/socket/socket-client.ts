@@ -31,13 +31,17 @@ export enum SocketEvents {
   APPOINTMENT_UPDATE = 'appointment_update',
   CONSULTATION_UPDATE = 'consultation_update',
   REMEDY_UPDATE = 'remedy_update',
+  REMEDY_PRESCRIBED = 'remedy_prescribed',
+  REMEDY_STATUS_UPDATED = 'remedy_status_updated',
   NOTIFICATION_UPDATE = 'notification_update',
+  NOTIFICATION_SENT = 'notification_sent',
   USER_UPDATE = 'user_update',
   GURUJI_UPDATE = 'guruji_update',
   CLINIC_UPDATE = 'clinic_update',
   PAYMENT_UPDATE = 'payment_update',
   EMERGENCY_UPDATE = 'emergency_update',
   SYSTEM_UPDATE = 'system_update',
+  DASHBOARD_UPDATE = 'dashboard_update',
   ERROR = 'error'
 }
 
@@ -98,19 +102,25 @@ class SocketClient {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('🔌 Connected to Socket.IO server');
+      console.log('🔌 ✅ CONNECTED TO SOCKET SERVER');
+      console.log(`   📡 Server: ${SOCKET_SERVER_URL}`);
+      console.log(`   🆔 Socket ID: ${this.socket?.id}`);
       this.isConnected = true;
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      console.log('🔌 Disconnected from Socket.IO server:', reason);
+      console.log('🔌 ❌ DISCONNECTED FROM SOCKET SERVER');
+      console.log(`   📡 Server: ${SOCKET_SERVER_URL}`);
+      console.log(`   ❓ Reason: ${reason}`);
       this.isConnected = false;
       this.handleReconnect();
     });
 
     this.socket.on('connect_error', (error: Error) => {
-      console.error('🔌 Socket.IO connection error:', error);
+      console.error('🔌 ⚠️ SOCKET CONNECTION ERROR');
+      console.error(`   📡 Server: ${SOCKET_SERVER_URL}`);
+      console.error(`   💥 Error:`, error.message);
       this.handleReconnect();
     });
 
@@ -151,7 +161,24 @@ class SocketClient {
     }
 
     this.socket.emit(SocketEvents.JOIN_ROOM, roomData);
-    console.log(`🔌 Joined room as ${role}:`, roomData);
+
+    // Role-specific console logging with emojis
+    switch (role) {
+      case 'USER':
+        console.log(`🔵 USER DASHBOARD: Joining socket rooms for user ${userId}`);
+        break;
+      case 'GURUJI':
+        console.log(`🟢 GURUJI DASHBOARD: Joining socket rooms for guruji ${gurujiId || userId}`);
+        break;
+      case 'ADMIN':
+        console.log(`🔴 ADMIN DASHBOARD: Joining socket rooms with full access`);
+        break;
+      case 'COORDINATOR':
+        console.log(`🟡 COORDINATOR DASHBOARD: Joining socket rooms with coordinator access`);
+        break;
+      default:
+        console.log(`🔌 ${role} DASHBOARD: Joining socket rooms`, roomData);
+    }
   }
 
   // Leave room
@@ -167,7 +194,24 @@ class SocketClient {
     }
 
     this.socket.emit(SocketEvents.LEAVE_ROOM, roomData);
-    console.log(`🔌 Left room as ${role}:`, roomData);
+
+    // Role-specific leave logging with emojis
+    switch (role) {
+      case 'USER':
+        console.log(`🔵 USER DASHBOARD: Leaving socket rooms for user ${userId}`);
+        break;
+      case 'GURUJI':
+        console.log(`🟢 GURUJI DASHBOARD: Leaving socket rooms for guruji ${gurujiId || userId}`);
+        break;
+      case 'ADMIN':
+        console.log(`🔴 ADMIN DASHBOARD: Leaving socket rooms`);
+        break;
+      case 'COORDINATOR':
+        console.log(`🟡 COORDINATOR DASHBOARD: Leaving socket rooms`);
+        break;
+      default:
+        console.log(`🔌 ${role} DASHBOARD: Leaving socket rooms`, roomData);
+    }
   }
 
   // Subscribe to specific events

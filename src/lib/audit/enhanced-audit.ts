@@ -1,7 +1,7 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 
 export type AuditAction = 

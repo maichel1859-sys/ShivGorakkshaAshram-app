@@ -5,12 +5,16 @@ import { useSession } from 'next-auth/react';
 import { useQueueStore } from '@/store/queue-store';
 import { useNotificationStore } from '@/store/notification-store';
 import { useAdaptivePolling } from './use-adaptive-polling';
+import { useSocket } from '@/lib/socket/socket-client';
+import { useNetworkStatus } from './use-network-status';
 import { getCachedQueueStatus, getCachedUserQueueStatus } from '@/lib/services/queue.service';
 
 export function usePollingNotifications() {
   const { data: session } = useSession();
   const { entries, setEntries } = useQueueStore();
   const { addNotification } = useNotificationStore();
+  const { connectionStatus } = useSocket();
+  const { isOnline } = useNetworkStatus();
 
   // Check for queue updates and notifications
   const checkQueueUpdates = useCallback(async () => {
@@ -30,11 +34,11 @@ export function usePollingNotifications() {
         if (userEntry.position !== previousEntry.position) {
           addNotification({
             id: `position-change-${Date.now()}`,
+            userId: session?.user?.id || '',
             title: 'Queue Position Updated',
             message: `You are now position ${userEntry.position} in the queue`,
-            type: 'queue',
-            priority: 'MEDIUM',
-            isRead: false,
+            type: 'QUEUE',
+            read: false,
             createdAt: new Date().toISOString(),
             data: { position: userEntry.position }
           });
@@ -45,22 +49,22 @@ export function usePollingNotifications() {
           if (userEntry.status === 'IN_PROGRESS') {
             addNotification({
               id: `consultation-ready-${Date.now()}`,
+              userId: session?.user?.id || '',
               title: 'Your Turn!',
               message: 'Please proceed to the consultation room immediately',
-              type: 'queue',
-              priority: 'HIGH',
-              isRead: false,
+              type: 'QUEUE',
+              read: false,
               createdAt: new Date().toISOString(),
               data: { status: 'IN_PROGRESS' }
             });
           } else if (userEntry.status === 'COMPLETED') {
             addNotification({
               id: `consultation-completed-${Date.now()}`,
+              userId: session?.user?.id || '',
               title: 'Consultation Completed',
               message: 'Your consultation has been completed. Thank you!',
-              type: 'queue',
-              priority: 'MEDIUM',
-              isRead: false,
+              type: 'QUEUE',
+              read: false,
               createdAt: new Date().toISOString(),
               data: { status: 'COMPLETED' }
             });
@@ -103,11 +107,11 @@ export function usePollingNotifications() {
       if (queueEntry && !previousEntry) {
         addNotification({
           id: `checkin-success-${Date.now()}`,
+          userId: session?.user?.id || '',
           title: 'Check-in Successful',
           message: `You are position ${queueEntry.position} in the queue`,
-          type: 'queue',
-          priority: 'MEDIUM',
-          isRead: false,
+          type: 'QUEUE',
+          read: false,
           createdAt: new Date().toISOString(),
           data: { position: queueEntry.position }
         });
@@ -117,11 +121,11 @@ export function usePollingNotifications() {
       if (queueEntry?.status === 'IN_PROGRESS' && previousEntry?.status === 'WAITING') {
         addNotification({
           id: `consultation-ready-${Date.now()}`,
+          userId: session?.user?.id || '',
           title: 'Your Turn!',
           message: 'Please proceed to the consultation room immediately',
-          type: 'queue',
-          priority: 'HIGH',
-          isRead: false,
+          type: 'QUEUE',
+          read: false,
           createdAt: new Date().toISOString(),
           data: { status: 'IN_PROGRESS' }
         });
@@ -140,13 +144,21 @@ export function usePollingNotifications() {
     ]);
   }, [checkQueueUpdates, checkUserQueueStatus]);
 
-  // Use adaptive polling
+  // Socket-aware adaptive polling with automatic fallback
   const polling = useAdaptivePolling({
     enabled: !!session?.user,
-    interval: 15000, // Default 15 seconds
+    interval: connectionStatus.connected ? 30000 : 8000, // Slower when socket works, faster when fallback
     onPoll: pollForUpdates,
     onError: (error) => {
-      console.error('Polling error:', error);
+      console.warn('🔌 Polling fallback error:', error);
+      // Continue polling even on errors when socket is down
+    },
+    adaptiveIntervals: {
+      IDLE: connectionStatus.connected ? 60000 : 20000,          // 1min vs 20s
+      WAITING: connectionStatus.connected ? 30000 : 5000,         // 30s vs 5s
+      NEAR_FRONT: connectionStatus.connected ? 15000 : 3000,      // 15s vs 3s
+      CONSULTATION: connectionStatus.connected ? 10000 : 2000,    // 10s vs 2s
+      BACKGROUND: connectionStatus.connected ? 120000 : 30000,    // 2min vs 30s
     }
   });
 
@@ -154,6 +166,13 @@ export function usePollingNotifications() {
     ...polling,
     checkQueueUpdates,
     checkUserQueueStatus,
-    pollForUpdates
+    pollForUpdates,
+    // Fallback status information
+    isUsingFallback: !connectionStatus.connected,
+    connectionHealth: {
+      isSocketConnected: connectionStatus.connected,
+      isOnline,
+      socketId: connectionStatus.socketId,
+    }
   };
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import {
@@ -15,6 +15,14 @@ import {
 } from '@/lib/validation/unified-schemas';
 import { hash } from 'bcryptjs';
 import crypto from 'crypto';
+import {
+  emitUserEvent,
+  emitNotificationEvent,
+  emitSystemEvent,
+  emitAppointmentEvent,
+  emitQueueEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 // Quick registration for walk-in devotees
 export async function createQuickRegistration(formData: FormData) {
@@ -139,11 +147,34 @@ export async function createQuickRegistration(formData: FormData) {
       },
     });
 
+    // Emit user registration event
+    await emitUserEvent(
+      SocketEventTypes.USER_UPDATED,
+      {
+        id: user.id,
+        name: user.name || 'Walk-in Devotee',
+        email: user.email || '',
+        role: 'USER',
+        status: 'registered'
+      }
+    );
+
+    // Emit system event for reception activity
+    await emitSystemEvent(
+      SocketEventTypes.SYSTEM_UPDATE,
+      {
+        severity: 'INFO',
+        message: `New walk-in devotee registered: ${user.name}`,
+        component: 'Reception',
+        status: 'registered'
+      }
+    );
+
     revalidatePath('/coordinator');
     revalidatePath('/coordinator/reception');
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       user: {
         id: user.id,
         name: user.name,
@@ -262,12 +293,41 @@ export async function createPhoneBooking(formData: FormData) {
       },
     });
 
+    // Emit appointment booking events
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CREATED,
+      appointment.id,
+      {
+        id: appointment.id,
+        userId: devotee.id,
+        gurujiId: validatedData.gurujiId,
+        date: appointmentDate.toISOString().split('T')[0],
+        time: appointmentDate.toLocaleTimeString(),
+        status: appointment.status,
+        reason: appointment.reason || '',
+        priority: appointment.priority
+      }
+    );
+
+    await emitNotificationEvent(
+      SocketEventTypes.NOTIFICATION_SENT,
+      appointment.id,
+      {
+        id: appointment.id,
+        title: 'Phone Appointment Booked',
+        message: `Appointment scheduled for ${appointmentDate.toLocaleString()}`,
+        type: 'appointment',
+        read: false,
+        userId: devotee.id
+      }
+    );
+
     revalidatePath('/coordinator');
     revalidatePath('/coordinator/appointments');
     revalidatePath('/guruji/appointments');
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       appointment: {
         id: appointment.id,
         devoteeName: devotee.name,
@@ -461,12 +521,38 @@ export async function createEmergencyQueueEntry(formData: FormData) {
       },
     });
 
+    // Emit emergency queue events
+    await emitSystemEvent(
+      SocketEventTypes.SYSTEM_UPDATE,
+      {
+        severity: 'ERROR',
+        message: `🚨 EMERGENCY: ${validatedData.devoteeName} - ${validatedData.emergencyNature}`,
+        component: 'Emergency Queue',
+        status: 'emergency_added'
+      }
+    );
+
+    if (validatedData.gurujiId) {
+      await emitQueueEvent(
+        SocketEventTypes.QUEUE_ENTRY_ADDED,
+        queueEntry.id,
+        {
+          id: queueEntry.id,
+          position: queueEntry.position,
+          status: queueEntry.status,
+          estimatedWait: queueEntry.estimatedWait || 0,
+          priority: queueEntry.priority,
+          appointmentId: appointment?.id
+        }
+      );
+    }
+
     revalidatePath('/coordinator');
     revalidatePath('/coordinator/queue');
     revalidatePath('/guruji/queue');
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       queueEntry: {
         id: queueEntry.id,
         devoteeName: devotee.name,

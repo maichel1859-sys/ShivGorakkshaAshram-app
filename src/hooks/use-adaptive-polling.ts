@@ -14,6 +14,11 @@ export interface PollingConfig {
     CONSULTATION?: number;
     BACKGROUND?: number;
   };
+  // Enhanced fallback options
+  fallbackMode?: boolean;
+  networkAware?: boolean;
+  retryOnError?: boolean;
+  maxRetries?: number;
 }
 
 // Default adaptive polling intervals based on user state
@@ -26,10 +31,20 @@ const DEFAULT_ADAPTIVE_INTERVALS = {
 } as const;
 
 export function useAdaptivePolling(config: PollingConfig) {
-  const { enabled, interval, onPoll, onError, adaptiveIntervals = DEFAULT_ADAPTIVE_INTERVALS } = config;
-  
+  const {
+    enabled,
+    interval,
+    onPoll,
+    onError,
+    adaptiveIntervals = DEFAULT_ADAPTIVE_INTERVALS,
+    retryOnError = true,
+    maxRetries = 3
+  } = config;
+
   const [isPolling, setIsPolling] = useState(false);
   const [currentInterval, setCurrentInterval] = useState(interval);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastError, setLastError] = useState<Error | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isVisibleRef = useRef(true);
 
@@ -58,13 +73,38 @@ export function useAdaptivePolling(config: PollingConfig) {
     try {
       setIsPolling(true);
       await onPoll();
+
+      // Reset retry count on successful poll
+      if (retryCount > 0) {
+        setRetryCount(0);
+        setLastError(null);
+      }
     } catch (error) {
-      console.error('Polling error:', error);
-      onError?.(error instanceof Error ? error : new Error('Unknown polling error'));
+      const pollError = error instanceof Error ? error : new Error('Unknown polling error');
+      setLastError(pollError);
+
+      console.warn(`🔌 Polling error (attempt ${retryCount + 1}/${maxRetries}):`, pollError.message);
+
+      if (retryOnError && retryCount < maxRetries) {
+        setRetryCount(prev => prev + 1);
+
+        // Exponential backoff for retries
+        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+
+        setTimeout(() => {
+          if (enabled && isVisibleRef.current) {
+            executePoll();
+          }
+        }, retryDelay);
+      } else {
+        // Max retries reached or retry disabled
+        onError?.(pollError);
+        setRetryCount(0);
+      }
     } finally {
       setIsPolling(false);
     }
-  }, [enabled, onPoll, onError]);
+  }, [enabled, onPoll, onError, retryOnError, retryCount, maxRetries]);
 
   // Method to update polling interval based on user state
   const updatePollingInterval = useCallback((userState?: 'IDLE' | 'WAITING' | 'NEAR_FRONT' | 'CONSULTATION') => {
@@ -145,6 +185,15 @@ export function useAdaptivePolling(config: PollingConfig) {
     stopPolling,
     restartPolling,
     updateInterval,
+    // Enhanced status information
+    retryCount,
+    lastError,
+    isRetrying: retryCount > 0,
+    health: {
+      isHealthy: retryCount === 0 && !lastError,
+      errorRate: retryCount / maxRetries,
+      lastSuccessfulPoll: retryCount === 0 ? Date.now() : null,
+    },
     updatePollingInterval,
     getAdaptiveInterval,
   };

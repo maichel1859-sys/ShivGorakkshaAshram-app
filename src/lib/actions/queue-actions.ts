@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import {
@@ -15,6 +15,12 @@ import {
   getCachedUserQueueStatus, 
   getCachedGurujiQueueEntries 
 } from '@/lib/services/queue.service';
+import { 
+  emitQueueEvent,
+  emitConsultationEvent,
+  emitAppointmentEvent,
+  SocketEventTypes 
+} from '@/lib/socket/socket-emitter';
 
 // Types for action responses
 type ActionSuccess<T = Record<string, unknown>> = {
@@ -302,6 +308,22 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
       },
     });
 
+    // Emit queue entry updated event
+    await emitQueueEvent(
+      SocketEventTypes.QUEUE_ENTRY_UPDATED,
+      updatedEntry.id,
+      {
+        id: updatedEntry.id,
+        position: updatedEntry.position,
+        status: updatedEntry.status,
+        estimatedWait: updatedEntry.estimatedWait || undefined,
+        priority: updatedEntry.priority,
+        appointmentId: updatedEntry.appointmentId
+      },
+      updatedEntry.userId,
+      updatedEntry.gurujiId || undefined
+    );
+
     // Create notification for devotee
     let notificationMessage = '';
     switch (data.status) {
@@ -383,44 +405,21 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
           });
           console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to COMPLETED`);
 
-          // Broadcast appointment update via socket
-          try {
-            const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                event: 'appointment_update',
-                data: {
-                  appointmentId: updatedAppointment.id,
-                  status: 'COMPLETED',
-                  appointment: updatedAppointment,
-                  action: 'completed',
-                  timestamp: new Date().toISOString(),
-                  gurujiId: queueEntry.gurujiId,
-                  userId: queueEntry.userId,
-                },
-                rooms: [
-                  `guruji:${queueEntry.gurujiId}`,
-                  `user:${queueEntry.userId}`,
-                  'appointments',
-                  'admin',
-                  'coordinator',
-                  'global',
-                ],
-              }),
-            });
-
-            if (socketResponse.ok) {
-              console.log(`🔌 Broadcasted appointment completion via socket`);
-            } else {
-              console.warn(`🔌 Failed to broadcast appointment completion:`, await socketResponse.text());
+          // Emit appointment completed event
+          await emitAppointmentEvent(
+            SocketEventTypes.APPOINTMENT_COMPLETED,
+            updatedAppointment.id,
+            {
+              id: updatedAppointment.id,
+              userId: updatedAppointment.userId,
+              gurujiId: updatedAppointment.gurujiId || '',
+              date: updatedAppointment.date.toISOString(),
+              time: updatedAppointment.startTime.toISOString(),
+              status: updatedAppointment.status,
+              priority: updatedAppointment.priority,
+              reason: updatedAppointment.reason || undefined
             }
-          } catch (socketError) {
-            console.error('🔌 Socket broadcast error:', socketError);
-            // Continue even if socket fails
-          }
+          );
         }
       }
     }
@@ -757,44 +756,34 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
       });
       console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to IN_PROGRESS`);
 
-      // Broadcast appointment update via socket
-      try {
-        const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            event: 'appointment_update',
-            data: {
-              appointmentId: updatedAppointment.id,
-              status: 'IN_PROGRESS',
-              appointment: updatedAppointment,
-              action: 'started',
-              timestamp: new Date().toISOString(),
-              gurujiId: session.user.id,
-              userId: queueEntry.userId,
-            },
-            rooms: [
-              `guruji:${session.user.id}`,
-              `user:${queueEntry.userId}`,
-              'appointments',
-              'admin',
-              'coordinator',
-              'global',
-            ],
-          }),
-        });
-
-        if (socketResponse.ok) {
-          console.log(`🔌 Broadcasted appointment start via socket`);
-        } else {
-          console.warn(`🔌 Failed to broadcast appointment start:`, await socketResponse.text());
+      // Emit appointment updated and consultation started events
+      await emitAppointmentEvent(
+        SocketEventTypes.APPOINTMENT_UPDATED,
+        updatedAppointment.id,
+        {
+          id: updatedAppointment.id,
+          userId: updatedAppointment.userId,
+          gurujiId: updatedAppointment.gurujiId || '',
+          date: updatedAppointment.date.toISOString(),
+          time: updatedAppointment.startTime.toISOString(),
+          status: updatedAppointment.status,
+          priority: updatedAppointment.priority,
+          reason: updatedAppointment.reason || undefined
         }
-      } catch (socketError) {
-        console.error('🔌 Socket broadcast error:', socketError);
-        // Continue even if socket fails
-      }
+      );
+
+      await emitConsultationEvent(
+        SocketEventTypes.CONSULTATION_STARTED,
+        consultationSession.id,
+        {
+          id: consultationSession.id,
+          startTime: consultationSession.startTime.toISOString(),
+          status: 'IN_PROGRESS',
+          appointmentId: consultationSession.appointmentId
+        },
+        consultationSession.devoteeId,
+        consultationSession.gurujiId
+      );
     }
 
     // Create notification for user
@@ -832,7 +821,7 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
 // Complete consultation
 export async function completeConsultation(formData: FormData) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
@@ -844,7 +833,8 @@ export async function completeConsultation(formData: FormData) {
 
   try {
     const queueEntryId = formData.get('queueEntryId') as string;
-    
+    const skipRemedy = formData.get('skipRemedy') === 'true';
+
     if (!queueEntryId) {
       return { success: false, error: 'Queue entry ID is required' };
     }
@@ -894,10 +884,10 @@ export async function completeConsultation(formData: FormData) {
       return { success: false, error: 'No active consultation session found' };
     }
 
-    // Check if at least one remedy has been prescribed
-    if (!consultationSession.remedies || consultationSession.remedies.length === 0) {
-      return { 
-        success: false, 
+    // Check if at least one remedy has been prescribed (skip if explicitly skipping remedies)
+    if (!skipRemedy && (!consultationSession.remedies || consultationSession.remedies.length === 0)) {
+      return {
+        success: false,
         error: 'Please prescribe at least one remedy before completing the consultation',
         requiresRemedy: true,
         consultationSessionId: consultationSession.id

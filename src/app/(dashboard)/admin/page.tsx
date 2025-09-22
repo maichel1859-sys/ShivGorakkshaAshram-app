@@ -30,88 +30,49 @@ import {
   getSystemAlerts,
 } from "@/lib/actions/dashboard-actions";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect, useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 
-interface DashboardStats {
-  totalUsers: number;
-  totalAppointments: number;
-  totalRemedies: number;
-  activeQueues: number;
-  systemHealth: 'good' | 'warning' | 'critical';
-  recentActivity: Array<{
-    id: string;
-    user: string;
-    action: string;
-    type: 'user' | 'appointment' | 'remedy' | 'system';
-    timestamp: string;
-  }>;
-}
-
-interface SystemAlerts {
-  recentErrors: Array<{
-    id: string;
-    action: string;
-    createdAt: Date;
-    userId: string | null;
-    resource: string;
-    resourceId: string | null;
-  }>;
-  failedLogins: Array<{
-    id: string;
-    createdAt: Date;
-    userId: string | null;
-    action: string;
-    resource: string;
-    resourceId: string | null;
-    ipAddress?: string | null;
-    userAgent?: string | null;
-  }>;
-  systemHealth: {
-    status: string;
-    uptime: number;
-  };
-}
 
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    totalAppointments: 0,
-    totalRemedies: 0,
-    activeQueues: 0,
-    systemHealth: 'good',
-    recentActivity: [],
-  });
-  const [systemAlerts, setSystemAlerts] = useState<SystemAlerts>({
-    recentErrors: [],
-    failedLogins: [],
-    systemHealth: { status: 'healthy', uptime: 0 },
-  });
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        const [statsResult, alertsResult] = await Promise.all([
-          getAdminDashboardStats(),
-          getSystemAlerts(),
-        ]);
-
-        if (statsResult.success && statsResult.data) {
-          setDashboardStats(statsResult.data);
-        }
-        if (alertsResult.success && alertsResult.data) {
-          setSystemAlerts(alertsResult.data);
-        }
-      } catch (error) {
-        console.error('Failed to load dashboard data:', error);
-      } finally {
-        setIsLoading(false);
+  // React Query hooks for dashboard data
+  const {
+    data: dashboardStats,
+    isLoading: statsLoading,
+    error: statsError
+  } = useQuery({
+    queryKey: ['admin-dashboard-stats'],
+    queryFn: async () => {
+      const result = await getAdminDashboardStats();
+      if (!result.success) {
+        throw new Error(result.error);
       }
-    };
+      return result.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+  });
 
-    loadDashboardData();
-  }, []);
+  const {
+    data: systemAlerts,
+    isLoading: alertsLoading,
+    error: alertsError
+  } = useQuery({
+    queryKey: ['system-alerts'],
+    queryFn: async () => {
+      const result = await getSystemAlerts();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 15 * 1000, // Refetch every 15 seconds
+  });
+
+  const isLoading = statsLoading || alertsLoading;
+  const hasError = statsError || alertsError;
 
   if (isLoading) {
     return (
@@ -119,6 +80,19 @@ export default function AdminDashboardPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">{t('common.loading', 'Loading...')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <XCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
+          <p className="text-muted-foreground">
+            {t('common.error', 'Error loading dashboard data')}
+          </p>
         </div>
       </div>
     );

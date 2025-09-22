@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/core/auth";
+import { authOptions } from "@/lib/auth/auth";
 import { getCoordinatorAppointments } from "@/lib/actions/appointment-actions";
 import { CoordinatorAppointmentsClient } from "@/components/client/coordinator-appointments-client";
 import { AppointmentsSkeleton } from "./appointments-skeleton";
@@ -14,7 +14,9 @@ interface CoordinatorAppointmentsServerProps {
   };
 }
 
-async function CoordinatorAppointmentsContent({ searchParams }: CoordinatorAppointmentsServerProps) {
+async function CoordinatorAppointmentsContent({
+  searchParams,
+}: CoordinatorAppointmentsServerProps) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -22,7 +24,7 @@ async function CoordinatorAppointmentsContent({ searchParams }: CoordinatorAppoi
   }
 
   // Only coordinators and admins can access
-  if (!['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
+  if (!["COORDINATOR", "ADMIN"].includes(session.user.role)) {
     return <div>Access denied</div>;
   }
 
@@ -55,78 +57,92 @@ async function CoordinatorAppointmentsContent({ searchParams }: CoordinatorAppoi
   }
 
   // Transform appointments to match the expected interface
-  const transformedAppointments = (result.appointments || []).map((appointment) => {
-    // Safely parse dates with fallback handling
-    const parseDate = (dateValue: unknown): Date => {
-      if (dateValue instanceof Date) return dateValue;
-      if (typeof dateValue === 'string' && dateValue) {
-        const parsed = new Date(dateValue);
-        return isNaN(parsed.getTime()) ? new Date() : parsed;
-      }
-      return new Date();
-    };
+  const transformedAppointments = (result.appointments || []).map(
+    (appointment) => {
+      // Safely parse dates with fallback handling
+      const parseDate = (dateValue: unknown): Date => {
+        if (dateValue instanceof Date) return dateValue;
+        if (typeof dateValue === "string" && dateValue) {
+          const parsed = new Date(dateValue);
+          return isNaN(parsed.getTime()) ? new Date() : parsed;
+        }
+        return new Date();
+      };
 
-    const parseStringDate = (dateValue: unknown): string => {
-      if (dateValue instanceof Date) return dateValue.toISOString().split("T")[0];
-      if (typeof dateValue === 'string' && dateValue) {
-        const parsed = new Date(dateValue);
-        return isNaN(parsed.getTime()) ? new Date().toISOString().split("T")[0] : parsed.toISOString().split("T")[0];
-      }
-      return new Date().toISOString().split("T")[0];
-    };
+      const parseStringDate = (dateValue: unknown): string => {
+        if (dateValue instanceof Date)
+          return dateValue.toISOString().split("T")[0];
+        if (typeof dateValue === "string" && dateValue) {
+          const parsed = new Date(dateValue);
+          return isNaN(parsed.getTime())
+            ? new Date().toISOString().split("T")[0]
+            : parsed.toISOString().split("T")[0];
+        }
+        return new Date().toISOString().split("T")[0];
+      };
 
-    const parseISOString = (dateValue: unknown): string => {
-      if (dateValue instanceof Date) return dateValue.toISOString();
-      if (typeof dateValue === 'string' && dateValue) {
-        const parsed = new Date(dateValue);
-        return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
-      }
-      return new Date().toISOString();
-    };
+      const parseISOString = (dateValue: unknown): string => {
+        if (dateValue instanceof Date) return dateValue.toISOString();
+        if (typeof dateValue === "string" && dateValue) {
+          const parsed = new Date(dateValue);
+          return isNaN(parsed.getTime())
+            ? new Date().toISOString()
+            : parsed.toISOString();
+        }
+        return new Date().toISOString();
+      };
 
-    return {
-      id: appointment.id,
-      date: parseStringDate(appointment.date),
-      status: appointment.status,
-      priority: appointment.priority || "NORMAL",
-      reason: appointment.reason || undefined,
-      startTime: parseDate(appointment.startTime),
-      endTime: parseDate(appointment.endTime),
-      notes: appointment.notes || undefined,
-      checkedInAt: appointment.checkedInAt,
-      createdAt: parseISOString(appointment.createdAt),
-      updatedAt: parseISOString(appointment.updatedAt),
-      user: {
-        id: appointment.user.id,
-        name: appointment.user.name || "",
-        email: appointment.user.email || "",
-        phone: appointment.user.phone || "",
-      },
-      guruji: appointment.guruji ? {
-        id: appointment.guruji.id,
-        name: appointment.guruji.name || "",
-      } : undefined,
-    };
-  });
+      return {
+        id: appointment.id,
+        date: parseStringDate(appointment.date),
+        status: appointment.status,
+        priority: appointment.priority || "NORMAL",
+        reason: appointment.reason || undefined,
+        startTime: parseDate(appointment.startTime),
+        endTime: parseDate(appointment.endTime),
+        notes: appointment.notes || undefined,
+        checkedInAt: appointment.checkedInAt,
+        createdAt: parseISOString(appointment.createdAt),
+        updatedAt: parseISOString(appointment.updatedAt),
+        user: {
+          id: appointment.user.id,
+          name: appointment.user.name || "",
+          email: appointment.user.email || "",
+          phone: appointment.user.phone || "",
+        },
+        guruji: appointment.guruji
+          ? {
+              id: appointment.guruji.id,
+              name: appointment.guruji.name || "",
+            }
+          : undefined,
+      };
+    }
+  );
 
   // Filter appointments based on search params (server-side filtering)
   let filteredAppointments = transformedAppointments;
 
   if (search) {
-    filteredAppointments = filteredAppointments.filter(apt =>
-      apt.user.name.toLowerCase().includes(search.toLowerCase()) ||
-      apt.user.email.toLowerCase().includes(search.toLowerCase()) ||
-      (apt.user.phone && apt.user.phone.includes(search))
+    filteredAppointments = filteredAppointments.filter(
+      (apt) =>
+        apt.user.name.toLowerCase().includes(search.toLowerCase()) ||
+        apt.user.email.toLowerCase().includes(search.toLowerCase()) ||
+        (apt.user.phone && apt.user.phone.includes(search))
     );
   }
 
   if (status && status !== "all") {
-    filteredAppointments = filteredAppointments.filter(apt => apt.status === status);
+    filteredAppointments = filteredAppointments.filter(
+      (apt) => apt.status === status
+    );
   }
 
   if (date === "today") {
     const today = new Date().toISOString().split("T")[0];
-    filteredAppointments = filteredAppointments.filter(apt => apt.date === today);
+    filteredAppointments = filteredAppointments.filter(
+      (apt) => apt.date === today
+    );
   }
 
   // Ensure we have the correct data structure
@@ -144,7 +160,9 @@ async function CoordinatorAppointmentsContent({ searchParams }: CoordinatorAppoi
   );
 }
 
-export function CoordinatorAppointmentsServer(props: CoordinatorAppointmentsServerProps) {
+export function CoordinatorAppointmentsServer(
+  props: CoordinatorAppointmentsServerProps
+) {
   return (
     <Suspense fallback={<AppointmentsSkeleton />}>
       <CoordinatorAppointmentsContent {...props} />

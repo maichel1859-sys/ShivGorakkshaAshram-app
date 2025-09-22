@@ -2,13 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import {
   notificationSchema
 } from '@/lib/validation/unified-schemas';
+import { 
+  emitNotificationEvent,
+  SocketEventTypes 
+} from '@/lib/socket/socket-emitter';
 
 // Use unified schemas
 const createNotificationSchema = notificationSchema;
@@ -110,6 +114,26 @@ export async function markNotificationAsRead(formData: FormData) {
       data: { read: true },
     });
 
+    // Emit notification read event
+    try {
+      await emitNotificationEvent(
+        SocketEventTypes.NOTIFICATION_READ,
+        notification.id,
+        {
+          id: notification.id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          read: true,
+          userId: session.user.id
+        }
+      );
+      console.log(`🔌 Emitted notification read event`);
+    } catch (socketError) {
+      console.error('🔌 Socket emit error:', socketError);
+      // Continue even if socket fails
+    }
+
     revalidatePath('/user/notifications');
     
     return { success: true };
@@ -178,6 +202,26 @@ export async function deleteNotification(formData: FormData) {
       where: { id: notificationId },
     });
 
+    // Emit notification deleted event
+    try {
+      await emitNotificationEvent(
+        SocketEventTypes.NOTIFICATION_DELETED,
+        notification.id,
+        {
+          id: notification.id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          read: notification.read,
+          userId: session.user.id
+        }
+      );
+      console.log(`🔌 Emitted notification deleted event`);
+    } catch (socketError) {
+      console.error('🔌 Socket emit error:', socketError);
+      // Continue even if socket fails
+    }
+
     revalidatePath('/user/notifications');
     
     return { success: true };
@@ -244,49 +288,23 @@ export async function createNotification(formData: FormData) {
       },
     });
 
-    // Broadcast notification creation to all stakeholders
+    // Emit notification creation event
     try {
-      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event: 'notification_created',
-          data: {
-            notificationId: notification.id,
-            notification: notification,
-            action: 'created',
-            timestamp: new Date().toISOString(),
-            targetUser: {
-              id: data.userId,
-            },
-            createdBy: {
-              id: session.user.id,
-              role: session.user.role,
-              name: session.user.name
-            },
-            type: data.type,
-            title: data.title,
-            message: data.message,
-          },
-          rooms: [
-            'notifications',
-            'admin',
-            'coordinator',
-            `user:${data.userId}`,
-            'global',
-          ],
-        }),
-      });
-
-      if (socketResponse.ok) {
-        console.log(`🔌 Broadcasted notification creation to all stakeholders`);
-      } else {
-        console.warn(`🔌 Failed to broadcast notification creation:`, await socketResponse.text());
-      }
+      await emitNotificationEvent(
+        SocketEventTypes.NOTIFICATION_SENT,
+        notification.id,
+        {
+          id: notification.id,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          read: notification.read,
+          userId: data.userId
+        }
+      );
+      console.log(`🔌 Emitted notification creation event`);
     } catch (socketError) {
-      console.error('🔌 Socket broadcast error:', socketError);
+      console.error('🔌 Socket emit error:', socketError);
       // Continue even if socket fails
     }
 

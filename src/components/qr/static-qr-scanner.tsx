@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { processQRScanSimple } from '@/lib/actions/qr-scan-actions-simple';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast';
 import { getCurrentLocation } from '@/lib/utils/geolocation';
+import QrScanner from 'qr-scanner';
 
 interface QRScanResult {
   success: boolean;
@@ -31,7 +32,8 @@ export default function StaticQRScanner() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // const streamRef = useRef<MediaStream | null>(null); // Unused with QR scanner library
+  const qrScannerRef = useRef<QrScanner | null>(null);
   const router = useRouter();
 
   // Get user location on component mount
@@ -71,63 +73,7 @@ export default function StaticQRScanner() {
     getLocation();
   }, []);
 
-  // Initialize camera
-  useEffect(() => {
-    if (isScanning) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-
-    return () => {
-      stopCamera();
-    };
-  }, [isScanning]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-      }
-    } catch (err) {
-      console.error('Error accessing camera:', err);
-      setError('Unable to access camera. Please check permissions.');
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  // Note: captureFrame is currently unused but may be needed for future QR processing
-  // const captureFrame = (): string | null => {
-  //   if (!videoRef.current || !canvasRef.current) return null;
-
-  //   const video = videoRef.current;
-  //   const canvas = canvasRef.current;
-  //   const context = canvas.getContext('2d');
-
-  //   if (!context) return null;
-
-  //   canvas.width = video.videoWidth;
-  //   canvas.height = video.videoHeight;
-  //   context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  //   return canvas.toDataURL('image/jpeg');
-  // };
-
-  const processQRCode = async (qrData: string) => {
+  const processQRCode = useCallback(async (qrData: string) => {
     setIsProcessing(true);
     setError(null);
     setScanResult(null);
@@ -153,7 +99,64 @@ export default function StaticQRScanner() {
     } finally {
       setIsProcessing(false);
     }
+  }, [userLocation, router]);
+
+  const startCamera = useCallback(async () => {
+    try {
+      if (!videoRef.current) {
+        setError('Video element not available');
+        return;
+      }
+
+      // Initialize QR scanner
+      qrScannerRef.current = new QrScanner(
+        videoRef.current,
+        (result) => {
+          // Auto-process detected QR code
+          setIsScanning(false);
+          processQRCode(result.data);
+        },
+        {
+          onDecodeError: (err) => {
+            // Ignore decode errors - this is normal when scanning
+            console.debug('QR decode attempt:', err);
+          },
+          preferredCamera: 'environment', // Use back camera on mobile
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          returnDetailedScanResult: true,
+        }
+      );
+
+      await qrScannerRef.current.start();
+      setError(null);
+    } catch (err) {
+      console.error('Error starting QR scanner:', err);
+      setError('Unable to access camera. Please check permissions and try again.');
+    }
+  }, [processQRCode]);
+
+  const stopCamera = () => {
+    if (qrScannerRef.current) {
+      qrScannerRef.current.stop();
+      qrScannerRef.current.destroy();
+      qrScannerRef.current = null;
+    }
   };
+
+  // Initialize camera
+  useEffect(() => {
+    if (isScanning) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+
+    return () => {
+      stopCamera();
+    };
+  }, [isScanning, startCamera]);
+
 
   const handleManualQRInput = () => {
     const qrData = prompt(
@@ -169,11 +172,6 @@ export default function StaticQRScanner() {
     }
   };
 
-  // Note: handleScanSuccess is currently unused but may be needed for future QR processing
-  // const handleScanSuccess = (qrData: string) => {
-  //   setIsScanning(false);
-  //   processQRCode(qrData);
-  // };
 
   const resetScanner = () => {
     setScanResult(null);
@@ -413,20 +411,16 @@ export default function StaticQRScanner() {
                   ref={canvasRef}
                   className="hidden"
                 />
-                {/* Scanning overlay */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="border-2 border-white rounded-lg p-4">
-                    <div className="w-48 h-48 border-2 border-white rounded-lg relative">
-                      <div className="absolute inset-0 border-2 border-green-400 rounded-lg animate-pulse"></div>
-                    </div>
-                  </div>
-                </div>
+                {/* QR Scanner automatically adds highlighting overlay */}
               </div>
             ) : (
               <div className="bg-muted rounded-lg h-64 flex items-center justify-center">
                 <div className="text-center">
                   <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">Camera not active</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Click &quot;Start Scanner&quot; to begin QR code detection
+                  </p>
                 </div>
               </div>
             )}

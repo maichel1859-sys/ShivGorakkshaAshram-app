@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,110 +21,22 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/loading";
-import { getRemedyDetails } from "@/lib/actions/remedy-management-actions";
+import { useRemedyDocument } from "@/hooks/queries/use-remedies";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-interface RemedyTemplate {
-  id: string;
-  name: string;
-  type: string;
-  category: string;
-  description?: string | null;
-  instructions: string;
-  dosage?: string | null;
-  duration?: string | null;
-  tags: string[];
-}
-
-interface RemedyDocument {
-  id: string;
-  template: RemedyTemplate;
-  customInstructions?: string | null;
-  customDosage?: string | null;
-  customDuration?: string | null;
-  createdAt: string;
-}
-
-interface ConsultationSession {
-  id: string;
-  devotee: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string | null;
-  };
-  appointment: {
-    id: string;
-    date: string;
-    startTime: string;
-    reason?: string | null;
-  };
-}
 
 export default function UserRemedyDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const [remedy, setRemedy] = useState<RemedyDocument | null>(null);
-  const [consultation, setConsultation] = useState<ConsultationSession | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
+  const remedyId = params.remedyId as string;
 
-  const fetchRemedyDetails = useCallback(async (remedyId: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const result = await getRemedyDetails(remedyId);
-      
-      if (result.success && result.remedy) {
-        // Transform to match local interface
-        const transformedRemedy: RemedyDocument = {
-          id: result.remedy.id,
-          template: result.remedy.template,
-          customInstructions: result.remedy.customInstructions,
-          customDosage: result.remedy.customDosage,
-          customDuration: result.remedy.customDuration,
-          createdAt: result.remedy.createdAt instanceof Date ? result.remedy.createdAt.toISOString() : result.remedy.createdAt,
-        };
-        // Transform consultation session to match local interface
-        const transformedConsultation: ConsultationSession = {
-          id: result.remedy.consultationSession.id,
-          devotee: {
-            id: result.remedy.consultationSession.devotee.id,
-            name: result.remedy.consultationSession.devotee.name || '',
-            email: result.remedy.consultationSession.devotee.email || '',
-            phone: result.remedy.consultationSession.devotee.phone,
-          },
-          appointment: {
-            id: result.remedy.consultationSession.appointment.id,
-            date: result.remedy.consultationSession.appointment.date instanceof Date 
-              ? result.remedy.consultationSession.appointment.date.toISOString()
-              : result.remedy.consultationSession.appointment.date,
-            startTime: result.remedy.consultationSession.appointment.startTime instanceof Date 
-              ? result.remedy.consultationSession.appointment.startTime.toISOString()
-              : result.remedy.consultationSession.appointment.startTime,
-            reason: result.remedy.consultationSession.appointment.reason,
-          },
-        };
-        setRemedy(transformedRemedy);
-        setConsultation(transformedConsultation);
-      } else {
-        setError(result.error || 'Failed to fetch remedy details');
-        toast.error(result.error || 'Failed to fetch remedy details');
-      }
-    } catch (error) {
-      console.error('Error fetching remedy details:', error);
-      setError('An unexpected error occurred');
-      toast.error('Failed to load remedy details');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: remedy, isLoading, error } = useRemedyDocument(remedyId);
 
-  useEffect(() => {
-    if (params.remedyId) {
-      fetchRemedyDetails(params.remedyId as string);
-    }
-  }, [params.remedyId, fetchRemedyDetails]);
+  if (error) {
+    console.error('Error fetching remedy details:', error);
+    toast.error(t('remedies.failedToLoad', 'Failed to load remedy details'));
+  }
 
   const handleDownload = () => {
     if (remedy?.template) {
@@ -144,7 +56,7 @@ Dosage: ${remedy.customDosage || remedy.template.dosage || 'As prescribed'}
 Duration: ${remedy.customDuration || remedy.template.duration || 'As needed'}
 
 Prescribed on: ${new Date(remedy.createdAt).toLocaleDateString()}
-Guruji: ${consultation?.devotee.name || 'N/A'}
+Guruji: ${remedy.consultationSession?.appointment?.guruji?.name || 'N/A'}
 
 Om Shanti 🙏
       `.trim();
@@ -167,7 +79,7 @@ Om Shanti 🙏
     return <PageSpinner message="Loading remedy details..." />;
   }
 
-  if (error || !remedy) {
+  if (error && !isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
@@ -176,7 +88,29 @@ Om Shanti 🙏
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">Error Loading Remedy</h2>
               <p className="text-muted-foreground mb-4">
-                {error || 'Remedy not found'}
+                {error?.message || t('remedies.notFound', 'Remedy not found')}
+              </p>
+              <Button onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!remedy && !isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Remedy Not Found</h2>
+              <p className="text-muted-foreground mb-4">
+                {t('remedies.notFound', 'Remedy not found')}
               </p>
               <Button onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -240,17 +174,17 @@ Om Shanti 🙏
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-lg font-semibold mb-2">
-                        {remedy.template.name}
+                        {remedy?.template?.name}
                       </h3>
                       <div className="flex flex-wrap gap-2 mb-3">
                         <Badge variant="secondary">
-                          {remedy.template.type}
+                          {remedy?.template?.type}
                         </Badge>
                         <Badge variant="outline">
-                          {remedy.template.category}
+                          {remedy?.template?.category}
                         </Badge>
                       </div>
-                      {remedy.template.description && (
+                      {remedy?.template?.description && (
                         <p className="text-muted-foreground">
                           {remedy.template.description}
                         </p>
@@ -268,7 +202,7 @@ Om Shanti 🙏
                     </h4>
                     <div className="bg-muted/50 p-4 rounded-lg">
                       <p className="text-sm">
-                        {remedy.customInstructions || remedy.template.instructions}
+                        {remedy?.customInstructions || remedy?.template?.instructions}
                       </p>
                     </div>
                   </div>
@@ -279,7 +213,7 @@ Om Shanti 🙏
                       <h4 className="font-semibold">Dosage</h4>
                       <div className="bg-muted/50 p-3 rounded-lg">
                         <p className="text-sm">
-                          {remedy.customDosage || remedy.template.dosage || 'As prescribed'}
+                          {remedy?.customDosage || remedy?.template?.dosage || 'As prescribed'}
                         </p>
                       </div>
                     </div>
@@ -287,14 +221,14 @@ Om Shanti 🙏
                       <h4 className="font-semibold">Duration</h4>
                       <div className="bg-muted/50 p-3 rounded-lg">
                         <p className="text-sm">
-                          {remedy.customDuration || remedy.template.duration || 'As needed'}
+                          {remedy?.customDuration || remedy?.template?.duration || 'As needed'}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Tags */}
-                  {remedy.template.tags && remedy.template.tags.length > 0 && (
+                  {remedy?.template?.tags && remedy.template.tags.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="font-semibold">Tags</h4>
                       <div className="flex flex-wrap gap-2">
@@ -321,7 +255,7 @@ Om Shanti 🙏
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {consultation && (
+                {remedy?.consultationSession && (
                   <div className="grid grid-cols-1 gap-6">
                     {/* Devotee Info */}
                     <div className="space-y-3">
@@ -330,20 +264,20 @@ Om Shanti 🙏
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Name:</strong> {consultation.devotee.name}
+                            <strong>Name:</strong> {remedy.consultationSession?.appointment?.user?.name}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Email:</strong> {consultation.devotee.email}
+                            <strong>Email:</strong> {remedy.consultationSession?.appointment?.user?.email}
                           </span>
                         </div>
-                        {consultation.devotee.phone && (
+                        {remedy.consultationSession?.appointment?.user?.phone && (
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm">
-                              <strong>Phone:</strong> {consultation.devotee.phone}
+                              <strong>Phone:</strong> {remedy.consultationSession.appointment.user.phone}
                             </span>
                           </div>
                         )}
@@ -359,19 +293,19 @@ Om Shanti 🙏
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Date:</strong> {new Date(consultation.appointment.date).toLocaleDateString()}
+                            <strong>Date:</strong> {remedy.consultationSession?.appointment?.date ? new Date(remedy.consultationSession.appointment.date).toLocaleDateString() : 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Time:</strong> {consultation.appointment.startTime}
+                            <strong>Time:</strong> {remedy.consultationSession?.appointment?.startTime ? new Date(remedy.consultationSession.appointment.startTime).toLocaleTimeString() : 'N/A'}
                           </span>
                         </div>
-                        {consultation.appointment.reason && (
+                        {remedy.consultationSession?.appointment?.reason && (
                           <div className="md:col-span-2">
                             <span className="text-sm">
-                              <strong>Reason:</strong> {consultation.appointment.reason}
+                              <strong>Reason:</strong> {remedy.consultationSession.appointment.reason}
                             </span>
                           </div>
                         )}

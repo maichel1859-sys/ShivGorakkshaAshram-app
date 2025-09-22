@@ -1,11 +1,16 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { revalidatePath } from 'next/cache';
 import { validateLocationQRData } from '@/lib/utils/qr-validation';
 import { calculateDistance } from '@/lib/utils/geolocation';
+import {
+  emitQueueEvent,
+  emitAppointmentEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 interface QRScanData {
   locationId: string; // e.g., "GURUJI_LOC_001"
@@ -205,6 +210,37 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
       }
     });
 
+    // Emit real-time socket events for queue and appointment updates
+    await emitQueueEvent(
+      SocketEventTypes.QUEUE_ENTRY_ADDED,
+      queueEntry.id,
+      {
+        id: queueEntry.id,
+        position: queueEntry.position,
+        status: queueEntry.status,
+        estimatedWait: queueEntry.estimatedWait || 0,
+        priority: queueEntry.priority,
+        appointmentId: appointment.id
+      }
+    );
+
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CHECKED_IN,
+      appointment.id,
+      {
+        id: appointment.id,
+        userId: session.user.id,
+        gurujiId: appointment.gurujiId || '',
+        date: appointment.date.toISOString().split('T')[0],
+        time: appointment.startTime.toLocaleTimeString(),
+        status: 'CHECKED_IN',
+        reason: appointment.reason || '',
+        priority: appointment.priority,
+        position: queuePosition,
+        estimatedWait: estimatedWaitMinutes
+      }
+    );
+
     console.log(`✅ QR Scan successful - User: ${session.user.id}, Queue Position: ${queuePosition}, Wait Time: ${estimatedWaitMinutes} minutes`);
 
     revalidatePath('/user/queue');
@@ -282,7 +318,7 @@ export async function getUserQueueStatusSimple() {
 /**
  * Generate static QR code data for a location
  */
-export async function generateLocationQRData(locationId: string, locationName: string): Promise<string> {
+export async function generateLocationQRDataSimple(locationId: string, locationName: string): Promise<string> {
   const qrData: QRScanData = {
     locationId,
     locationName,

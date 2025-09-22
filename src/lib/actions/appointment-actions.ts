@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { AppointmentStatus } from '@prisma/client';
 import { z } from 'zod';
@@ -10,6 +10,10 @@ import {
   appointmentBookingSchema,
   getValidationErrors
 } from '@/lib/validation/unified-schemas';
+import {
+  emitAppointmentEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 // Use unified schemas for consistency
 const appointmentSchema = appointmentBookingSchema;
@@ -303,59 +307,21 @@ export async function bookAppointment(formData: FormData) {
       },
     });
 
-    // Broadcast appointment booking to all stakeholders
-    try {
-      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event: 'appointment_booking',
-          data: {
-            appointmentId: appointment.id,
-            status: 'BOOKED',
-            appointment: appointment,
-            action: 'booked',
-            timestamp: new Date().toISOString(),
-            user: {
-              id: appointment.userId,
-              name: appointment.user.name,
-              email: appointment.user.email,
-              phone: appointment.user.phone
-            },
-            guruji: {
-              id: appointment.gurujiId,
-              name: appointment.guruji?.name || 'Unknown',
-              email: appointment.guruji?.email
-            },
-            appointmentDate: appointment.date,
-            appointmentTime: appointment.startTime,
-            reason: appointment.reason,
-            priority: appointment.priority,
-            isRecurring: appointment.isRecurring,
-          },
-          rooms: [
-            'appointments',
-            'admin',
-            'coordinator',
-            `guruji:${appointment.gurujiId}`,
-            `user:${appointment.userId}`,
-            'notifications',
-            'global',
-          ],
-        }),
-      });
-
-      if (socketResponse.ok) {
-        console.log(`🔌 Broadcasted appointment booking to all stakeholders`);
-      } else {
-        console.warn(`🔌 Failed to broadcast appointment booking:`, await socketResponse.text());
+    // Emit appointment created event to all stakeholders
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CREATED,
+      appointment.id,
+      {
+        id: appointment.id,
+        userId: appointment.userId,
+        gurujiId: appointment.gurujiId || '',
+        date: appointment.date.toISOString(),
+        time: appointment.startTime.toISOString(),
+        status: appointment.status,
+        priority: appointment.priority,
+        reason: appointment.reason || undefined
       }
-    } catch (socketError) {
-      console.error('🔌 Socket broadcast error:', socketError);
-      // Continue even if socket fails
-    }
+    );
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
@@ -431,57 +397,21 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
       },
     });
 
-    // Broadcast appointment cancellation to all stakeholders
-    try {
-      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event: 'appointment_cancellation',
-          data: {
-            appointmentId: updatedAppointment.id,
-            status: 'CANCELLED',
-            appointment: updatedAppointment,
-            action: 'cancelled',
-            timestamp: new Date().toISOString(),
-            user: {
-              id: updatedAppointment.userId,
-              name: updatedAppointment.user.name,
-              email: updatedAppointment.user.email
-            },
-            guruji: {
-              id: updatedAppointment.gurujiId,
-              name: updatedAppointment.guruji?.name || 'Unknown',
-              email: updatedAppointment.guruji?.email
-            },
-            appointmentDate: updatedAppointment.date,
-            appointmentTime: updatedAppointment.startTime,
-            reason: reason,
-            cancelledBy: session.user.role,
-          },
-          rooms: [
-            'appointments',
-            'admin',
-            'coordinator',
-            `guruji:${updatedAppointment.gurujiId}`,
-            `user:${updatedAppointment.userId}`,
-            'notifications',
-            'global',
-          ],
-        }),
-      });
-
-      if (socketResponse.ok) {
-        console.log(`🔌 Broadcasted appointment cancellation to all stakeholders`);
-      } else {
-        console.warn(`🔌 Failed to broadcast appointment cancellation:`, await socketResponse.text());
+    // Emit appointment cancelled event to all stakeholders
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CANCELLED,
+      updatedAppointment.id,
+      {
+        id: updatedAppointment.id,
+        userId: updatedAppointment.userId,
+        gurujiId: updatedAppointment.gurujiId || '',
+        date: updatedAppointment.date.toISOString(),
+        time: updatedAppointment.startTime.toISOString(),
+        status: updatedAppointment.status,
+        priority: updatedAppointment.priority,
+        reason: reason || undefined
       }
-    } catch (socketError) {
-      console.error('🔌 Socket broadcast error:', socketError);
-      // Continue even if socket fails
-    }
+    );
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
@@ -551,7 +481,7 @@ export async function rescheduleAppointment(appointmentId: string, formData: For
 
     const newEndTime = new Date(newDateTime.getTime() + 30 * 60000);
 
-    await prisma.appointment.update({
+    const updatedAppointment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
         date: newDateTime,
@@ -559,7 +489,39 @@ export async function rescheduleAppointment(appointmentId: string, formData: For
         endTime: newEndTime,
         status: 'BOOKED', // Reset to booked if it was confirmed
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    // Emit appointment rescheduled event to all stakeholders
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_RESCHEDULED,
+      updatedAppointment.id,
+      {
+        id: updatedAppointment.id,
+        userId: updatedAppointment.userId,
+        gurujiId: updatedAppointment.gurujiId || '',
+        date: updatedAppointment.date.toISOString(),
+        time: updatedAppointment.startTime.toISOString(),
+        status: updatedAppointment.status,
+        priority: updatedAppointment.priority,
+        reason: updatedAppointment.reason || undefined
+      }
+    );
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
@@ -620,10 +582,42 @@ export async function updateAppointment(id: string, formData: FormData) {
       updateData.notes = notes;
     }
 
-    await prisma.appointment.update({
+    const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    // Emit appointment updated event to all stakeholders
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_UPDATED,
+      updatedAppointment.id,
+      {
+        id: updatedAppointment.id,
+        userId: updatedAppointment.userId,
+        gurujiId: updatedAppointment.gurujiId || '',
+        date: updatedAppointment.date.toISOString(),
+        time: updatedAppointment.startTime.toISOString(),
+        status: updatedAppointment.status,
+        priority: updatedAppointment.priority,
+        reason: updatedAppointment.reason || undefined
+      }
+    );
 
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
@@ -1033,13 +1027,16 @@ export async function createAppointmentForUser(formData: FormData) {
 
     // Broadcast appointment creation for user to all stakeholders
     try {
-      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
+      const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/emit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          event: 'appointment_created_for_user',
+          type: 'appointment.created',
+          appointmentId: appointment.id,
+          userId: appointment.userId,
+          gurujiId: appointment.gurujiId,
           data: {
             appointmentId: appointment.id,
             status: 'BOOKED',
@@ -1067,15 +1064,6 @@ export async function createAppointmentForUser(formData: FormData) {
               name: session.user.name
             },
           },
-          rooms: [
-            'appointments',
-            'admin',
-            'coordinator',
-            `guruji:${appointment.gurujiId}`,
-            `user:${appointment.userId}`,
-            'notifications',
-            'global',
-          ],
         }),
       });
 

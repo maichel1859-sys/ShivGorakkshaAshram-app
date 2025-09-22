@@ -8,21 +8,59 @@ import {
   updateAppointment,
   deleteAppointment,
 } from "@/lib/actions/appointment-actions";
-import { checkInWithQR, manualCheckIn } from "@/lib/actions/checkin-actions";
+import { checkInWithQR } from "@/lib/actions/checkin-actions";
+import { manualCheckIn } from "@/lib/actions/coordinator-actions";
 import { updateUserProfile } from "@/lib/actions/user-actions";
+import { Appointment, QueueEntry } from "@/types";
+
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  updatedAt: Date;
+}
 
 interface OfflineData {
-  appointments: unknown[];
-  queueEntries: unknown[];
-  userProfile: unknown;
+  appointments: Appointment[];
+  queueEntries: QueueEntry[];
+  userProfile: UserProfile | null;
   lastSync: string;
 }
+
+interface AppointmentActionData {
+  id?: string;
+  userId: string;
+  gurujiId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  reason?: string;
+  priority?: string;
+  status?: string;
+}
+
+interface CheckinActionData {
+  qrCode?: string;
+  appointmentId?: string;
+  userId?: string;
+  locationId?: string;
+}
+
+interface ProfileUpdateData {
+  name?: string;
+  phone?: string;
+  email?: string;
+}
+
+type ActionData = AppointmentActionData | CheckinActionData | ProfileUpdateData;
 
 interface PendingAction {
   id: string;
   type: "appointment" | "checkin" | "profile_update";
   action: "create" | "update" | "delete";
-  data: unknown;
+  data: ActionData;
   timestamp: string;
   retryCount: number;
 }
@@ -117,7 +155,7 @@ export function useOfflineSync() {
     (
       type: PendingAction["type"],
       action: PendingAction["action"],
-      data: unknown
+      data: ActionData
     ) => {
       const pendingAction: PendingAction = {
         id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -235,7 +273,7 @@ export function useOfflineSync() {
       let result;
 
       // Determine which checkin action to use based on data structure
-      const data = action.data as Record<string, unknown>;
+      const data = action.data as CheckinActionData;
 
       // Convert data to FormData for Server Actions
       const formData = new FormData();
@@ -248,7 +286,7 @@ export function useOfflineSync() {
       if (data.qrCode) {
         result = await checkInWithQR(formData);
       } else if (data.appointmentId) {
-        result = await manualCheckIn(formData);
+        result = await manualCheckIn(data.appointmentId, data.locationId || 'RECEPTION_001');
       } else {
         return false;
       }

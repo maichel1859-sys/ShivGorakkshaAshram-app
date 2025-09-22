@@ -1,215 +1,134 @@
+'use client';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getGurujiQueueEntries, startConsultation, completeConsultation } from '@/lib/actions/queue-actions';
-import { getGurujiConsultations } from '@/lib/actions/consultation-actions';
-import { getDevoteeContactHistory, sendDevoteeNotification } from '@/lib/actions/guruji-actions';
-import { toast } from 'sonner';
+import { useSession } from 'next-auth/react';
+import {
+  getGurujiProfile,
+  updateGurujiProfile,
+  getGurujiSchedule,
+  updateGurujiSchedule,
+  getGurujiStats
+} from '@/lib/actions/guruji-actions';
 
-// Query keys
-export const gurujiKeys = {
-  all: ['guruji'] as const,
-  queue: () => [...gurujiKeys.all, 'queue'] as const,
-  consultations: () => [...gurujiKeys.all, 'consultations'] as const,
-  remedies: () => [...gurujiKeys.all, 'remedies'] as const,
-  devotees: () => [...gurujiKeys.all, 'devotees'] as const,
-  contactHistory: (devoteeId: string) => [...gurujiKeys.all, 'contact-history', devoteeId] as const,
-};
+// Get guruji profile
+export function useGurujiProfile(gurujiId?: string) {
+  const { data: session } = useSession();
+  const targetGurujiId = gurujiId || session?.user?.id;
 
-// Hook for fetching guruji queue data
-export function useGurujiQueue() {
   return useQuery({
-    queryKey: gurujiKeys.queue(),
+    queryKey: ['guruji', 'profile', targetGurujiId],
     queryFn: async () => {
-      const result = await getGurujiQueueEntries();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch queue data');
+      if (!targetGurujiId) {
+        throw new Error('Guruji ID is required');
       }
-      
-      // Transform the data to match the expected format
-      const queueDevotees = (result.queueEntries || [])
-        .filter(entry => entry.status === 'WAITING')
-        .map(entry => ({
-          id: entry.id,
-          position: entry.position,
-          estimatedWait: entry.estimatedWait || 15,
-          status: entry.status,
-          appointment: {
-            id: entry.appointmentId,
-            reason: entry.notes || '',
-            priority: entry.priority,
-            startTime: entry.checkedInAt,
-            user: {
-              id: entry.user.id,
-              name: entry.user.name || 'Unknown',
-              age: entry.user.dateOfBirth 
-                ? Math.floor((new Date().getTime() - new Date(entry.user.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
-                : null,
-            },
-          },
-          checkedInAt: entry.checkedInAt,
-        }));
-
-      const currentDevotee = (result.queueEntries || [])
-        .find(entry => entry.status === 'IN_PROGRESS')
-        ? (() => {
-            const inProgressEntry = (result.queueEntries || []).find(entry => entry.status === 'IN_PROGRESS')!;
-            return {
-              id: inProgressEntry.id,
-              position: inProgressEntry.position,
-              estimatedWait: inProgressEntry.estimatedWait || 15,
-              status: 'IN_PROGRESS' as const,
-              appointment: {
-                id: inProgressEntry.appointmentId,
-                reason: inProgressEntry.notes || '',
-                priority: inProgressEntry.priority,
-                startTime: inProgressEntry.checkedInAt,
-                user: {
-                  id: inProgressEntry.user.id,
-                  name: inProgressEntry.user.name || 'Unknown',
-                  age: inProgressEntry.user.dateOfBirth 
-                    ? Math.floor((new Date().getTime() - new Date(inProgressEntry.user.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
-                    : null,
-                },
-            },
-            checkedInAt: inProgressEntry.checkedInAt,
-          };
-        })()
-        : null;
-
-      // Calculate stats
-      const queueEntries = result.queueEntries || [];
-      const todayTotal = queueEntries.length;
-      const todayCompleted = queueEntries.filter(entry => entry.status === 'COMPLETED').length;
-      const currentWaiting = queueEntries.filter(entry => entry.status === 'WAITING').length;
-      const averageConsultationTime = 15; // Default 15 minutes
-
-      const stats = {
-        todayTotal,
-        todayCompleted,
-        currentWaiting,
-        averageConsultationTime,
-      };
-
-      return {
-        queueDevotees,
-        currentDevotee,
-        stats,
-      };
+      const result = await getGurujiProfile(targetGurujiId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch guruji profile');
+      }
+      return result.guruji;
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    enabled: !!targetGurujiId
   });
 }
 
-// Hook for starting consultation
-export function useStartConsultation() {
+// Update guruji profile
+export function useUpdateGurujiProfile() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (queueEntryId: string) => {
-      const formData = new FormData();
-      formData.append('queueEntryId', queueEntryId);
-      
-      const result = await startConsultation(formData);
+    mutationFn: async (formData: FormData) => {
+      const result = await updateGurujiProfile(formData);
       if (!result.success) {
-        throw new Error(result.error || 'Failed to start consultation');
+        throw new Error(result.error || 'Failed to update profile');
       }
-      return result;
+      return result.guruji;
     },
     onSuccess: () => {
-      toast.success('Consultation started successfully');
-      // Invalidate and refetch queue data
-      queryClient.invalidateQueries({ queryKey: gurujiKeys.queue() });
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to start consultation');
-    },
+      // Invalidate and refetch guruji profile
+      queryClient.invalidateQueries({ queryKey: ['guruji', 'profile'] });
+    }
   });
 }
 
-// Hook for completing consultation
-export function useCompleteConsultation() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (queueEntryId: string) => {
-      const formData = new FormData();
-      formData.append('queueEntryId', queueEntryId);
-      
-      const result = await completeConsultation(formData);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to complete consultation');
+// Get guruji schedule
+export function useGurujiSchedule(gurujiId?: string) {
+  const { data: session } = useSession();
+  const targetGurujiId = gurujiId || session?.user?.id;
+
+  return useQuery({
+    queryKey: ['guruji', 'schedule', targetGurujiId],
+    queryFn: async () => {
+      if (!targetGurujiId) {
+        throw new Error('Guruji ID is required');
       }
-      return result;
+      const result = await getGurujiSchedule(targetGurujiId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch schedule');
+      }
+      return result.schedule;
+    },
+    enabled: !!targetGurujiId
+  });
+}
+
+// Update guruji schedule
+export function useUpdateGurujiSchedule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await updateGurujiSchedule(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update schedule');
+      }
+      return result.schedule;
     },
     onSuccess: () => {
-      toast.success('Consultation completed successfully');
-      // Invalidate and refetch queue data
-      queryClient.invalidateQueries({ queryKey: gurujiKeys.queue() });
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to complete consultation');
-    },
-  });
-} 
-
-// Hook for fetching guruji consultations
-export function useGurujiConsultations() {
-  return useQuery({
-    queryKey: gurujiKeys.consultations(),
-    queryFn: async () => {
-      const result = await getGurujiConsultations();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch guruji consultations');
-      }
-      return result.consultations;
-    },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+      // Invalidate and refetch schedule
+      queryClient.invalidateQueries({ queryKey: ['guruji', 'schedule'] });
+    }
   });
 }
 
-// Hook for fetching devotee contact history
-export function useDevoteeContactHistory(devoteeId: string, enabled: boolean = true) {
+// Get guruji statistics
+export function useGurujiStats(gurujiId?: string) {
+  const { data: session } = useSession();
+  const targetGurujiId = gurujiId || session?.user?.id;
+
   return useQuery({
-    queryKey: gurujiKeys.contactHistory(devoteeId),
+    queryKey: ['guruji', 'stats', targetGurujiId],
     queryFn: async () => {
-      const result = await getDevoteeContactHistory(devoteeId);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch contact history');
+      if (!targetGurujiId) {
+        throw new Error('Guruji ID is required');
       }
-      return result.data || [];
+      const result = await getGurujiStats(targetGurujiId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch stats');
+      }
+      return result.stats;
     },
-    enabled: !!devoteeId && enabled,
+    enabled: !!targetGurujiId,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: false, // Don't auto-refetch contact history
+    refetchInterval: 10 * 60 * 1000 // Refresh every 10 minutes
   });
 }
 
-// Hook for sending notification to devotee
-export function useSendDevoteeNotification() {
-  const queryClient = useQueryClient();
+// Get guruji consultations
+export function useGurujiConsultations(gurujiId?: string) {
+  const { data: session } = useSession();
+  const targetGurujiId = gurujiId || session?.user?.id;
 
-  return useMutation({
-    mutationFn: async ({ devoteeId, message, type = 'CUSTOM' }: {
-      devoteeId: string;
-      message: string;
-      type?: string;
-    }) => {
-      const result = await sendDevoteeNotification(devoteeId, message, type);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to send notification');
+  return useQuery({
+    queryKey: ['guruji', 'consultations', targetGurujiId],
+    queryFn: async () => {
+      if (!targetGurujiId) {
+        throw new Error('Guruji ID is required');
       }
-      return result.data;
+      // For now, return empty array since consultations are not fully implemented
+      return [];
     },
-    onSuccess: (data, variables) => {
-      toast.success('Notification sent successfully');
-      // Invalidate and refetch contact history for this devotee
-      queryClient.invalidateQueries({
-        queryKey: gurujiKeys.contactHistory(variables.devoteeId)
-      });
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to send notification');
-    },
+    enabled: !!targetGurujiId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 5 * 60 * 1000 // Refresh every 5 minutes
   });
 }

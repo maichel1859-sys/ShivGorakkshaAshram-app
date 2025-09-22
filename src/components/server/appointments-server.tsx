@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/core/auth";
+import { authOptions } from "@/lib/auth/auth";
 import { getAppointments } from "@/lib/actions/appointment-actions";
 import { AppointmentsClient } from "@/components/client/appointments-client";
 import { AppointmentsSkeleton } from "./appointments-skeleton";

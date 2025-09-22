@@ -1,19 +1,15 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { revalidatePath } from 'next/cache';
+import {
+  emitAppointmentEvent,
+  emitQueueEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
-interface TimeWindowConfig {
-  beforeAppointment: number; // minutes before appointment
-  afterAppointment: number;  // minutes after appointment
-}
-
-const _TIME_WINDOW_CONFIG: TimeWindowConfig = {
-  beforeAppointment: 20,
-  afterAppointment: 15
-};
 
 /**
  * Search appointments for manual check-in
@@ -41,8 +37,8 @@ export async function searchAppointments(searchTerm: string) {
     const appointments = await prisma.appointment.findMany({
       where: {
         date: {
-          gte: weekAgo,
-          lte: weekFromNow
+          gte: weekAgo.toISOString().split('T')[0],
+          lte: weekFromNow.toISOString().split('T')[0]
         },
         status: {
           in: ['BOOKED', 'CONFIRMED'] // Only show appointments that haven't been checked in
@@ -111,7 +107,7 @@ export async function searchAppointments(searchTerm: string) {
  * Manual check-in by coordinator
  * This replicates the QR scan functionality but allows coordinators to check in users manually
  */
-export async function manualCheckIn(appointmentId: string, locationId: string = 'RECEPTION_001') {
+export async function manualCheckInCoordinator(appointmentId: string, locationId: string = 'RECEPTION_001') {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id || session.user.role !== 'COORDINATOR') {
@@ -227,6 +223,46 @@ export async function manualCheckIn(appointmentId: string, locationId: string = 
 
     console.log(`✅ Manual check-in successful - User: ${appointment.userId}, Coordinator: ${session.user.id}, Queue Position: ${queuePosition}`);
 
+    // Emit socket events for real-time updates with fallback mechanism
+    try {
+      // Emit appointment check-in event
+      await emitAppointmentEvent(
+        SocketEventTypes.APPOINTMENT_CHECKED_IN,
+        appointment.id,
+        {
+          id: appointment.id,
+          userId: appointment.userId || '',
+          gurujiId: appointment.gurujiId || '',
+          date: appointment.date.toString(),
+          time: appointment.startTime.toString(),
+          status: 'CHECKED_IN',
+          priority: appointment.priority || 'NORMAL',
+          estimatedWait: estimatedWaitMinutes,
+          position: queuePosition,
+        }
+      );
+
+      // Emit queue entry added event
+      await emitQueueEvent(
+        SocketEventTypes.QUEUE_ENTRY_ADDED,
+        queueEntry.id,
+        {
+          id: queueEntry.id,
+          position: queuePosition,
+          status: 'WAITING',
+          estimatedWait: estimatedWaitMinutes,
+          priority: appointment.priority || 'NORMAL',
+          appointmentId: appointment.id,
+        },
+        appointment.userId || undefined,
+        appointment.gurujiId || undefined
+      );
+    } catch (socketError) {
+      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      // Socket failed - clients will use polling fallback automatically
+      // No action needed here, React Query will handle stale data refresh
+    }
+
     // Revalidate relevant pages
     revalidatePath('/coordinator/reception');
     revalidatePath('/user/queue');
@@ -270,8 +306,8 @@ export async function getTodayAppointments() {
     const appointments = await prisma.appointment.findMany({
       where: {
         date: {
-          gte: today,
-          lt: tomorrow
+          gte: today.toISOString().split('T')[0],
+          lt: tomorrow.toISOString().split('T')[0]
         }
       },
       include: {
@@ -518,3 +554,6 @@ export async function getCheckedInDevotees() {
     return { success: false, error: 'Failed to fetch checked-in devotees' };
   }
 }
+
+// Export alias for backward compatibility
+export const manualCheckIn = manualCheckInCoordinator;

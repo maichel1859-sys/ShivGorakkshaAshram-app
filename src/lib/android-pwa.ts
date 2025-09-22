@@ -185,8 +185,8 @@ export class AndroidPWAManager {
 
   private trackInstallation() {
     // Analytics tracking
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'pwa_install', {
+    if (typeof window !== 'undefined' && 'gtag' in window) {
+      (window as { gtag: (event: string, name: string, params?: object) => void }).gtag('event', 'pwa_install', {
         event_category: 'PWA',
         event_label: 'Android',
         platform: 'android',

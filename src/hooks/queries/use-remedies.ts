@@ -1,5 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRemedyTemplates, getRemedyTemplate, createRemedyTemplate, updateRemedyTemplate, deleteRemedyTemplate, getGurujiDevotees, generateRemedyPreview, prescribeRemedy } from '@/lib/actions/remedy-actions';
+import {
+  getRemedyTemplates,
+  getRemedyTemplate,
+  createRemedyTemplate,
+  updateRemedyTemplate,
+  deleteRemedyTemplate,
+  getGurujiDevotees,
+  generateRemedyPreview,
+  prescribeRemedy,
+  getUserRemedies,
+  getRemedyDocument,
+  updateRemedyStatus,
+  prescribeRemedyDuringConsultation,
+  getUserRemedyHistory
+} from '@/lib/actions/remedy-actions';
 import { toast } from 'sonner';
 
 // Query keys
@@ -8,6 +22,7 @@ export const remedyKeys = {
   templates: () => [...remedyKeys.all, 'templates'] as const,
   template: (id: string) => [...remedyKeys.templates(), id] as const,
   userRemedies: () => [...remedyKeys.all, 'user'] as const,
+  userRemedyHistory: (userId: string) => [...remedyKeys.all, 'history', userId] as const,
   prescribed: () => [...remedyKeys.all, 'prescribed'] as const,
 };
 
@@ -173,5 +188,102 @@ export function usePrescribeRemedy() {
     onError: (error) => {
       toast.error(error.message || 'Failed to prescribe remedy');
     },
+  });
+}
+
+// Hook for fetching user remedies
+export function useUserRemedies(options?: {
+  limit?: number;
+  offset?: number;
+}) {
+  return useQuery({
+    queryKey: remedyKeys.userRemedies(),
+    queryFn: async () => {
+      const result = await getUserRemedies(options);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch user remedies');
+      }
+      return result.remedies || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Hook for updating remedy status
+export function useUpdateRemedyStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await updateRemedyStatus(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update remedy status');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Remedy status updated successfully');
+      queryClient.invalidateQueries({ queryKey: remedyKeys.userRemedies() });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update remedy status');
+    },
+  });
+}
+
+// Hook for prescribing remedy during consultation
+export function usePrescribeRemedyDuringConsultation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await prescribeRemedyDuringConsultation(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to prescribe remedy during consultation');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Remedy prescribed during consultation successfully');
+      queryClient.invalidateQueries({ queryKey: remedyKeys.userRemedies() });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to prescribe remedy during consultation');
+    },
+  });
+}
+
+// Hook for fetching single remedy document
+export function useRemedyDocument(remedyDocumentId: string) {
+  return useQuery({
+    queryKey: [...remedyKeys.all, 'document', remedyDocumentId],
+    queryFn: async () => {
+      const result = await getRemedyDocument(remedyDocumentId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch remedy document');
+      }
+      return result.remedy;
+    },
+    enabled: !!remedyDocumentId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Hook for fetching specific user's remedy history
+export function useUserRemedyHistory(userId: string, options?: {
+  limit?: number;
+  offset?: number;
+}) {
+  return useQuery({
+    queryKey: remedyKeys.userRemedyHistory(userId),
+    queryFn: async () => {
+      const result = await getUserRemedyHistory(userId, options);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch user remedy history');
+      }
+      return result;
+    },
+    enabled: !!userId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 } 

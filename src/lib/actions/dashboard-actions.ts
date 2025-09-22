@@ -2,11 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { subDays, format } from 'date-fns';
 import { CACHE_TAGS, CACHE_TIMES } from '@/lib/cache';
 import { unstable_cache as cache } from 'next/cache';
+import {
+  emitSystemEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 // Helper function to check admin permissions
 async function requireAdminAccess() {
@@ -749,8 +753,19 @@ export async function updateSystemSettings(formData: FormData) {
       },
     });
 
+    // Emit system update event
+    await emitSystemEvent(
+      SocketEventTypes.SYSTEM_UPDATE,
+      {
+        severity: 'INFO',
+        message: 'System settings have been updated',
+        component: 'Settings',
+        status: 'updated'
+      }
+    );
+
     revalidatePath('/admin/settings');
-    
+
     return {
       success: true,
       message: 'Settings updated successfully',

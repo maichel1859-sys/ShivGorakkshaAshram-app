@@ -204,36 +204,6 @@ const navItems: NavItem[] = [
   },
 ];
 
-// Create a mapping function for nav titles to translation keys
-const getTitleTranslationKey = (title: string): string => {
-  const keyMapping: Record<string, string> = {
-    "Dashboard": "dashboard",
-    "Users": "users",
-    "Appointments": "appointments",
-    "Queue": "queue",
-    "Consultations": "consultations",
-    "Remedies": "remedies",
-    "Reports": "reports",
-    "System": "system",
-    "QR Codes": "qrCodes",
-    "Database": "database",
-    "Monitoring": "monitoring",
-    "Settings": "settings",
-    "Notifications": "notifications",
-    "Performance": "performance",
-    "Reception Desk": "receptionDesk",
-    "Book Appointment": "bookAppointment",
-    "My Queue": "myQueue",
-    "My Remedies": "myRemedies",
-    "My Appointments": "myAppointments",
-    "My Consultations": "myConsultations",
-    "Queue Management": "queueManagement",
-    "QR Scanner": "qrScanner",
-    "Check In": "checkIn",
-  };
-  
-  return keyMapping[title] || title.toLowerCase().replace(/\s+/g, '');
-};
 
 export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
   const { data: session } = useSession();

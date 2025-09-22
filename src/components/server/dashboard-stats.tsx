@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/core/auth";
+import { authOptions } from "@/lib/auth/auth";
 import { prisma } from "@/lib/database/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/loading";

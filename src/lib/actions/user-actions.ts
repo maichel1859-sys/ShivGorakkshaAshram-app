@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/database/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
+import {
+  emitUserEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 // Get all users (admin only)
 export async function getUsers(options?: {
@@ -81,6 +85,24 @@ export async function createUser(formData: FormData) {
         password, // Note: In production, hash this password
       },
     });
+
+    // Emit user registered event
+    try {
+      await emitUserEvent(
+        SocketEventTypes.USER_REGISTERED,
+        {
+          id: user.id,
+          name: user.name || '',
+          email: user.email || '',
+          role: user.role,
+          status: user.isActive ? 'active' : 'inactive'
+        }
+      );
+      console.log(`🔌 Emitted user registered event`);
+    } catch (socketError) {
+      console.error('🔌 Socket emit error:', socketError);
+      // Continue even if socket fails
+    }
 
     revalidatePath('/admin/users');
     return { success: true, user };
@@ -290,11 +312,20 @@ export async function getUserDashboard() {
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Get appointment count and recent appointments
-    const [appointmentCount, recentAppointments] = await Promise.all([
+    // Get appointment count, recent appointments, remedy counts, and consultation stats
+    const [
+      appointmentCount,
+      recentAppointments,
+      unreadNotifications,
+      pendingRemedies,
+      totalRemedies,
+      completedConsultations
+    ] = await Promise.all([
+      // Total appointments
       prisma.appointment.count({
         where: { userId: session.user.id },
       }),
+      // Recent appointments with consultation status
       prisma.appointment.findMany({
         where: { userId: session.user.id },
         include: {
@@ -311,15 +342,44 @@ export async function getUserDashboard() {
               status: true,
             },
           },
+          consultationSession: {
+            select: {
+              id: true,
+              startTime: true,
+              endTime: true,
+              remedies: {
+                select: {
+                  id: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { date: 'desc' },
         take: 5,
       }),
+      // Unread notifications
+      prisma.notification.count({
+        where: { userId: session.user.id, read: false },
+      }),
+      // Pending remedies (all remedies for now, since status field may not exist)
+      prisma.remedyDocument.count({
+        where: {
+          userId: session.user.id,
+        },
+      }),
+      // Total remedies
+      prisma.remedyDocument.count({
+        where: { userId: session.user.id },
+      }),
+      // Completed consultations
+      prisma.consultationSession.count({
+        where: {
+          devoteeId: session.user.id,
+          endTime: { not: null },
+        },
+      }),
     ]);
-
-    const unreadNotifications = await prisma.notification.count({
-      where: { userId: session.user.id, read: false },
-    });
 
     // Get current queue position
     const currentQueueEntry = await prisma.queueEntry.findFirst({
@@ -350,6 +410,9 @@ export async function getUserDashboard() {
           currentQueuePosition: currentQueueEntry?.position || null,
           currentQueueStatus: currentQueueEntry?.status || null,
           estimatedWait: currentQueueEntry?.estimatedWait || null,
+          pendingRemedies,
+          totalRemedies,
+          completedConsultations,
         },
         recentAppointments,
         currentQueueEntry,

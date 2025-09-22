@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus } from '@/lib/actions';
+import { getUsers, createUser, updateUser, deleteUser, toggleUserStatus, getUserById, getUserDashboard } from '@/lib/actions';
 
 // Query keys for better cache management
 export const userKeys = {
@@ -10,6 +10,7 @@ export const userKeys = {
   list: (filters: Record<string, unknown>) => [...userKeys.lists(), filters] as const,
   details: () => [...userKeys.all, 'detail'] as const,
   detail: (id: string) => [...userKeys.details(), id] as const,
+  dashboard: () => [...userKeys.all, 'dashboard'] as const,
 };
 
 // Hook for fetching users with filters
@@ -39,16 +40,11 @@ export function useUser(userId: string) {
   return useQuery({
     queryKey: userKeys.detail(userId),
     queryFn: async () => {
-      // This would need a getUser action
-      const result = await getUsers({ limit: 1, offset: 0 });
+      const result = await getUserById(userId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch user');
       }
-      const user = result.users?.find(u => u.id === userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      return user;
+      return result.user;
     },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
@@ -128,5 +124,20 @@ export function useToggleUserStatus() {
       // Invalidate and refetch users list
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
     },
+  });
+}
+
+// Hook for fetching user dashboard data
+export function useUserDashboard() {
+  return useQuery({
+    queryKey: userKeys.dashboard(),
+    queryFn: async () => {
+      const result = await getUserDashboard();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch dashboard data');
+      }
+      return result.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 } 

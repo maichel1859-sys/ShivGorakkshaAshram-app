@@ -28,6 +28,27 @@ interface AppUIState {
   compactMode: boolean;
   showWelcomeMessage: boolean;
   
+  // Modal and Drawer states
+  modals: {
+    [key: string]: boolean;
+  };
+  
+  drawers: {
+    [key: string]: boolean;
+  };
+  
+  // Toast notifications
+  toasts: Array<{
+    id: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
+    duration?: number;
+  }>;
+  
+  // Theme and appearance
+  theme: 'light' | 'dark' | 'system';
+  language: string;
+  
   // PWA State
   pwaState: {
     canInstall: boolean;
@@ -37,6 +58,7 @@ interface AppUIState {
   
   // Actions
   setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
   setCurrentPage: (page: string) => void;
   
   // Loading actions
@@ -47,6 +69,25 @@ interface AppUIState {
   setDataLoading: (loading: boolean) => void;
   clearLoadingState: (key: string) => void;
   clearAllLoading: () => void;
+  
+  // Modal actions
+  openModal: (modalId: string) => void;
+  closeModal: (modalId: string) => void;
+  closeAllModals: () => void;
+  
+  // Drawer actions
+  openDrawer: (drawerId: string) => void;
+  closeDrawer: (drawerId: string) => void;
+  closeAllDrawers: () => void;
+  
+  // Toast actions
+  addToast: (toast: Omit<AppUIState['toasts'][0], 'id'>) => void;
+  removeToast: (toastId: string) => void;
+  clearToasts: () => void;
+  
+  // Theme actions
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setLanguage: (language: string) => void;
   
   setError: (error: string | null) => void;
   setCompactMode: (compact: boolean) => void;
@@ -66,6 +107,11 @@ const initialState = {
   error: null,
   compactMode: false,
   showWelcomeMessage: true,
+  modals: {},
+  drawers: {},
+  toasts: [],
+  theme: 'system' as const,
+  language: 'en',
   pwaState: {
     canInstall: false,
     installPrompt: null,
@@ -75,10 +121,11 @@ const initialState = {
 
 export const useAppStore = create<AppUIState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
       
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setCurrentPage: (page) => set({ currentPage: page }),
       
       // Loading actions
@@ -102,6 +149,46 @@ export const useAppStore = create<AppUIState>()(
         dataLoading: false,
       }),
       
+      // Modal actions
+      openModal: (modalId) => set((state) => ({
+        modals: { ...state.modals, [modalId]: true }
+      })),
+      closeModal: (modalId) => set((state) => ({
+        modals: { ...state.modals, [modalId]: false }
+      })),
+      closeAllModals: () => set({ modals: {} }),
+      
+      // Drawer actions
+      openDrawer: (drawerId) => set((state) => ({
+        drawers: { ...state.drawers, [drawerId]: true }
+      })),
+      closeDrawer: (drawerId) => set((state) => ({
+        drawers: { ...state.drawers, [drawerId]: false }
+      })),
+      closeAllDrawers: () => set({ drawers: {} }),
+      
+      // Toast actions
+      addToast: (toast) => {
+        const id = Math.random().toString(36).substr(2, 9);
+        const newToast = { ...toast, id };
+        set((state) => ({ toasts: [...state.toasts, newToast] }));
+        
+        // Auto-remove toast after duration
+        if (toast.duration !== 0) {
+          setTimeout(() => {
+            get().removeToast(id);
+          }, toast.duration || 5000);
+        }
+      },
+      removeToast: (toastId) => set((state) => ({
+        toasts: state.toasts.filter((toast) => toast.id !== toastId)
+      })),
+      clearToasts: () => set({ toasts: [] }),
+      
+      // Theme actions
+      setTheme: (theme) => set({ theme }),
+      setLanguage: (language) => set({ language }),
+      
       setError: (error) => set({ error }),
       setCompactMode: (compact) => set({ compactMode: compact }),
       setShowWelcomeMessage: (show) => set({ showWelcomeMessage: show }),
@@ -116,6 +203,9 @@ export const useAppStore = create<AppUIState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         compactMode: state.compactMode,
         showWelcomeMessage: state.showWelcomeMessage,
+        theme: state.theme,
+        language: state.language,
+        pwaState: state.pwaState,
       }),
     }
   )
@@ -133,3 +223,10 @@ export const useAppError = () => useAppStore((state) => state.error);
 export const useCompactMode = () => useAppStore((state) => state.compactMode);
 export const useShowWelcomeMessage = () => useAppStore((state) => state.showWelcomeMessage);
 export const usePWAState = () => useAppStore((state) => state.pwaState);
+
+// UI selector hooks
+export const useModalState = (modalId: string) => useAppStore((state) => state.modals[modalId] || false);
+export const useDrawerState = (drawerId: string) => useAppStore((state) => state.drawers[drawerId] || false);
+export const useTheme = () => useAppStore((state) => state.theme);
+export const useLanguage = () => useAppStore((state) => state.language);
+export const useToasts = () => useAppStore((state) => state.toasts);

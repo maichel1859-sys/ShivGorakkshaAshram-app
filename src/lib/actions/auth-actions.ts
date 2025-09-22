@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
@@ -15,6 +15,10 @@ import {
   normalizePhoneNumber
 } from '@/lib/validation/unified-schemas';
 import crypto from 'crypto';
+import {
+  emitUserEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 // Helper function to clean and validate phone number using unified schemas
 function cleanAndValidatePhone(phone: string): { phone: string; isValid: boolean; error?: string } {
@@ -221,6 +225,24 @@ export async function registerUser(formData: FormData) {
         },
       },
     });
+
+    // Emit socket event for real-time updates with fallback mechanism
+    try {
+      await emitUserEvent(
+        SocketEventTypes.USER_REGISTERED,
+        {
+          id: user.id,
+          name: user.name || '',
+          email: user.email || '',
+          role: user.role,
+          status: 'ACTIVE',
+        }
+      );
+    } catch (socketError) {
+      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      // Socket failed - clients will use polling fallback automatically
+      // No action needed here, React Query will handle stale data refresh
+    }
 
     revalidatePath('/auth');
     return { success: true, user };
@@ -719,7 +741,7 @@ export async function requestPasswordReset(formData: FormData) {
     // Store reset token in database
     await prisma.verificationToken.create({
       data: {
-        identifier: user.email,
+        identifier: user.email || '',
         token: hashedToken,
         expires: expiresAt,
       },

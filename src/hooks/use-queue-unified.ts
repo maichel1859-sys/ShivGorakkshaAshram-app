@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSocket } from "@/lib/socket/socket-client";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useOfflineStore } from "@/store/offline-store";
-// import { useAppStore } from "@/store/app-store"; // Unused for now
 import { 
   getGurujiQueueEntries,
-  getCoordinatorQueueEntries 
+  getCoordinatorQueueEntries,
+  startConsultation,
+  completeConsultation,
+  updateQueueStatus
 } from "@/lib/actions/queue-actions";
 import type { 
   QueueEntry, 
   QueueEntryFromDB
-  // QueueStats // Unused for now
 } from "@/types/queue";
 
 export type QueueRole = 'admin' | 'coordinator' | 'guruji' | 'user';
@@ -112,14 +113,34 @@ export const useQueueUnified = (options: UseQueueOptions) => {
   const queryClient = useQueryClient();
   const { socket, connectionStatus } = useSocket();
   const { isOnline } = useNetworkStatus();
-  // const { setLoadingState } = useAppStore(); // Unused for now
   const {
     cacheQueueEntries,
-    // queueEntries: offlineQueueEntries, // Unused for now
-    // enableOfflineMode // Unused for now
   } = useOfflineStore();
 
-  // Main data query with React Query caching and smart revalidation
+  // Enhanced fallback state tracking
+  const [fallbackState, setFallbackState] = useState({
+    isUsingFallback: false,
+    fallbackReason: null as string | null,
+    lastSocketMessage: null as Date | null,
+    retryCount: 0,
+  });
+
+  // Dynamic polling interval based on connection health
+  const getPollingInterval = useCallback(() => {
+    if (!isOnline) return 30000; // 30s when offline
+    if (connectionStatus.connected && fallbackState.lastSocketMessage) {
+      const timeSinceLastMessage = Date.now() - fallbackState.lastSocketMessage.getTime();
+      if (timeSinceLastMessage > 60000) {
+        // No socket message for 1 min, treat as unhealthy
+        return refreshInterval / 2; // Faster polling
+      }
+      return refreshInterval * 2; // Slower when socket is healthy
+    }
+    if (connectionStatus.connected) return refreshInterval;
+    return Math.max(refreshInterval / 3, 5000); // Fast fallback, min 5s
+  }, [connectionStatus.connected, isOnline, refreshInterval, fallbackState.lastSocketMessage]);
+
+  // Main data query with enhanced smart revalidation
   const {
     data: queueEntries = [],
     isLoading,
@@ -129,36 +150,61 @@ export const useQueueUnified = (options: UseQueueOptions) => {
   } = useQuery({
     queryKey: queueKeys.entries(role),
     queryFn: () => fetchQueueData(role),
-    staleTime: connectionStatus.connected ? 120000 : 30000, // Longer stale time when socket is active
+    staleTime: connectionStatus.connected && !fallbackState.isUsingFallback ? 120000 : 15000,
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnWindowFocus: !connectionStatus.connected, // Only refetch on focus if socket disconnected
+    refetchOnWindowFocus: !connectionStatus.connected,
     refetchOnReconnect: true,
-    refetchInterval: connectionStatus.connected ? refreshInterval * 2 : refreshInterval, // Slower polling when socket is active, normal when disconnected
-    refetchIntervalInBackground: connectionStatus.connected ? false : true, // Background polling only when socket is down
-    retry: (failureCount) => {
-      // Smart retry logic
+    refetchInterval: autoRefresh ? getPollingInterval() : false,
+    refetchIntervalInBackground: fallbackState.isUsingFallback || !connectionStatus.connected,
+    retry: (failureCount, error) => {
+      // Enhanced retry logic with fallback awareness
       if (!isOnline) return false;
-      if (connectionStatus.connected) return failureCount < 2;
-      return failureCount < 3; // More retries when socket is down
+
+      // More aggressive retry when using fallback
+      const maxRetries = fallbackState.isUsingFallback ? 5 : 3;
+
+      // Don't retry if it's an auth error
+      if (error?.message?.includes('Authentication')) return false;
+
+      return failureCount < maxRetries;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    retryDelay: (attemptIndex) => {
+      // Faster retry when using fallback
+      const baseDelay = fallbackState.isUsingFallback ? 500 : 1000;
+      return Math.min(baseDelay * 2 ** attemptIndex, 10000);
+    },
     enabled: true,
-    // Optimistic updates for better UX
     placeholderData: (previousData) => previousData,
-    // Structure sharing to prevent unnecessary re-renders
     structuralSharing: true,
   });
 
-  // Socket-based real-time updates
+  // Socket-based real-time updates with enhanced fallback state management
   useEffect(() => {
-    if (!enableRealtime || !socket || !connectionStatus.connected) return;
+    if (!enableRealtime || !socket || !connectionStatus.connected) {
+      // Update fallback state when socket is not available
+      setFallbackState(prev => ({
+        ...prev,
+        isUsingFallback: true,
+        fallbackReason: !socket ? 'Socket not initialized' : 'Socket disconnected',
+      }));
+      return;
+    }
 
     const handleQueueUpdate = (data: unknown) => {
       console.log('🔄 Queue real-time update received:', data);
-      
+
+      // Update fallback state - socket is working
+      setFallbackState(prev => ({
+        ...prev,
+        isUsingFallback: false,
+        fallbackReason: null,
+        lastSocketMessage: new Date(),
+        retryCount: 0,
+      }));
+
       // Invalidate and refetch the cache
-      queryClient.invalidateQueries({ 
-        queryKey: queueKeys.entries(role) 
+      queryClient.invalidateQueries({
+        queryKey: queueKeys.entries(role)
       });
     };
 
@@ -232,6 +278,65 @@ export const useQueueUnified = (options: UseQueueOptions) => {
       toast.success('Connection restored');
     }
   }, [connectionStatus.connected, isOnline]);
+
+  // Queue management mutations
+  const startConsultationMutation = useMutation({
+    mutationFn: async (queueEntryId: string) => {
+      const formData = new FormData();
+      formData.append('queueEntryId', queueEntryId);
+      const result = await startConsultation(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start consultation');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Consultation started successfully');
+      queryClient.invalidateQueries({ queryKey: queueKeys.entries(role) });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to start consultation');
+    },
+  });
+
+  const completeConsultationMutation = useMutation({
+    mutationFn: async (queueEntryId: string) => {
+      const formData = new FormData();
+      formData.append('queueEntryId', queueEntryId);
+      const result = await completeConsultation(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to complete consultation');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Consultation completed successfully');
+      queryClient.invalidateQueries({ queryKey: queueKeys.entries(role) });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to complete consultation');
+    },
+  });
+
+  const updateQueueStatusMutation = useMutation({
+    mutationFn: async ({ queueEntryId, status }: { queueEntryId: string; status: string }) => {
+      const formData = new FormData();
+      formData.append('queueEntryId', queueEntryId);
+      formData.append('status', status);
+      const result = await updateQueueStatus(formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update queue status');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Queue status updated successfully');
+      queryClient.invalidateQueries({ queryKey: queueKeys.entries(role) });
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update queue status');
+    },
+  });
 
   // Optimistic update mutation for queue status changes
   const updateQueueEntryMutation = useMutation({
@@ -344,6 +449,16 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     // Actions
     refetch,
     optimisticUpdate: updateQueueEntryMutation.mutate,
+    
+    // Queue management mutations
+    startConsultation: startConsultationMutation.mutate,
+    completeConsultation: completeConsultationMutation.mutate,
+    updateQueueStatus: updateQueueStatusMutation.mutate,
+    
+    // Mutation states
+    isStartingConsultation: startConsultationMutation.isPending,
+    isCompletingConsultation: completeConsultationMutation.isPending,
+    isUpdatingStatus: updateQueueStatusMutation.isPending,
     
     // Connection status
     isConnected: connectionStatus.connected,

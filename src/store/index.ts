@@ -10,7 +10,12 @@ export {
   useDataLoading,
   useAppError, 
   useCompactMode, 
-  useShowWelcomeMessage 
+  useShowWelcomeMessage,
+  useModalState,
+  useDrawerState,
+  useTheme,
+  useLanguage,
+  useToasts
 } from './app-store';
 
 export { 
@@ -32,14 +37,11 @@ export {
   useUserRedirect
 } from './auth-store';
 
+// Notification store is now in lib/stores/notification-store.ts
 export { 
   useNotificationStore,
-  useNotifications,
-  useUnreadCount,
-  useUnreadNotificationCount,
-  useMarkAsRead,
-  useAddNotification,
-  useClearNotifications
+  useNotificationSubscription,
+  useRealtimeNotifications
 } from './notification-store';
 
 export { 
@@ -52,14 +54,7 @@ export {
   useUpdateQueueStatus
 } from './queue-store';
 
-export { 
-  useUIStore,
-  useSidebarCollapsed,
-  useModalState,
-  useDrawerState,
-  useTheme,
-  useLanguage
-} from './ui-store';
+// UI store functionality is now consolidated in app-store.ts
 
 export {
   useOfflineStore,

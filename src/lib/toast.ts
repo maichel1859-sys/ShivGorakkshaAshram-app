@@ -18,10 +18,11 @@ export const showToast = {
     });
   },
 
-  info: (message: string, options?: { duration?: number; id?: string }) => {
+  info: (message: string, options?: { duration?: number; id?: string; action?: { label: string; onClick: () => void } }) => {
     toast.info(message, {
       duration: options?.duration || 4000,
       id: options?.id,
+      action: options?.action,
     });
   },
 

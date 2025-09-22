@@ -1,7 +1,7 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import QRCode from 'qrcode';
 
 interface LocationQRData {
@@ -21,7 +21,7 @@ const ASHRAM_COORDINATES = { latitude: 19.0760, longitude: 72.8777 };
  * Generate QR code data for a location
  * This creates the data that will be encoded in the QR code
  */
-export async function generateLocationQRData(locationId: string, locationName: string, customCoordinates?: { latitude: number; longitude: number }): Promise<string> {
+export async function generateLocationQRDataAdvanced(locationId: string, locationName: string, customCoordinates?: { latitude: number; longitude: number }): Promise<string> {
   const coordinates = customCoordinates || ASHRAM_COORDINATES;
   
   const qrData: LocationQRData = {
@@ -45,7 +45,7 @@ export async function generateLocationQRCode(locationId: string, locationName: s
     throw new Error('Admin access required');
   }
 
-  const qrData = await generateLocationQRData(locationId, locationName, coordinates);
+  const qrData = await generateLocationQRDataAdvanced(locationId, locationName, coordinates);
   const qrCodeImage = await QRCode.toDataURL(qrData, {
     width: 300,
     margin: 2,
@@ -80,7 +80,7 @@ export async function createQRCodeWithCoordinates(formData: FormData) {
 
     const coordinates = { latitude, longitude };
     const qrCodeImage = await generateLocationQRCode(locationId, locationName, coordinates);
-    const qrData = await generateLocationQRData(locationId, locationName, coordinates);
+    const qrData = await generateLocationQRDataAdvanced(locationId, locationName, coordinates);
 
     return { 
       success: true, 
@@ -118,7 +118,7 @@ export async function getLocationQRCodes() {
       locations.map(async (location) => ({
         locationId: location.id,
         locationName: location.name,
-        qrCodeData: await generateLocationQRData(location.id, location.name)
+        qrCodeData: await generateLocationQRDataAdvanced(location.id, location.name)
       }))
     );
 

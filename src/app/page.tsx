@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/core/auth";
+import { auth } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -246,16 +246,6 @@ export default async function Home() {
 
       {/* Footer */}
       <footer className="container mx-auto px-4 py-6 sm:py-8 border-t">
-        <div className="text-center text-gray-600 dark:text-gray-300">
-          <p className="text-sm sm:text-base">
-            &copy; 2024 Ashram Management System. Built with ❤️ for spiritual
-            wellness.
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-}
         <div className="text-center text-gray-600 dark:text-gray-300">
           <p className="text-sm sm:text-base">
             &copy; 2024 Ashram Management System. Built with ❤️ for spiritual

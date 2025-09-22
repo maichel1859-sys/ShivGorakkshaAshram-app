@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
           resetToken: result.resetToken,
           resetUrl: result.resetUrl
         });
-        toast.success(result.message);
+        toast.success(result.message || 'Reset link sent successfully');
       } else {
         toast.error(result.error || 'Failed to send reset link');
       }
@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h3 className="font-medium text-yellow-800 mb-2">Development Mode</h3>
             <p className="text-sm text-yellow-700 mb-2">
-              Since email is disabled, here's your reset link:
+              Since email is disabled, here&apos;s your reset link:
             </p>
             <div className="space-y-2">
               <p className="text-xs font-mono bg-yellow-100 p-2 rounded break-all">
