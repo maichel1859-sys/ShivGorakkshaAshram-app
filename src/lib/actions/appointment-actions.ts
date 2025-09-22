@@ -10,10 +10,13 @@ import {
   appointmentBookingSchema,
   getValidationErrors
 } from '@/lib/validation/unified-schemas';
-import {
+import { 
   emitAppointmentEvent,
   SocketEventTypes
 } from '@/lib/socket/socket-emitter';
+import { 
+  invalidateQueueCache
+} from '@/lib/services/queue.service';
 
 // Use unified schemas for consistency
 const appointmentSchema = appointmentBookingSchema;
@@ -22,6 +25,19 @@ const appointmentSchema = appointmentBookingSchema;
 const createAppointmentSchema = z.object({
   devoteeName: z.string().min(1, 'Devotee name is required'),
   devoteePhone: z.string().min(10, 'Valid phone number is required'),
+  devoteeEmail: z.string().email().optional().or(z.literal('')),
+  gurujiId: z.string().min(1, 'Guruji selection is required'),
+  date: z.string().min(1, 'Date is required'),
+  startTime: z.string().min(1, 'Start time is required'),
+  reason: z.string().optional(),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).default('NORMAL'),
+  notes: z.string().optional(),
+});
+
+// Schema for creating appointments for offline users (phone optional)
+const createOfflineAppointmentSchema = z.object({
+  devoteeName: z.string().min(1, 'Devotee name is required'),
+  devoteePhone: z.string().optional(),
   devoteeEmail: z.string().email().optional().or(z.literal('')),
   gurujiId: z.string().min(1, 'Guruji selection is required'),
   date: z.string().min(1, 'Date is required'),
@@ -1099,4 +1115,293 @@ export async function createAppointmentForUser(formData: FormData) {
   }
 }
 
- 
+// Create appointment for offline user (Coordinator/Admin only)
+export async function createOfflineAppointment(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  // Only Coordinators and Admins can book for others
+  if (!['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
+    return { success: false, error: 'Access denied' };
+  }
+
+  try {
+    const data = createOfflineAppointmentSchema.parse({
+      devoteeName: formData.get('devoteeName') as string,
+      devoteePhone: formData.get('devoteePhone') as string || undefined,
+      devoteeEmail: formData.get('devoteeEmail') as string || undefined,
+      gurujiId: formData.get('gurujiId') as string,
+      date: formData.get('date') as string,
+      startTime: formData.get('startTime') as string,
+      reason: formData.get('reason') as string || undefined,
+      priority: (formData.get('priority') as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT') || 'NORMAL',
+      notes: formData.get('notes') as string || undefined,
+    });
+
+    // Generate a unique phone number for offline users if none provided
+    const phoneNumber = data.devoteePhone || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Check if devotee exists, if not create them
+    let devotee = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { phone: phoneNumber },
+          { name: data.devoteeName, phone: { startsWith: 'offline_' } }
+        ]
+      },
+    });
+
+    if (!devotee) {
+      // Create new offline devotee user
+      devotee = await prisma.user.create({
+        data: {
+          name: data.devoteeName,
+          phone: phoneNumber,
+          email: data.devoteeEmail,
+          role: 'USER',
+          emailVerified: null,
+        },
+      });
+    } else if (devotee.name !== data.devoteeName) {
+      // Update devotee name if different
+      devotee = await prisma.user.update({
+        where: { id: devotee.id },
+        data: { name: data.devoteeName },
+      });
+    }
+
+    // Check guruji availability
+    const appointmentDate = new Date(data.date);
+    const startTime = new Date(`${data.date}T${data.startTime}`);
+    const endTime = new Date(startTime.getTime() + 5 * 60000);
+
+    const conflictingAppointment = await prisma.appointment.findFirst({
+      where: {
+        gurujiId: data.gurujiId,
+        date: appointmentDate,
+        OR: [
+          {
+            AND: [
+              { startTime: { lte: startTime } },
+              { endTime: { gt: startTime } }
+            ]
+          },
+          {
+            AND: [
+              { startTime: { lt: endTime } },
+              { endTime: { gte: endTime } }
+            ]
+          }
+        ],
+        status: { notIn: ['CANCELLED'] }
+      }
+    });
+
+    if (conflictingAppointment) {
+      return { success: false, error: 'Time slot not available' };
+    }
+
+    // Create appointment
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId: devotee.id,
+        gurujiId: data.gurujiId,
+        date: appointmentDate,
+        startTime,
+        endTime,
+        reason: data.reason,
+        priority: data.priority,
+        notes: data.notes,
+        status: 'BOOKED',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Calculate queue position
+    const queuePosition = await prisma.queueEntry.count({
+      where: {
+        gurujiId: data.gurujiId,
+        status: {
+          in: ['WAITING', 'IN_PROGRESS'],
+        },
+      },
+    }) + 1;
+
+    // Create queue entry for offline user
+    const queueEntry = await prisma.queueEntry.create({
+      data: {
+        userId: devotee.id,
+        gurujiId: data.gurujiId,
+        appointmentId: appointment.id,
+        position: queuePosition,
+        status: 'WAITING',
+        priority: data.priority,
+        estimatedWait: queuePosition * 15, // 15 minutes per position
+        checkedInAt: new Date(),
+        notes: `Offline user - ${data.notes || 'Booked by coordinator'}`,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Create notification for guruji
+    await prisma.notification.create({
+      data: {
+        userId: data.gurujiId,
+        title: 'New Offline User in Queue',
+        message: `${devotee.name} (offline user) has been added to your queue`,
+        type: 'queue',
+        data: {
+          queueEntryId: queueEntry.id,
+          devoteeName: devotee.name,
+          reason: data.reason || 'General consultation',
+          isOfflineUser: true,
+        },
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: 'CREATE_OFFLINE_APPOINTMENT',
+        resource: 'APPOINTMENT',
+        resourceId: appointment.id,
+        newData: {
+          devoteeName: data.devoteeName,
+          gurujiId: data.gurujiId,
+          date: data.date,
+          time: data.startTime,
+          priority: data.priority,
+          queuePosition: queuePosition,
+        },
+        ipAddress: '127.0.0.1', // You might want to get real IP
+        userAgent: 'Coordinator Dashboard',
+      },
+    });
+
+    // Emit appointment booking events
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CREATED,
+      appointment.id,
+      {
+        id: appointment.id,
+        userId: devotee.id,
+        gurujiId: data.gurujiId,
+        date: data.date,
+        time: data.startTime,
+        status: appointment.status,
+        reason: appointment.reason || '',
+        priority: appointment.priority
+      }
+    );
+
+    // Emit queue update events using the correct socket emitter
+    const { emitQueueEvent } = await import('@/lib/socket/socket-emitter');
+    await emitQueueEvent(
+      SocketEventTypes.QUEUE_ENTRY_ADDED,
+      queueEntry.id,
+      {
+        id: queueEntry.id,
+        position: queuePosition,
+        status: 'WAITING',
+        estimatedWait: queuePosition * 15,
+        priority: data.priority,
+        appointmentId: appointment.id
+      }
+    );
+
+    // Emit notification events using the correct socket emitter
+    const { emitNotificationEvent } = await import('@/lib/socket/socket-emitter');
+    await emitNotificationEvent(
+      SocketEventTypes.NOTIFICATION_SENT,
+      queueEntry.id,
+      {
+        id: queueEntry.id,
+        title: 'New Offline User in Queue',
+        message: `${devotee.name} (offline user) has been added to your queue`,
+        type: 'queue',
+        read: false,
+        userId: data.gurujiId
+      }
+    );
+
+    // Invalidate queue cache and recalculate positions
+    try {
+      invalidateQueueCache();
+      // Note: recalculateQueuePositions would be called here if we had the function imported
+      // For now, the position calculation is handled above
+    } catch (cacheError) {
+      console.error('Cache invalidation error:', cacheError);
+      // Continue even if cache invalidation fails
+    }
+
+    // Invalidate relevant caches
+    revalidatePath('/coordinator');
+    revalidatePath('/coordinator/appointments');
+    revalidatePath('/guruji/appointments');
+    revalidatePath('/guruji/queue');
+    revalidatePath('/admin/appointments');
+    revalidatePath('/admin/queue');
+
+    return {
+      success: true,
+      appointment: {
+        id: appointment.id,
+        devoteeName: devotee.name,
+        gurujiName: appointment.guruji?.name || null,
+        date: appointmentDate.toISOString(),
+        status: appointment.status,
+        queuePosition: queuePosition,
+        estimatedWait: queuePosition * 15,
+      },
+      queueEntry: {
+        id: queueEntry.id,
+        position: queuePosition,
+        estimatedWait: queuePosition * 15,
+        status: 'WAITING',
+      }
+    };
+  } catch (error) {
+    console.error('Create offline appointment error:', error);
+    
+    if (error instanceof z.ZodError) {
+      const validationErrors = getValidationErrors(error);
+      return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
+    }
+    
+    return { success: false, error: 'Failed to create offline appointment' };
+  }
+}

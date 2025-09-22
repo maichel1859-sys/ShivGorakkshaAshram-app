@@ -1,11 +1,11 @@
 import { Metadata } from "next";
-import { ReceptionDashboard } from "@/components/coordinator/reception-dashboard";
+import { SimpleReceptionDashboard } from "@/components/coordinator/simple-reception-dashboard";
 
 export const metadata: Metadata = {
   title: "Reception Dashboard - ShivGoraksha Ashram",
-  description: "Manage walk-in devotees, appointments, and reception workflows",
+  description: "Simple reception workflow for coordinator assistance",
 };
 
 export default function ReceptionPage() {
-  return <ReceptionDashboard />;
+  return <SimpleReceptionDashboard />;
 }

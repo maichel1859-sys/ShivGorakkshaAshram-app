@@ -16,6 +16,9 @@ import {
   Plus,
   UserPlus,
   ListChecks,
+  Search,
+  UserCheck,
+  Phone,
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
 import { PageSpinner } from "@/components/loading";
@@ -64,7 +67,9 @@ export default function CoordinatorDashboard() {
   };
 
   if (isLoading) {
-    return <PageSpinner message={t("common.loading", "Loading dashboard...")} />;
+    return (
+      <PageSpinner message={t("common.loading", "Loading dashboard...")} />
+    );
   }
 
   if (error) {
@@ -76,7 +81,10 @@ export default function CoordinatorDashboard() {
             {t("common.error", "Error Loading Dashboard")}
           </h3>
           <p className="text-muted-foreground">
-            {t("dashboard.failedToLoad", "Failed to load coordinator data. Please try again.")}
+            {t(
+              "dashboard.failedToLoad",
+              "Failed to load coordinator data. Please try again."
+            )}
           </p>
         </div>
       </div>
@@ -92,7 +100,10 @@ export default function CoordinatorDashboard() {
             {t("dashboard.coordinatorDashboard", "Coordinator Dashboard")}
           </h2>
           <p className="text-muted-foreground">
-            {t("dashboard.manageAppointments", "Manage appointments and devotee flow")}
+            {t(
+              "dashboard.manageAppointments",
+              "Manage appointments and devotee flow"
+            )}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -114,13 +125,19 @@ export default function CoordinatorDashboard() {
             <Link href="/coordinator/appointments">
               <Button variant="outline" className="text-sm">
                 <UserPlus className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">{t("appointments.book", "Book")} </span>{t("nav.appointments", "Appointment")}
+                <span className="hidden sm:inline">
+                  {t("appointments.book", "Book")}{" "}
+                </span>
+                {t("nav.appointments", "Appointment")}
               </Button>
             </Link>
             <Link href="/coordinator/queue">
               <Button variant="outline" className="text-sm">
                 <ListChecks className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">{t("queue.manage", "Manage")} </span>{t("nav.queue", "Queue")}
+                <span className="hidden sm:inline">
+                  {t("queue.manage", "Manage")}{" "}
+                </span>
+                {t("nav.queue", "Queue")}
               </Button>
             </Link>
           </div>
@@ -140,13 +157,17 @@ export default function CoordinatorDashboard() {
             <div className="text-2xl font-bold">
               {stats?.totalAppointmentsToday || 0}
             </div>
-            <p className="text-xs text-muted-foreground">{t("dashboard.totalScheduled", "Total scheduled")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("dashboard.totalScheduled", "Total scheduled")}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.pending", "Pending")}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t("dashboard.pending", "Pending")}
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -161,14 +182,18 @@ export default function CoordinatorDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.activeQueue", "Active Queue")}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t("dashboard.activeQueue", "Active Queue")}
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {stats?.waitingInQueue || 0}
             </div>
-            <p className="text-xs text-muted-foreground">{t("dashboard.waitingInQueue", "Devotees waiting")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("dashboard.waitingInQueue", "Devotees waiting")}
+            </p>
           </CardContent>
         </Card>
 
@@ -183,93 +208,102 @@ export default function CoordinatorDashboard() {
             <div className="text-2xl font-bold">
               {stats?.checkedInToday || 0}
             </div>
-            <p className="text-xs text-muted-foreground">{t("dashboard.lastHour", "Last hour")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("dashboard.lastHour", "Last hour")}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Current Queue Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              {t("dashboard.currentQueueStatus", "Current Queue Status")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats?.queueSummary && stats.queueSummary.length > 0 ? (
-                stats.queueSummary.slice(0, 3).map((queue: { gurujiName: string; waitingCount: number; inProgressCount: number; averageWaitTime: number }, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="font-medium">{queue.gurujiName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {queue.waitingCount} {t("queue.waiting", "waiting")} • {queue.inProgressCount} {t("queue.inProgress", "in progress")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">~{queue.averageWaitTime}min</p>
-                      <p className="text-xs text-muted-foreground">{t("queue.avgWait", "avg wait")}</p>
-                    </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            {t("dashboard.quickActions", "Quick Actions")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <Link href="/coordinator/reception">
+              <Button
+                className="h-24 flex-col gap-2 text-left w-full"
+                variant="outline"
+              >
+                <Users className="h-8 w-8 text-blue-500" />
+                <div>
+                  <div className="font-medium">New Devotee Visit</div>
+                  <div className="text-sm text-gray-500">
+                    Start triage assessment
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-4">
-                  <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t("queue.noActiveQueues", "No active queues")}</p>
                 </div>
-              )}
-              <Link href="/coordinator/queue">
-                <Button variant="outline" className="w-full">
-                  <ListChecks className="h-4 w-4 mr-2" />
-                  {t("queue.viewFullQueue", "View Full Queue")}
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+              </Button>
+            </Link>
 
-        {/* Today's Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              {t("dashboard.todaysSummary", "Today's Summary")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <Link href="/coordinator/reception?action=lookup">
+              <Button
+                className="h-24 flex-col gap-2 text-left w-full"
+                variant="outline"
+              >
+                <Search className="h-8 w-8 text-green-500" />
                 <div>
-                  <p className="text-2xl font-bold">{stats?.todayStats?.appointments || 0}</p>
-                  <p className="text-sm text-muted-foreground">{t("nav.appointments", "Appointments")}</p>
+                  <div className="font-medium">Find Existing Devotee</div>
+                  <div className="text-sm text-gray-500">
+                    Search by phone/name
+                  </div>
                 </div>
+              </Button>
+            </Link>
+
+            <Link href="/coordinator/reception?action=checkin">
+              <Button
+                className="h-24 flex-col gap-2 text-left border-green-200 hover:bg-green-50 w-full"
+                variant="outline"
+              >
+                <UserCheck className="h-8 w-8 text-green-500" />
                 <div>
-                  <p className="text-2xl font-bold">{stats?.todayStats?.checkins || 0}</p>
-                  <p className="text-sm text-muted-foreground">{t("dashboard.checkIns", "Check-ins")}</p>
+                  <div className="font-medium text-green-700">
+                    Manual Check-in
+                  </div>
+                  <div className="text-sm text-green-500">
+                    Help with appointment check-in
+                  </div>
                 </div>
+              </Button>
+            </Link>
+
+            <Link href="/coordinator/reception?action=emergency">
+              <Button
+                className="h-24 flex-col gap-2 text-left border-red-200 hover:bg-red-50 w-full"
+                variant="outline"
+              >
+                <AlertTriangle className="h-8 w-8 text-red-500" />
                 <div>
-                  <p className="text-2xl font-bold">{stats?.todayStats?.completions || 0}</p>
-                  <p className="text-sm text-muted-foreground">{t("queue.completed", "Completed")}</p>
+                  <div className="font-medium text-red-700">
+                    Emergency Devotee
+                  </div>
+                  <div className="text-sm text-red-500">
+                    Priority registration
+                  </div>
                 </div>
+              </Button>
+            </Link>
+
+            <Link href="/coordinator/reception?action=registration">
+              <Button
+                className="h-24 flex-col gap-2 text-left w-full"
+                variant="outline"
+              >
+                <UserPlus className="h-8 w-8 text-purple-500" />
                 <div>
-                  <p className="text-2xl font-bold">{stats?.todayStats?.cancellations || 0}</p>
-                  <p className="text-sm text-muted-foreground">{t("appointments.cancelled", "Cancelled")}</p>
+                  <div className="font-medium">Quick Registration</div>
+                  <div className="text-sm text-gray-500">New devotee form</div>
                 </div>
-              </div>
-              <Separator />
-              <Link href="/coordinator/appointments">
-                <Button variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("appointments.bookNew", "Book New Appointment")}
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Activity */}
       <Card>
@@ -281,43 +315,68 @@ export default function CoordinatorDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {stats?.upcomingAppointments && stats.upcomingAppointments.length > 0 ? (
+            {stats?.upcomingAppointments &&
+            stats.upcomingAppointments.length > 0 ? (
               stats.upcomingAppointments
                 .slice(0, 5)
-                .map((appointment: { id: string; devoteeName: string; gurujiName: string; time: string; status: string; priority: string }) => (
-                  <div
-                    key={appointment.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {appointment.devoteeName.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{appointment.devoteeName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {appointment.gurujiName} •{" "}
-                          {new Date(appointment.time).toLocaleTimeString()}
-                        </p>
+                .map(
+                  (appointment: {
+                    id: string;
+                    devoteeName: string;
+                    gurujiName: string;
+                    time: string;
+                    status: string;
+                    priority: string;
+                  }) => (
+                    <div
+                      key={appointment.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>
+                            {appointment.devoteeName.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {appointment.devoteeName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {appointment.gurujiName} •{" "}
+                            {new Date(appointment.time).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Badge className={getStatusColor(appointment.status)}>
+                          {t(
+                            `appointments.status.${appointment.status.toLowerCase()}`,
+                            appointment.status
+                          )}
+                        </Badge>
+                        <Badge
+                          className={getPriorityColor(appointment.priority)}
+                        >
+                          {t(
+                            `common.priority.${appointment.priority.toLowerCase()}`,
+                            appointment.priority
+                          )}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={getStatusColor(appointment.status)}>
-                        {t(`appointments.status.${appointment.status.toLowerCase()}`, appointment.status)}
-                      </Badge>
-                      <Badge className={getPriorityColor(appointment.priority)}>
-                        {t(`common.priority.${appointment.priority.toLowerCase()}`, appointment.priority)}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
+                  )
+                )
             ) : (
               <div className="text-center py-8">
                 <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">{t("appointments.noUpcoming", "No upcoming appointments")}</p>
-                <Link href="/coordinator/appointments" className="inline-block mt-2">
+                <p className="text-sm text-muted-foreground">
+                  {t("appointments.noUpcoming", "No upcoming appointments")}
+                </p>
+                <Link
+                  href="/coordinator/appointments"
+                  className="inline-block mt-2"
+                >
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
                     {t("appointments.bookFirst", "Book First Appointment")}
