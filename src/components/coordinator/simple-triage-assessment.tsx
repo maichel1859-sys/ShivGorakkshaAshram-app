@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Users,
   UserCheck,
@@ -131,8 +130,8 @@ export function SimpleTriageAssessment({
       <CardContent className="space-y-6">
         <div className="text-center mb-6">
           <p className="text-gray-600">
-            Please help us understand the offline devotee's situation to provide
-            the best assistance.
+            Please help us understand the offline devotee&apos;s situation to
+            provide the best assistance.
           </p>
         </div>
 

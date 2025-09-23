@@ -11,15 +11,24 @@ import {
   Search,
   User,
   Phone,
-  Calendar,
   CheckCircle,
   XCircle,
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface User {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  lastVisit: string;
+  hasAppointment: boolean;
+  appointmentTime?: string;
+}
+
 interface SimpleUserLookupProps {
-  onComplete: (result: { found: boolean; user?: any }) => void;
+  onComplete: (result: { found: boolean; user?: User }) => void;
   onCancel: () => void;
 }
 
@@ -29,7 +38,7 @@ export function SimpleUserLookup({
 }: SimpleUserLookupProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
   // Mock user data - replace with actual API call
@@ -86,14 +95,14 @@ export function SimpleUserLookup({
       if (results.length === 0) {
         toast.info("No devotees found with that information");
       }
-    } catch (error) {
+    } catch {
       toast.error("Search failed. Please try again.");
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleSelectUser = (user: any) => {
+  const handleSelectUser = (user: User) => {
     onComplete({ found: true, user });
   };
 
@@ -205,7 +214,8 @@ export function SimpleUserLookup({
                   No Devotees Found
                 </h3>
                 <p className="text-gray-500 mb-4">
-                  No devotees found with the search term "{searchTerm}"
+                  No devotees found with the search term &quot;{searchTerm}
+                  &quot;
                 </p>
                 <div className="space-x-2">
                   <Button variant="outline" onClick={() => setSearchTerm("")}>

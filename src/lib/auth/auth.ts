@@ -156,12 +156,10 @@ export const authOptions: NextAuthOptions = {
             action: 'SIGN_IN',
             resource: 'User',
             resourceId: user.id,
-            metadata: {
+            newData: {
               severity: 'LOW',
               category: 'authentication',
-              details: 'User signed in successfully'
-            },
-            newData: {
+              details: 'User signed in successfully',
               provider: account?.provider || "credentials",
               timestamp: new Date().toISOString(),
             },

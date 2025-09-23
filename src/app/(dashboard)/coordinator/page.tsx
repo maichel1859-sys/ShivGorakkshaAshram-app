@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
   Users,
@@ -18,7 +17,6 @@ import {
   ListChecks,
   Search,
   UserCheck,
-  Phone,
 } from "lucide-react";
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
 import { PageSpinner } from "@/components/loading";

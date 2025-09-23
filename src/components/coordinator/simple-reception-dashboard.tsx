@@ -30,26 +30,55 @@ type ActionType =
   | "checkin"
   | "booking";
 
+interface DevoteeInfo {
+  name: string;
+  age: number;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  userCategory: "WALK_IN" | "FAMILY_MEMBER" | "EMERGENCY";
+  email?: string;
+  phone?: string;
+  isEmergency?: boolean;
+}
+
+interface LookupResult {
+  found: boolean;
+  user?: {
+    id: string;
+    name: string;
+    phone: string;
+    hasAppointment: boolean;
+    appointmentTime?: string;
+  };
+}
+
+interface WorkflowData {
+  devoteeInfo?: DevoteeInfo;
+  lookupResult?: LookupResult;
+}
+
 export function SimpleReceptionDashboard() {
   const [currentAction, setCurrentAction] = useState<ActionType>("welcome");
-  const [workflowData, setWorkflowData] = useState<any>({});
+  const [workflowData, setWorkflowData] = useState<WorkflowData>({});
 
   const resetToWelcome = () => {
     setCurrentAction("welcome");
     setWorkflowData({});
   };
 
-  const handleRegistrationComplete = (devoteeInfo: any) => {
-    setWorkflowData((prev: any) => ({ ...prev, devoteeInfo }));
+  const handleRegistrationComplete = (devoteeInfo: DevoteeInfo) => {
+    setWorkflowData((prev: WorkflowData) => ({ ...prev, devoteeInfo }));
     setCurrentAction("booking");
     toast.success(
       "Offline user information collected! Now booking appointment..."
     );
   };
 
-  const handleLookupComplete = (result: any) => {
-    setWorkflowData((prev: any) => ({ ...prev, lookupResult: result }));
-    if (result.found) {
+  const handleLookupComplete = (result: LookupResult) => {
+    setWorkflowData((prev: WorkflowData) => ({
+      ...prev,
+      lookupResult: result,
+    }));
+    if (result.found && result.user) {
       if (result.user.hasAppointment) {
         setCurrentAction("checkin");
       } else {
@@ -60,22 +89,29 @@ export function SimpleReceptionDashboard() {
     }
   };
 
-  const handleEmergencyComplete = (emergencyData: any) => {
-    setWorkflowData((prev: any) => ({ ...prev, devoteeInfo: emergencyData }));
+  const handleEmergencyComplete = (emergencyData: DevoteeInfo) => {
+    setWorkflowData((prev: WorkflowData) => ({
+      ...prev,
+      devoteeInfo: emergencyData,
+    }));
     setCurrentAction("booking");
     toast.success(
       "Emergency offline user information collected! Now booking priority appointment..."
     );
   };
 
-  const handleBookingComplete = (appointment: any) => {
+  const handleBookingComplete = () => {
     toast.success(
       "Appointment booked successfully! Offline user has been added to the queue."
     );
     resetToWelcome();
   };
 
-  const handleTriageComplete = (assessment: any) => {
+  const handleTriageComplete = (assessment: {
+    isNewDevotee: boolean;
+    hasAppointment: boolean;
+    isEmergency: boolean;
+  }) => {
     // Simple triage - just route to registration for new devotees
     if (assessment.isNewDevotee) {
       setCurrentAction("registration");
@@ -148,11 +184,26 @@ export function SimpleReceptionDashboard() {
         return <ManualCheckIn />;
 
       case "booking":
+        const devoteeInfo =
+          workflowData.devoteeInfo ||
+          (workflowData.lookupResult?.user
+            ? {
+                name: workflowData.lookupResult.user.name,
+                age: 0, // Default age since lookup doesn't provide this
+                gender: "OTHER" as const,
+                userCategory: "WALK_IN" as const,
+                phone: workflowData.lookupResult.user.phone,
+                email: undefined,
+              }
+            : undefined);
+
+        if (!devoteeInfo) {
+          return <div>No devotee information available</div>;
+        }
+
         return (
           <SimpleAppointmentBooking
-            devoteeInfo={
-              workflowData.devoteeInfo || workflowData.lookupResult?.user
-            }
+            devoteeInfo={devoteeInfo}
             onSuccess={handleBookingComplete}
             onCancel={resetToWelcome}
           />
