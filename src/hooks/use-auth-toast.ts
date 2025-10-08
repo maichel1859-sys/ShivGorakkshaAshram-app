@@ -33,7 +33,7 @@ export function useAuthToast() {
         email: credentials.email,
         password: credentials.password,
         redirect: false,
-        callbackUrl: '/dashboard',
+        callbackUrl: '/',
       });
 
       if (result?.error) {
@@ -176,15 +176,60 @@ export function useAuthToast() {
     try {
       toast.loading('Connecting to Google...', { id: 'auth' });
 
-      await signIn('google', { 
+      const result = await signIn('google', { 
         callbackUrl: '/',
         redirect: false 
       });
 
-      toast.success('Google authentication successful!', { id: 'auth' });
+      if (result?.error) {
+        toast.error('Google authentication failed. Please try again.', { id: 'auth' });
+        return { success: false, error: result.error };
+      }
+
+      if (result?.ok) {
+        // Wait a moment for NextAuth session to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Get updated session to check user role  
+        const session = await getSession();
+
+        if (session?.user) {
+          // Show single role-specific welcome message with shorter duration
+          const roleMessages = {
+            ADMIN: 'Welcome, Administrator!',
+            COORDINATOR: 'Welcome, Coordinator!',
+            GURUJI: 'Welcome, Guruji!',
+            USER: 'Welcome to ShivGorakksha Ashram!',
+          };
+
+          const welcomeMessage = roleMessages[session.user.role as keyof typeof roleMessages] || 'Welcome!';
+          toast.success(welcomeMessage, { id: 'auth', duration: 1500 });
+
+          // Immediate redirect based on user role
+          const redirectPath = (() => {
+            switch (session.user.role) {
+              case 'ADMIN': return '/admin';
+              case 'COORDINATOR': return '/coordinator';
+              case 'GURUJI': return '/guruji';
+              default: return '/user';
+            }
+          })();
+
+          // Use router.replace for immediate navigation without history
+          router.replace(redirectPath);
+        } else {
+          // Fallback redirect
+          router.replace('/');
+        }
+
+        return { success: true };
+      }
+
+      return { success: false, error: 'Google sign in failed' };
     } catch (error) {
       console.error('Google sign in error:', error);
-      toast.error('Google authentication failed. Please try again.', { id: 'auth' });
+      toast.error('An unexpected error occurred. Please try again.', { id: 'auth' });
+      return { success: false, error: 'Google authentication failed' };
     } finally {
       setAuthLoading(false);
     }

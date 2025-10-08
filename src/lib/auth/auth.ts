@@ -201,9 +201,9 @@ export const authOptions: NextAuthOptions = {
         // Always allow redirects to the base URL
         if (url.startsWith(baseUrl)) return url;
         
-        // For sign-in redirects, redirect to dashboard
+        // For sign-in redirects, redirect to home (role-based redirects handled in useAuthToast)
         if (url === baseUrl || url === `${baseUrl}/`) {
-          return `${baseUrl}/dashboard`;
+          return baseUrl;
         }
         
         // For other cases, return the base URL
@@ -212,8 +212,8 @@ export const authOptions: NextAuthOptions = {
         console.error("Redirect callback error:", error);
         return baseUrl;
       }
-    },
-  },
+    }
+  }
 }
 
 declare module "next-auth" {
