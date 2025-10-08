@@ -44,13 +44,14 @@ import {
 } from 'lucide-react';
 import { deleteAppointment, updateAppointmentStatus } from '@/lib/actions/appointment-actions';
 import { AppointmentStatus } from '@prisma/client';
-import { format } from 'date-fns';
 import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
 import { toast } from 'sonner';
 
 interface Appointment {
   id: string;
   date: string;
+  startTime: string;
+  endTime: string;
   status: AppointmentStatus;
   notes?: string;
   createdAt: string;

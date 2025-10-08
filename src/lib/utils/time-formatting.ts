@@ -5,9 +5,6 @@
 
 import { format, parseISO } from 'date-fns';
 
-// Standard timezone for the ashram (you can change this to your local timezone)
-const ASHRAM_TIMEZONE = 'Asia/Kolkata'; // IST - Indian Standard Time
-
 /**
  * Format appointment time consistently across all components
  * Always shows time in 12-hour format with AM/PM
