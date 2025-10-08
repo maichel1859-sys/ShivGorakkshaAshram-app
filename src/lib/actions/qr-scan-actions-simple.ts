@@ -127,6 +127,12 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
     const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
     const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
 
+    // Check if appointment is for today
+    const currentDate = new Date();
+    const appointmentDate = new Date(appointmentTime.getFullYear(), appointmentTime.getMonth(), appointmentTime.getDate());
+    const todayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const isAppointmentToday = appointmentDate.getTime() === todayDate.getTime();
+
     // Debug logging for time validation
     console.log(`⏰ Time validation debug:`, {
       appointmentTime: appointmentTime.toISOString(),
@@ -138,28 +144,48 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
       timeWindowConfig: TIME_WINDOW_CONFIG,
       timeUntilAppointment: Math.round((appointmentTime.getTime() - scanTime.getTime()) / (1000 * 60)) + ' minutes',
       timezoneOffset: new Date().getTimezoneOffset(),
-      isInTimeWindow: scanTime >= timeWindowStart && scanTime <= timeWindowEnd
+      isInTimeWindow: scanTime >= timeWindowStart && scanTime <= timeWindowEnd,
+      isAppointmentToday: isAppointmentToday,
+      appointmentDate: appointmentDate.toISOString(),
+      todayDate: todayDate.toISOString()
     });
 
-    if (scanTime < timeWindowStart) {
-      const minutesEarly = Math.round((timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60));
-      const appointmentTimeStr = appointmentTime.toLocaleString();
-      const timeWindowStartStr = timeWindowStart.toLocaleString();
+    // Check if appointment is for today first
+    if (!isAppointmentToday) {
+      const appointmentTimeStr = `${appointmentTime.toLocaleDateString()} at ${appointmentTime.toLocaleTimeString()}`;
+      const todayStr = currentDate.toLocaleDateString();
       
       return { 
         success: false, 
-        error: `Too early to check in. Your appointment is at ${appointmentTimeStr}. You can check in starting from ${timeWindowStartStr}. You are ${minutesEarly} minutes too early.` 
+        error: `Your appointment is not for today. Your appointment is scheduled for ${appointmentTimeStr}, but today is ${todayStr}. Please check in on the correct date.` 
+      };
+    }
+
+    if (scanTime < timeWindowStart) {
+      const minutesEarly = Math.round((timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60));
+      
+      // Use our centralized time formatting for consistent display
+      const appointmentTimeStr = `${appointmentTime.toLocaleDateString()} at ${appointmentTime.toLocaleTimeString()}`;
+      const timeWindowStartStr = `${timeWindowStart.toLocaleDateString()} at ${timeWindowStart.toLocaleTimeString()}`;
+      const scanTimeStr = `${scanTime.toLocaleDateString()} at ${scanTime.toLocaleTimeString()}`;
+      
+      return { 
+        success: false, 
+        error: `Too early to check in. Your appointment is at ${appointmentTimeStr}. You can check in starting from ${timeWindowStartStr}. You are ${minutesEarly} minutes too early. (Current time: ${scanTimeStr})` 
       };
     }
 
     if (scanTime > timeWindowEnd) {
       const minutesLate = Math.round((scanTime.getTime() - timeWindowEnd.getTime()) / (1000 * 60));
-      const appointmentTimeStr = appointmentTime.toLocaleString();
-      const timeWindowEndStr = timeWindowEnd.toLocaleString();
+      
+      // Use our centralized time formatting for consistent display
+      const appointmentTimeStr = `${appointmentTime.toLocaleDateString()} at ${appointmentTime.toLocaleTimeString()}`;
+      const timeWindowEndStr = `${timeWindowEnd.toLocaleDateString()} at ${timeWindowEnd.toLocaleTimeString()}`;
+      const scanTimeStr = `${scanTime.toLocaleDateString()} at ${scanTime.toLocaleTimeString()}`;
       
       return { 
         success: false, 
-        error: `Too late to check in. Your appointment was at ${appointmentTimeStr}. The check-in window closed at ${timeWindowEndStr}. You are ${minutesLate} minutes too late.` 
+        error: `Too late to check in. Your appointment was at ${appointmentTimeStr}. The check-in window closed at ${timeWindowEndStr}. You are ${minutesLate} minutes too late. (Current time: ${scanTimeStr})` 
       };
     }
 
