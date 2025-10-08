@@ -303,8 +303,8 @@ export async function emitAppointmentEvent(
     id: string;
     userId: string;
     gurujiId: string;
-    date: string; // Raw date (Date object or ISO string)
-    time: string; // Raw time (Date object or ISO string)
+    date: Date | string; // Raw date (Date object or ISO string)
+    time: Date | string; // Raw time (Date object or ISO string)
     status: string;
     reason?: string;
     priority: string;

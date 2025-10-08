@@ -57,6 +57,14 @@ async function AppointmentsContent({ searchParams }: AppointmentsServerProps) {
         appointment.date instanceof Date
           ? appointment.date.toISOString().split("T")[0]
           : appointment.date,
+      startTime:
+        appointment.startTime instanceof Date
+          ? appointment.startTime.toISOString()
+          : appointment.startTime,
+      endTime:
+        appointment.endTime instanceof Date
+          ? appointment.endTime.toISOString()
+          : appointment.endTime,
       status: appointment.status,
       notes: appointment.notes || undefined,
       createdAt:

@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/loading";
 import { Calendar, Clock, User, MapPin, QrCode } from "lucide-react";
-import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { formatAppointmentDate, formatAppointmentTimeRange } from '@/lib/utils/time-formatting';
 import { AppointmentStatus } from "@prisma/client";

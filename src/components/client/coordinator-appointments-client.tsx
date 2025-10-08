@@ -58,7 +58,6 @@ import {
 import { deleteAppointment, updateAppointmentStatus } from '@/lib/actions/appointment-actions';
 import { manualCheckIn } from '@/lib/actions/coordinator-actions';
 import { AppointmentStatus } from '@prisma/client';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
 import { useLanguage } from '@/contexts/LanguageContext';
