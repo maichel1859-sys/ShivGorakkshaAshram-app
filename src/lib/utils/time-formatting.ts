@@ -62,6 +62,23 @@ export function formatAppointmentTimeRangeWithLeadingZero(startTime: Date | stri
 }
 
 /**
+ * Format time range for appointments with optional end time
+ * Shows: 5:00 PM - 5:05 PM or just 5:00 PM if no end time
+ */
+export function formatAppointmentTimeRangeOptional(startTime: Date | string, endTime?: Date | string | null): string {
+  const start = typeof startTime === 'string' ? parseISO(startTime) : startTime;
+  const startFormatted = format(start, 'h:mm a');
+  
+  if (!endTime) {
+    return startFormatted;
+  }
+  
+  const end = typeof endTime === 'string' ? parseISO(endTime) : endTime;
+  const endFormatted = format(end, 'h:mm a');
+  return `${startFormatted} - ${endFormatted}`;
+}
+
+/**
  * Format check-in time consistently
  * Shows: Checked in at 4:45 PM
  */

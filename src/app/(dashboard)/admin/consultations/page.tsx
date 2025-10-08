@@ -31,6 +31,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAdminConsultations } from "@/hooks/queries";
+import { formatAppointmentDate, formatAppointmentTime } from "@/lib/utils/time-formatting";
 
 import { Prisma } from "@prisma/client";
 
@@ -328,13 +329,9 @@ export default function AdminConsultationsPage() {
                             </span>
                             <span className="flex items-center">
                               <Clock className="mr-1 h-3 w-3" />
-                              {new Date(
-                                consultation.startTime
-                              ).toLocaleDateString()}{" "}
+                              {formatAppointmentDate(consultation.startTime)}{" "}
                               at{" "}
-                              {new Date(
-                                consultation.startTime
-                              ).toLocaleTimeString()}
+                              {formatAppointmentTime(consultation.startTime)}
                             </span>
                             {consultation.recordings &&
                               Array.isArray(consultation.recordings) &&

@@ -22,6 +22,7 @@ import { showToast } from '@/lib/toast';
 import { useQueueUnified } from '@/hooks/use-queue-unified';
 import { useGurujiConsultations } from '@/hooks/queries/use-guruji';
 import { QueueEntry } from '@/types';
+import { formatTimeIST } from '@/store/time-store';
 
 export default function GurujiConsultationsPage() {
   const { data: session } = useSession();
@@ -215,7 +216,7 @@ export default function GurujiConsultationsPage() {
                               </span>
                               <span className="flex items-center">
                                 <Calendar className="mr-1 h-3 w-3" />
-                                Checked in: {new Date(entry.checkedInAt).toLocaleTimeString()}
+                                Checked in: {formatTimeIST(entry.checkedInAt)}
                               </span>
                             </div>
                           </div>

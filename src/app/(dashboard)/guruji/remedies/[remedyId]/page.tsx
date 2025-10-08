@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/loading";
+import { formatAppointmentDate, formatAppointmentTime } from "@/lib/utils/time-formatting";
 import { useRemedyTemplate } from "@/hooks/queries/use-remedies";
 import { updateRemedyTemplate } from "@/lib/actions/remedy-actions";
 
@@ -576,7 +577,7 @@ export default function RemedyDetailsPage() {
                       <Label>Date</Label>
                       <div className="mt-1 p-3 bg-muted rounded-md">
                         <p className="text-sm">
-                          {new Date(consultation.startTime).toLocaleDateString()}
+                          {formatAppointmentDate(consultation.startTime)}
                         </p>
                       </div>
                     </div>
@@ -584,7 +585,7 @@ export default function RemedyDetailsPage() {
                       <Label>Time</Label>
                       <div className="mt-1 p-3 bg-muted rounded-md">
                         <p className="text-sm">
-                          {new Date(consultation.startTime).toLocaleTimeString()}
+                          {formatAppointmentTime(consultation.startTime)}
                         </p>
                       </div>
                     </div>

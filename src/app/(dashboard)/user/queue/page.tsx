@@ -13,6 +13,7 @@ import { PageSpinner } from '@/components/loading';
 import { showToast } from '@/lib/toast';
 import { useQueueUnified } from '@/hooks/use-queue-unified';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatTimeIST } from '@/store/time-store';
 // Simple queue entry type for the simplified queue status function
 type SimpleQueueEntry = {
   id: string;
@@ -172,7 +173,7 @@ function QueueStatusContent() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{t('queue.checkedInAt', 'Checked in at')}:</span>
                   <span className="font-medium">
-                    {new Date(queueEntry.checkedInAt).toLocaleTimeString()}
+                    {formatTimeIST(queueEntry.checkedInAt)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm mt-2">

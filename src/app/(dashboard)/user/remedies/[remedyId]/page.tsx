@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { PageSpinner } from "@/components/loading";
 import { useRemedyDocument } from "@/hooks/queries/use-remedies";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatTimeIST } from "@/store/time-store";
 
 
 export default function UserRemedyDetailsPage() {
@@ -299,7 +300,7 @@ Om Shanti 🙏
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Time:</strong> {remedy.consultationSession?.appointment?.startTime ? new Date(remedy.consultationSession.appointment.startTime).toLocaleTimeString() : 'N/A'}
+                            <strong>Time:</strong> {remedy.consultationSession?.appointment?.startTime ? formatTimeIST(remedy.consultationSession.appointment.startTime) : 'N/A'}
                           </span>
                         </div>
                         {remedy.consultationSession?.appointment?.reason && (

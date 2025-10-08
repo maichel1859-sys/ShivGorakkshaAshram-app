@@ -6,6 +6,7 @@ import { prisma } from '@/lib/database/prisma';
 import { revalidatePath } from 'next/cache';
 import { validateLocationQRData } from '@/lib/utils/qr-validation';
 import { calculateDistance } from '@/lib/utils/geolocation';
+import { getCurrentTimeIST, formatTimeIST, formatDateIST } from '@/store/time-store';
 import {
   emitQueueEvent,
   emitAppointmentEvent,
@@ -69,9 +70,9 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
     }
 
     const { locationId, locationName, timestamp, coordinates: qrCoordinates } = validation.data!;
-    // Use current time as scan time for manual input or simple QR codes
+    // Use current IST time as scan time for manual input or simple QR codes
     // For actual QR codes with embedded timestamp, use that timestamp
-    const scanTime = timestamp > 0 ? new Date(timestamp) : new Date();
+    const scanTime = timestamp > 0 ? new Date(timestamp) : getCurrentTimeIST();
 
     console.log(`QR Scan attempt - User: ${session.user.id}, Location: ${locationName} (${locationId}), Time: ${scanTime.toISOString()}`);
 
@@ -93,8 +94,9 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
       console.log('⚠️ Warning: QR code does not contain location data');
     }
 
-    // Check if user has appointment for TODAY
-    const today = new Date();
+    // Check if user has appointment for TODAY (using IST)
+    const currentIST = getCurrentTimeIST();
+    const today = new Date(currentIST);
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -127,8 +129,8 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
     const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
     const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
 
-    // Check if appointment is for today
-    const currentDate = new Date();
+    // Check if appointment is for today (using IST)
+    const currentDate = getCurrentTimeIST();
     const appointmentDate = new Date(appointmentTime.getFullYear(), appointmentTime.getMonth(), appointmentTime.getDate());
     const todayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
     const isAppointmentToday = appointmentDate.getTime() === todayDate.getTime();
@@ -152,40 +154,40 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
 
     // Check if appointment is for today first
     if (!isAppointmentToday) {
-      const appointmentTimeStr = `${appointmentTime.toLocaleDateString()} at ${appointmentTime.toLocaleTimeString()}`;
-      const todayStr = currentDate.toLocaleDateString();
+      const appointmentTimeStr = `${formatDateIST(appointmentTime)} at ${formatTimeIST(appointmentTime)}`;
+      const todayStr = formatDateIST(currentDate);
       
       return { 
         success: false, 
-        error: `Your appointment is not for today. Your appointment is scheduled for ${appointmentTimeStr}, but today is ${todayStr}. Please check in on the correct date.` 
+        error: `Your appointment is not for today. Your appointment is scheduled for ${appointmentTimeStr} IST, but today is ${todayStr} IST. Please check in on the correct date.` 
       };
     }
 
     if (scanTime < timeWindowStart) {
       const minutesEarly = Math.round((timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60));
       
-      // Use our centralized time formatting for consistent display
-      const appointmentTimeStr = `${appointmentTime.toLocaleDateString()} at ${appointmentTime.toLocaleTimeString()}`;
-      const timeWindowStartStr = `${timeWindowStart.toLocaleDateString()} at ${timeWindowStart.toLocaleTimeString()}`;
-      const scanTimeStr = `${scanTime.toLocaleDateString()} at ${scanTime.toLocaleTimeString()}`;
+      // Use centralized IST time formatting for consistent display
+      const appointmentTimeStr = `${formatDateIST(appointmentTime)} at ${formatTimeIST(appointmentTime)}`;
+      const timeWindowStartStr = `${formatDateIST(timeWindowStart)} at ${formatTimeIST(timeWindowStart)}`;
+      const scanTimeStr = `${formatDateIST(scanTime)} at ${formatTimeIST(scanTime)}`;
       
       return { 
         success: false, 
-        error: `Too early to check in. Your appointment is at ${appointmentTimeStr}. You can check in starting from ${timeWindowStartStr}. You are ${minutesEarly} minutes too early. (Current time: ${scanTimeStr})` 
+        error: `Too early to check in. Your appointment is at ${appointmentTimeStr} IST. You can check in starting from ${timeWindowStartStr} IST. You are ${minutesEarly} minutes too early. (Current time: ${scanTimeStr} IST)` 
       };
     }
 
     if (scanTime > timeWindowEnd) {
       const minutesLate = Math.round((scanTime.getTime() - timeWindowEnd.getTime()) / (1000 * 60));
       
-      // Use our centralized time formatting for consistent display
-      const appointmentTimeStr = `${appointmentTime.toLocaleDateString()} at ${appointmentTime.toLocaleTimeString()}`;
-      const timeWindowEndStr = `${timeWindowEnd.toLocaleDateString()} at ${timeWindowEnd.toLocaleTimeString()}`;
-      const scanTimeStr = `${scanTime.toLocaleDateString()} at ${scanTime.toLocaleTimeString()}`;
+      // Use centralized IST time formatting for consistent display
+      const appointmentTimeStr = `${formatDateIST(appointmentTime)} at ${formatTimeIST(appointmentTime)}`;
+      const timeWindowEndStr = `${formatDateIST(timeWindowEnd)} at ${formatTimeIST(timeWindowEnd)}`;
+      const scanTimeStr = `${formatDateIST(scanTime)} at ${formatTimeIST(scanTime)}`;
       
       return { 
         success: false, 
-        error: `Too late to check in. Your appointment was at ${appointmentTimeStr}. The check-in window closed at ${timeWindowEndStr}. You are ${minutesLate} minutes too late. (Current time: ${scanTimeStr})` 
+        error: `Too late to check in. Your appointment was at ${appointmentTimeStr} IST. The check-in window closed at ${timeWindowEndStr} IST. You are ${minutesLate} minutes too late. (Current time: ${scanTimeStr} IST)` 
       };
     }
 

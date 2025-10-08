@@ -42,6 +42,7 @@ export enum SocketEvents {
   EMERGENCY_UPDATE = 'emergency_update',
   SYSTEM_UPDATE = 'system_update',
   DASHBOARD_UPDATE = 'dashboard_update',
+  SERVER_TIME_UPDATE = 'server_time_update',
   ERROR = 'error'
 }
 

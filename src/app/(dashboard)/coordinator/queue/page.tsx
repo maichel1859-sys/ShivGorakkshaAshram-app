@@ -21,6 +21,7 @@ import { useQueueUnified } from "@/hooks/use-queue-unified";
 import type { QueueStatus, QueueEntry } from "@/types/queue";
 import { showToast, commonToasts } from "@/lib/toast";
 import { startConsultation, updateQueueStatus } from "@/lib/actions/queue-actions";
+import { formatTimeIST } from "@/store/time-store";
 
 export default function CoordinatorQueuePage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -294,7 +295,7 @@ export default function CoordinatorQueuePage() {
                         </span>
                         <span className="flex items-center">
                           <Clock className="mr-1 h-3 w-3" />
-                          Checked in: {new Date(entry.checkedInAt).toLocaleTimeString()}
+                          Checked in: {formatTimeIST(entry.checkedInAt)}
                         </span>
                         {entry.estimatedWait && (
                           <span className="flex items-center">

@@ -35,6 +35,7 @@ import {
 } from "@/lib/actions/queue-actions";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatAppointmentDate, formatAppointmentTimeRangeOptional } from "@/lib/utils/time-formatting";
 import { useThemeAware } from "@/hooks/use-theme-aware";
 
 export default function GurujiDashboard() {
@@ -917,32 +918,7 @@ export default function GurujiDashboard() {
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-3 w-3" />
                             <span>
-                              {(() => {
-                                const date = new Date(devotee.appointment.date);
-                                const startTime = new Date(
-                                  devotee.appointment.startTime
-                                );
-                                const endTime = devotee.appointment.endTime
-                                  ? new Date(devotee.appointment.endTime)
-                                  : null;
-
-                                const formattedDate = format(
-                                  isNaN(date.getTime()) ? new Date() : date,
-                                  "MMM dd, yyyy"
-                                );
-                                const formattedStartTime = format(
-                                  isNaN(startTime.getTime())
-                                    ? new Date()
-                                    : startTime,
-                                  "h:mm a"
-                                );
-                                const formattedEndTime =
-                                  endTime && !isNaN(endTime.getTime())
-                                    ? ` - ${format(endTime, "h:mm a")}`
-                                    : "";
-
-                                return `${formattedDate} at ${formattedStartTime}${formattedEndTime}`;
-                              })()}
+                              {`${formatAppointmentDate(devotee.appointment.date)} at ${formatAppointmentTimeRangeOptional(devotee.appointment.startTime, devotee.appointment.endTime)}`}
                             </span>
                           </div>
                           {devotee.appointment.reason && (

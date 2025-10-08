@@ -57,7 +57,10 @@ export enum SocketEventTypes {
   // System
   SYSTEM_MAINTENANCE = 'system.maintenance',
   SYSTEM_UPDATE = 'system.update',
-  SYSTEM_ERROR = 'system.error'
+  SYSTEM_ERROR = 'system.error',
+  
+  // Time synchronization
+  SERVER_TIME_UPDATE = 'server.time_update'
 }
 
 // Room types for targeted broadcasting
