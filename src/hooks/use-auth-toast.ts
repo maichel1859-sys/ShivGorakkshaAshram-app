@@ -15,6 +15,7 @@ interface SignUpData {
   email: string;
   phone?: string;
   password: string;
+  confirmPassword: string;
 }
 
 export function useAuthToast() {
@@ -114,6 +115,7 @@ export function useAuthToast() {
       formData.append('email', data.email);
       formData.append('phone', data.phone || '');
       formData.append('password', data.password);
+      formData.append('confirmPassword', data.confirmPassword);
 
       // Import the registerUser function dynamically
       const { registerUser } = await import('@/lib/actions/auth-actions');

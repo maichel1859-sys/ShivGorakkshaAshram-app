@@ -155,6 +155,7 @@ export async function registerUser(formData: FormData) {
       email: formData.get('email'),
       phone: formData.get('phone'),
       password: formData.get('password'),
+      confirmPassword: formData.get('confirmPassword'),
       dateOfBirth: formData.get('dateOfBirth') || undefined,
       role: formData.get('role') || 'USER',
     });
