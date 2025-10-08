@@ -21,30 +21,6 @@ import { getCheckedInDevotees } from '@/lib/actions/coordinator-actions';
 import { format } from 'date-fns';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface _CheckedInDevotee {
-  id: string;
-  status: string;
-  checkedInAt: Date;
-  estimatedWait?: number;
-  position?: number;
-  priority: string;
-  user: {
-    id: string;
-    name: string;
-    phone?: string;
-    email?: string;
-  };
-  guruji?: {
-    id: string;
-    name: string;
-  };
-  appointment?: {
-    id: string;
-    date: Date;
-    startTime: Date;
-    reason?: string;
-  };
-}
 
 export function CheckedInDevotees() {
   const { t } = useLanguage();

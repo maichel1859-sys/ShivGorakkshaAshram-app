@@ -15,12 +15,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { 
-  Wifi, 
-  WifiOff, 
-  Zap, 
-  ZapOff, 
-  Clock, 
+import {
+  WifiOff,
+  Zap,
+  ZapOff,
+  Clock,
   AlertTriangle,
   CheckCircle,
   RefreshCw
@@ -90,17 +89,17 @@ export function ConnectionStatus({
         color: 'bg-green-500',
         icon: Zap,
         label: 'Real-time',
-        description: 'Socket connected - live updates active'
+        description: 'Socket connected - instant updates active'
       };
     }
 
     if (isOnline) {
       return {
-        status: 'limited',
+        status: 'fallback',
         color: 'bg-yellow-500',
-        icon: Wifi,
-        label: 'Limited',
-        description: 'Online but no real-time updates'
+        icon: Clock,
+        label: 'Fallback',
+        description: 'Using automatic fallback - polling for updates'
       };
     }
 

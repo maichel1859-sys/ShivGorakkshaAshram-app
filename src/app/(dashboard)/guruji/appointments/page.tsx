@@ -30,7 +30,7 @@ import {
 import { PageSpinner } from "@/components/loading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format, isToday, isTomorrow, isThisWeek, isPast } from "date-fns";
-import { useGurujiAppointments } from "@/hooks/queries/use-guruji-appointments";
+import { useUserAppointments } from "@/hooks/queries/use-appointments";
 
 interface AppointmentData {
   id: string;
@@ -67,11 +67,16 @@ export default function GurujiAppointmentsPage() {
   const [timeFilter, setTimeFilter] = useState("all");
 
   const {
-    data: appointments = [],
+    data: appointmentsData,
     isLoading,
     error,
     refetch,
-  } = useGurujiAppointments();
+  } = useUserAppointments();
+  // Memoize appointments to prevent dependency issues
+  const appointments = useMemo(() =>
+    appointmentsData?.appointments || [],
+    [appointmentsData?.appointments]
+  );
 
   // Filter appointments based on search and filters
   const filteredAppointments = useMemo(() => {
@@ -81,7 +86,9 @@ export default function GurujiAppointmentsPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (appointment) =>
-          appointment.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          appointment.user.name
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           appointment.user.phone?.includes(searchTerm) ||
           appointment.reason?.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -89,7 +96,9 @@ export default function GurujiAppointmentsPage() {
 
     // Status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter((appointment) => appointment.status === statusFilter);
+      filtered = filtered.filter(
+        (appointment) => appointment.status === statusFilter
+      );
     }
 
     // Time filter
@@ -113,8 +122,8 @@ export default function GurujiAppointmentsPage() {
       });
     }
 
-    return filtered.sort((a, b) =>
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+    return filtered.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [appointments, searchTerm, statusFilter, timeFilter]);
 
@@ -122,12 +131,18 @@ export default function GurujiAppointmentsPage() {
   const appointmentGroups = useMemo(() => {
     if (!filteredAppointments) return { today: [], upcoming: [], past: [] };
 
-    const today = filteredAppointments.filter((appointment) => isToday(new Date(appointment.date)));
-    const upcoming = filteredAppointments.filter((appointment) =>
-      !isPast(new Date(appointment.date)) && !isToday(new Date(appointment.date))
+    const today = filteredAppointments.filter((appointment) =>
+      isToday(new Date(appointment.date))
     );
-    const past = filteredAppointments.filter((appointment) =>
-      isPast(new Date(appointment.date)) && !isToday(new Date(appointment.date))
+    const upcoming = filteredAppointments.filter(
+      (appointment) =>
+        !isPast(new Date(appointment.date)) &&
+        !isToday(new Date(appointment.date))
+    );
+    const past = filteredAppointments.filter(
+      (appointment) =>
+        isPast(new Date(appointment.date)) &&
+        !isToday(new Date(appointment.date))
     );
 
     return { today, upcoming, past };
@@ -177,95 +192,109 @@ export default function GurujiAppointmentsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apt = appointment as any;
     return (
-    <Card key={apt.id as string} className="hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-3 flex-1">
-            {/* Devotee Info */}
-            <div className="flex items-center space-x-3">
-              <Avatar>
-                <AvatarFallback className="bg-blue-100 text-blue-700">
-                  {apt.user.name
-                    ?.split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h3 className="font-semibold text-lg">{apt.user.name || "Unknown Devotee"}</h3>
-                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  {apt.user.phone && (
-                    <div className="flex items-center space-x-1">
-                      <Phone className="h-3 w-3" />
-                      <span>{apt.user.phone}</span>
-                    </div>
-                  )}
-                  {apt.user.email && (
-                    <div className="flex items-center space-x-1">
-                      <Mail className="h-3 w-3" />
-                      <span>{apt.user.email}</span>
-                    </div>
-                  )}
+      <Card
+        key={apt.id as string}
+        className="hover:shadow-md transition-shadow"
+      >
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              {/* Devotee Info */}
+              <div className="flex items-center space-x-3">
+                <Avatar>
+                  <AvatarFallback className="bg-blue-100 text-blue-700">
+                    {apt.user.name
+                      ?.split(" ")
+                      .map((n: string) => n[0])
+                      .join("")
+                      .toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-lg">
+                    {apt.user.name || "Unknown Devotee"}
+                  </h3>
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    {apt.user.phone && (
+                      <div className="flex items-center space-x-1">
+                        <Phone className="h-3 w-3" />
+                        <span>{apt.user.phone}</span>
+                      </div>
+                    )}
+                    {apt.user.email && (
+                      <div className="flex items-center space-x-1">
+                        <Mail className="h-3 w-3" />
+                        <span>{apt.user.email}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              </div>
+
+              {/* Appointment Details */}
+              <div className="ml-12 space-y-2">
+                <div className="flex items-center space-x-4 text-sm">
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>
+                      {getTimeLabel(apt)} -{" "}
+                      {format(new Date(apt.date), "MMM dd, yyyy")}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {format(new Date(apt.startTime), "h:mm a")} -{" "}
+                      {format(new Date(apt.endTime), "h:mm a")}
+                    </span>
+                  </div>
+                </div>
+
+                {apt.reason && (
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Reason:</strong> {apt.reason}
+                  </p>
+                )}
+
+                {apt.notes && (
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Notes:</strong> {apt.notes}
+                  </p>
+                )}
+
+                {apt.queueEntry && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Queue Position:</strong> #{apt.queueEntry.position}{" "}
+                    |<strong> Checked in:</strong>{" "}
+                    {apt.queueEntry.checkedInAt
+                      ? format(new Date(apt.queueEntry.checkedInAt), "h:mm a")
+                      : "Not checked in"}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Appointment Details */}
-            <div className="ml-12 space-y-2">
-              <div className="flex items-center space-x-4 text-sm">
-                <div className="flex items-center space-x-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{getTimeLabel(apt)} - {format(new Date(apt.date), "MMM dd, yyyy")}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-3 w-3" />
-                  <span>
-                    {format(new Date(apt.startTime), "h:mm a")} - {format(new Date(apt.endTime), "h:mm a")}
-                  </span>
-                </div>
-              </div>
-
-              {apt.reason && (
-                <p className="text-sm text-muted-foreground">
-                  <strong>Reason:</strong> {apt.reason}
-                </p>
-              )}
-
-              {apt.notes && (
-                <p className="text-sm text-muted-foreground">
-                  <strong>Notes:</strong> {apt.notes}
-                </p>
-              )}
-
-              {apt.queueEntry && (
-                <div className="text-sm text-muted-foreground">
-                  <strong>Queue Position:</strong> #{apt.queueEntry.position} |
-                  <strong> Checked in:</strong> {apt.queueEntry.checkedInAt ?
-                    format(new Date(apt.queueEntry.checkedInAt), "h:mm a") : "Not checked in"}
+            {/* Status and Priority */}
+            <div className="flex flex-col items-end space-y-2">
+              <Badge className={getStatusColor(apt.status)}>
+                {apt.status.replace("_", " ")}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={getPriorityColor(apt.priority)}
+              >
+                {apt.priority}
+              </Badge>
+              {apt.checkedInAt && (
+                <div className="text-xs text-green-600 flex items-center space-x-1">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Checked In</span>
                 </div>
               )}
             </div>
           </div>
-
-          {/* Status and Priority */}
-          <div className="flex flex-col items-end space-y-2">
-            <Badge className={getStatusColor(apt.status)}>
-              {apt.status.replace("_", " ")}
-            </Badge>
-            <Badge variant="outline" className={getPriorityColor(apt.priority)}>
-              {apt.priority}
-            </Badge>
-            {apt.checkedInAt && (
-              <div className="text-xs text-green-600 flex items-center space-x-1">
-                <CheckCircle className="h-3 w-3" />
-                <span>Checked In</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -294,7 +323,9 @@ export default function GurujiAppointmentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Appointments</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            My Appointments
+          </h1>
           <p className="text-muted-foreground mt-2">
             View and manage all your scheduled appointments
           </p>
@@ -315,7 +346,9 @@ export default function GurujiAppointmentsPage() {
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{appointmentGroups.today.length}</div>
+            <div className="text-2xl font-bold">
+              {appointmentGroups.today.length}
+            </div>
             <p className="text-xs text-muted-foreground">Appointments today</p>
           </CardContent>
         </Card>
@@ -326,7 +359,9 @@ export default function GurujiAppointmentsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{appointmentGroups.upcoming.length}</div>
+            <div className="text-2xl font-bold">
+              {appointmentGroups.upcoming.length}
+            </div>
             <p className="text-xs text-muted-foreground">Future appointments</p>
           </CardContent>
         </Card>
@@ -338,7 +373,12 @@ export default function GurujiAppointmentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {appointments.filter((appointment: AppointmentData) => appointment.status === "COMPLETED").length}
+              {
+                appointments.filter(
+                  (appointment) =>
+                    appointment.status === "COMPLETED"
+                ).length
+              }
             </div>
             <p className="text-xs text-muted-foreground">Total completed</p>
           </CardContent>
@@ -420,10 +460,18 @@ export default function GurujiAppointmentsPage() {
       {/* Appointments List with Tabs */}
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All ({filteredAppointments.length})</TabsTrigger>
-          <TabsTrigger value="today">Today ({appointmentGroups.today.length})</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming ({appointmentGroups.upcoming.length})</TabsTrigger>
-          <TabsTrigger value="past">Past ({appointmentGroups.past.length})</TabsTrigger>
+          <TabsTrigger value="all">
+            All ({filteredAppointments.length})
+          </TabsTrigger>
+          <TabsTrigger value="today">
+            Today ({appointmentGroups.today.length})
+          </TabsTrigger>
+          <TabsTrigger value="upcoming">
+            Upcoming ({appointmentGroups.upcoming.length})
+          </TabsTrigger>
+          <TabsTrigger value="past">
+            Past ({appointmentGroups.past.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -431,7 +479,9 @@ export default function GurujiAppointmentsPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No appointments found</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  No appointments found
+                </h3>
                 <p className="text-muted-foreground">
                   {appointments.length === 0
                     ? "You don't have any appointments scheduled yet."
@@ -442,7 +492,10 @@ export default function GurujiAppointmentsPage() {
           ) : (
             <div className="space-y-4">
               {filteredAppointments.map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                />
               ))}
             </div>
           )}
@@ -453,14 +506,21 @@ export default function GurujiAppointmentsPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <CalendarDays className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No appointments today</h3>
-                <p className="text-muted-foreground">You have no appointments scheduled for today.</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No appointments today
+                </h3>
+                <p className="text-muted-foreground">
+                  You have no appointments scheduled for today.
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {appointmentGroups.today.map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                />
               ))}
             </div>
           )}
@@ -471,14 +531,21 @@ export default function GurujiAppointmentsPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No upcoming appointments</h3>
-                <p className="text-muted-foreground">You have no future appointments scheduled.</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No upcoming appointments
+                </h3>
+                <p className="text-muted-foreground">
+                  You have no future appointments scheduled.
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {appointmentGroups.upcoming.map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                />
               ))}
             </div>
           )}
@@ -489,14 +556,21 @@ export default function GurujiAppointmentsPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No past appointments</h3>
-                <p className="text-muted-foreground">You have no appointment history to display.</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  No past appointments
+                </h3>
+                <p className="text-muted-foreground">
+                  You have no appointment history to display.
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
               {appointmentGroups.past.map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                />
               ))}
             </div>
           )}

@@ -14,6 +14,5 @@ export * from './use-network-status';
 export * from './use-pwa';
 export * from './use-adaptive-polling';
 export * from './use-auth-toast';
-export * from './use-notifications-realtime';
 export * from './use-polling-notifications';
 export * from './use-queue-unified'; 

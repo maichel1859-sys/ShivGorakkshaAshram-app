@@ -2,7 +2,7 @@
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { Prisma } from '@prisma/client';
 import {
@@ -10,54 +10,53 @@ import {
   manualCheckinSchema
 } from '@/lib/validation/unified-schemas';
 import { CACHE_TAGS } from '@/lib/cache';
+import {
+  emitAppointmentEvent,
+  emitQueueEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
+import { QueueEntry, Appointment } from '@/types';
 
-// Function to broadcast check-in events to all stakeholders
-async function broadcastCheckInEvents(queueEntry: any, appointment: any, eventType: string) {
+// Function to emit check-in events to all stakeholders
+async function emitCheckInEvents(queueEntry: QueueEntry, appointment: Appointment, eventType: string) {
   try {
-    const socketResponse = await fetch(`${process.env.SOCKET_SERVER_URL || 'https://ashram-queue-socket-server.onrender.com'}/api/broadcast`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: 'checkin_update',
-        data: {
-          queueEntry,
-          appointment,
-          eventType,
-          timestamp: new Date().toISOString(),
-          user: {
-            id: appointment.userId,
-            name: appointment.user?.name,
-            phone: appointment.user?.phone
-          },
-          guruji: {
-            id: appointment.gurujiId,
-            name: appointment.guruji?.name
-          },
-          action: eventType === 'qr_checkin' ? 'qr_checkin' : 'manual_checkin',
-          position: queueEntry.position,
-          estimatedWait: queueEntry.estimatedWait,
-        },
-        rooms: [
-          'queue',
-          'admin',
-          'coordinator',
-          `guruji:${appointment.gurujiId}`,
-          `user:${appointment.userId}`,
-          'notifications',
-          'global'
-        ],
-      }),
-    });
+    // Emit appointment checked in event
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CHECKED_IN,
+      appointment.id,
+      {
+        id: appointment.id,
+        userId: appointment.userId,
+        gurujiId: appointment.gurujiId || '',
+        date: appointment.date.toISOString(),
+        time: appointment.startTime.toISOString(),
+        status: appointment.status,
+        priority: appointment.priority,
+        reason: appointment.reason || undefined,
+        position: queueEntry.position,
+        estimatedWait: queueEntry.estimatedWait || undefined
+      }
+    );
 
-    if (socketResponse.ok) {
-      console.log(`🔌 Broadcasted check-in event via socket: ${eventType}`);
-    } else {
-      console.warn(`🔌 Failed to broadcast check-in event:`, await socketResponse.text());
-    }
+    // Emit queue entry added event
+    await emitQueueEvent(
+      SocketEventTypes.QUEUE_ENTRY_ADDED,
+      queueEntry.id,
+      {
+        id: queueEntry.id,
+        position: queueEntry.position,
+        status: queueEntry.status,
+        estimatedWait: queueEntry.estimatedWait || undefined,
+        priority: queueEntry.priority || 'MEDIUM',
+        appointmentId: appointment.id
+      },
+      appointment.userId,
+      appointment.gurujiId || undefined
+    );
+
+    console.log(`🔌 Emitted ${eventType} events to all stakeholders`);
   } catch (socketError) {
-    console.error('🔌 Socket broadcast error:', socketError);
+    console.error('🔌 Socket emit error:', socketError);
     // Continue even if socket fails
   }
 }
@@ -153,6 +152,22 @@ export async function checkInWithQR(formData: FormData) {
         notes: 'Checked in via QR code',
         checkedInAt: new Date(),
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
     });
 
     // Create notification for user
@@ -166,7 +181,7 @@ export async function checkInWithQR(formData: FormData) {
           appointmentId: appointment.id,
           queueEntryId: queueEntry.id,
           position: queueEntry.position,
-          estimatedWait: queueEntry.estimatedWait,
+          estimatedWait: queueEntry.estimatedWait || undefined,
         },
       },
     });
@@ -183,8 +198,34 @@ export async function checkInWithQR(formData: FormData) {
       },
     });
 
+    // Transform queueEntry to match QueueEntry type
+    const transformedQueueEntry = {
+      ...queueEntry,
+      checkedInAt: queueEntry.checkedInAt.toISOString(),
+    };
+
+    // Transform appointment to match Appointment type
+    const transformedAppointment = {
+      ...updatedAppointment,
+      recurringPattern: updatedAppointment.recurringPattern as Record<string, unknown> | undefined,
+      user: {
+        ...updatedAppointment.user,
+        email: updatedAppointment.user.email || '',
+        phone: updatedAppointment.user.phone || '',
+        name: updatedAppointment.user.name || '',
+        preferences: updatedAppointment.user.preferences as Record<string, unknown> | undefined,
+      },
+      guruji: updatedAppointment.guruji ? {
+        ...updatedAppointment.guruji,
+        email: updatedAppointment.guruji.email || '',
+        phone: updatedAppointment.guruji.phone || '',
+        name: updatedAppointment.guruji.name || '',
+        preferences: updatedAppointment.guruji.preferences as Record<string, unknown> | undefined,
+      } : null
+    };
+
     // Broadcast check-in events to all stakeholders (primary mechanism)
-    await broadcastCheckInEvents(queueEntry, updatedAppointment, 'qr_checkin');
+    await emitCheckInEvents(transformedQueueEntry, transformedAppointment, 'qr_checkin');
     
     // Invalidate cache tags (fallback mechanism)
     revalidateTag(CACHE_TAGS.queue);
@@ -215,7 +256,7 @@ export async function checkInWithQR(formData: FormData) {
 }
 
 // Manual check-in
-export async function manualCheckIn(formData: FormData) {
+export async function manualCheckInFromCheckin(formData: FormData) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -308,6 +349,22 @@ export async function manualCheckIn(formData: FormData) {
         notes: 'Checked in manually',
         checkedInAt: new Date(),
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
     });
 
     // Create notification for user
@@ -342,8 +399,34 @@ export async function manualCheckIn(formData: FormData) {
       },
     });
 
+    // Transform queueEntry2 to match QueueEntry type
+    const transformedQueueEntry2 = {
+      ...queueEntry2,
+      checkedInAt: queueEntry2.checkedInAt.toISOString(),
+    };
+
+    // Transform appointment to match Appointment type
+    const transformedAppointment2 = {
+      ...updatedAppointment,
+      recurringPattern: updatedAppointment.recurringPattern as Record<string, unknown> | undefined,
+      user: {
+        ...updatedAppointment.user,
+        email: updatedAppointment.user.email || '',
+        phone: updatedAppointment.user.phone || '',
+        name: updatedAppointment.user.name || '',
+        preferences: updatedAppointment.user.preferences as Record<string, unknown> | undefined,
+      },
+      guruji: updatedAppointment.guruji ? {
+        ...updatedAppointment.guruji,
+        email: updatedAppointment.guruji.email || '',
+        phone: updatedAppointment.guruji.phone || '',
+        name: updatedAppointment.guruji.name || '',
+        preferences: updatedAppointment.guruji.preferences as Record<string, unknown> | undefined,
+      } : null
+    };
+
     // Broadcast check-in events to all stakeholders (primary mechanism)
-    await broadcastCheckInEvents(queueEntry2, updatedAppointment, 'manual_checkin');
+    await emitCheckInEvents(transformedQueueEntry2, transformedAppointment2, 'manual_checkin');
     
     // Invalidate cache tags (fallback mechanism)
     revalidateTag(CACHE_TAGS.queue);

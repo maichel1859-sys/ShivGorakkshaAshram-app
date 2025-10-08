@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { prescribeRemedyDuringConsultation } from "@/lib/actions/remedy-actions";
-import { useRemedyTemplates } from "@/hooks/queries/use-remedies";
+import { useRemedyTemplates, usePrescribeRemedyDuringConsultation, useUserRemedyHistory } from "@/hooks/queries/use-remedies";
 import {
   Dialog,
   DialogContent,
@@ -11,9 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -22,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pill, CheckCircle } from "lucide-react";
+import { Loader2, Pill, CheckCircle, Calendar, History } from "lucide-react";
 import { toast } from "sonner";
 
 interface PrescribeRemedyModalProps {
@@ -30,6 +27,7 @@ interface PrescribeRemedyModalProps {
   onClose: () => void;
   consultationId: string;
   devoteeName: string;
+  devoteeId: string;
   onSuccess?: () => void;
   onSkip?: () => void;
 }
@@ -39,13 +37,11 @@ export function PrescribeRemedyModal({
   onClose,
   consultationId,
   devoteeName,
+  devoteeId,
   onSuccess,
   onSkip,
 }: PrescribeRemedyModalProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [customInstructions, setCustomInstructions] = useState("");
-  const [customDosage, setCustomDosage] = useState("");
-  const [customDuration, setCustomDuration] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get remedy templates
@@ -54,11 +50,20 @@ export function PrescribeRemedyModal({
     limit: 100,
   });
 
+  // Get user's remedy history
+  const { data: remedyHistoryData, isLoading: historyLoading, error: historyError } = useUserRemedyHistory(devoteeId, {
+    limit: 5, // Show last 5 remedies
+  });
+
+
+  // Use the React Query hook for prescribing remedy
+  const prescribeRemedyMutation = usePrescribeRemedyDuringConsultation();
+
   const templates = templatesData?.templates || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedTemplate) {
       toast.error("Please select a remedy template");
       return;
@@ -68,26 +73,20 @@ export function PrescribeRemedyModal({
     const formData = new FormData();
     formData.append("consultationId", consultationId);
     formData.append("templateId", selectedTemplate);
-    formData.append("customInstructions", customInstructions);
-    formData.append("customDosage", customDosage);
-    formData.append("customDuration", customDuration);
 
     try {
-      const result = await prescribeRemedyDuringConsultation(formData);
-      
-      if (result.success) {
-        toast.success(result.message || "Remedy prescribed successfully!");
-        resetForm();
-        onClose();
-        // Trigger success callback to refresh data
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        toast.error(result.error || "Failed to prescribe remedy");
+      await prescribeRemedyMutation.mutateAsync(formData);
+
+      // Success is handled by the mutation hook's onSuccess
+      resetForm();
+      onClose();
+      // Trigger success callback to refresh data
+      if (onSuccess) {
+        onSuccess();
       }
     } catch {
-      toast.error("An error occurred while prescribing the remedy");
+      // Error is handled by the mutation hook's onError
+      console.error("Failed to prescribe remedy");
     } finally {
       setIsSubmitting(false);
     }
@@ -105,9 +104,6 @@ export function PrescribeRemedyModal({
 
   const resetForm = () => {
     setSelectedTemplate("");
-    setCustomInstructions("");
-    setCustomDosage("");
-    setCustomDuration("");
   };
 
   const selectedTemplateData = templates.find(t => t.id === selectedTemplate);
@@ -121,11 +117,69 @@ export function PrescribeRemedyModal({
             Prescribe Remedy - {devoteeName}
           </DialogTitle>
           <DialogDescription>
-            Select a remedy template and customize dosage for this consultation. You can also skip if no remedy is needed.
+            Select a remedy template for this consultation. Previous remedies are shown for reference. You can also skip if no remedy is needed.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Previous Remedies History */}
+          {remedyHistoryData && remedyHistoryData.remedies && remedyHistoryData.remedies.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <History className="h-4 w-4" />
+                Previous Remedies for {devoteeName}
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-2 p-3 border rounded-lg bg-muted/20">
+                {remedyHistoryData.remedies.map((remedy) => (
+                  <div key={remedy.id} className="p-3 border rounded-md bg-background">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{remedy.template.name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {remedy.template.type}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {remedy.template.instructions}
+                        </p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(remedy.consultationSession.appointment.date).toLocaleDateString()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>By: {remedy.consultationSession.appointment.guruji?.name || 'Unknown'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {historyLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading remedy history...
+            </div>
+          )}
+
+          {historyError && (
+            <div className="p-3 border border-red-200 rounded-lg bg-red-50 text-red-700 text-sm">
+              <strong>Error loading history:</strong> {historyError.message}
+            </div>
+          )}
+
+          {!historyLoading && !historyError && remedyHistoryData && remedyHistoryData.remedies && remedyHistoryData.remedies.length === 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <History className="h-4 w-4" />
+              No previous remedies found for {devoteeName}
+            </div>
+          )}
+
           {/* Remedy Template Selection */}
           <div className="space-y-2">
             <Label htmlFor="template">Select Remedy Template *</Label>
@@ -182,45 +236,6 @@ export function PrescribeRemedyModal({
             </div>
           )}
 
-          {/* Custom Instructions */}
-          <div className="space-y-2">
-            <Label htmlFor="customInstructions">
-              Custom Instructions (Optional)
-            </Label>
-            <Textarea
-              id="customInstructions"
-              placeholder="Add any custom instructions or modifications..."
-              value={customInstructions}
-              onChange={(e) => setCustomInstructions(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          {/* Custom Dosage */}
-          <div className="space-y-2">
-            <Label htmlFor="customDosage">
-              Custom Dosage (Optional)
-            </Label>
-            <Input
-              id="customDosage"
-              placeholder="e.g., 2 tablets twice daily"
-              value={customDosage}
-              onChange={(e) => setCustomDosage(e.target.value)}
-            />
-          </div>
-
-          {/* Custom Duration */}
-          <div className="space-y-2">
-            <Label htmlFor="customDuration">
-              Custom Duration (Optional)
-            </Label>
-            <Input
-              id="customDuration"
-              placeholder="e.g., 7 days"
-              value={customDuration}
-              onChange={(e) => setCustomDuration(e.target.value)}
-            />
-          </div>
 
           {/* Action Buttons */}
           <div className="flex justify-between pt-4">

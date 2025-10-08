@@ -5,100 +5,41 @@
 export * from './auth-actions';
 export * from './user-actions';
 
-// Appointment & Queue Management
+// Appointment Management (Consolidated)
 export * from './appointment-actions';
+
+// Queue Management (Consolidated)
 export * from './queue-actions';
-export * from './location-actions';
 
-// Consultation & Check-in
-export * from './consultation-actions';
-export * from './checkin-actions';
-
-// Remedy & Notification
+// Remedy Management (Consolidated)
 export * from './remedy-actions';
+
+// Notification Management
 export * from './notification-actions';
 
-// Settings & Dashboard
-export * from './settings-actions';
+// Consultation Management
+export * from './consultation-actions';
+
+// Dashboard & Analytics
 export * from './dashboard-actions';
 
-// Re-export commonly used actions for convenience
-export {
-  // Auth actions
-  registerUser,
-  sendPhoneOTP,
-  verifyPhoneOTP,
-  addFamilyContact,
-  getFamilyContacts,
-  changePassword,
-} from './auth-actions';
+// Coordinator Actions
+export * from './coordinator-actions';
 
-export {
-  // User actions
-  getUsers,
-  createUser,
-  updateUser,
-  deleteUser,
-  toggleUserStatus,
-} from './user-actions';
+// Guruji Actions
+export * from './guruji-actions';
 
-export {
-  // Appointment actions
-  getAppointments,
-  bookAppointment,
-  cancelAppointment,
-  rescheduleAppointment,
-  getAppointmentAvailability,
-} from './appointment-actions';
+// Reception Actions
+export * from './reception-actions';
 
-export {
-  // Queue actions
-  joinQueue,
-  leaveQueue,
-  updateQueueStatus,
-} from './queue-actions';
+// Settings Management
+export * from './settings-actions';
 
-export {
-  // Consultation actions
-  getConsultations,
-  createConsultation,
-  updateConsultation,
-  deleteConsultation,
-} from './consultation-actions';
+// Location & QR Management
+export * from './location-actions';
+export * from './qr-scan-actions-simple';
 
-export {
-  // Check-in actions
-  checkInWithQR,
-  manualCheckIn,
-  getCheckInHistory,
-} from './checkin-actions';
+// Debug & Development - Removed unused queue-debug-actions
 
-export {
-  // Remedy actions
-  getRemedyTemplates,
-  prescribeRemedy,
-  getUserRemedies,
-} from './remedy-actions';
-
-export {
-  // Notification actions
-  getUserNotifications,
-  markNotificationAsRead,
-  createNotification,
-} from './notification-actions';
-
-export {
-  // Settings actions
-  getUserSettings,
-  updateUserSettings,
-  getSystemSettings,
-} from './settings-actions';
-
-export {
-  // Dashboard actions
-  getAdminDashboardStats,
-  getCoordinatorDashboard,
-  getGurujiDashboard,
-  getSystemAlerts,
-  getUsageReports,
-} from './dashboard-actions'; 
+// Check-in Management
+export * from './checkin-actions'; 

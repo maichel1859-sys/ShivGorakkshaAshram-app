@@ -1,8 +1,13 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
+import {
+  emitGurujiEvent,
+  emitNotificationEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 interface ContactHistory {
   id: string;
@@ -14,6 +19,185 @@ interface ContactHistory {
   sentAt: string;
   deliveredAt?: string;
   errorMessage?: string;
+}
+
+// Get guruji profile
+export async function getGurujiProfile(gurujiId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const guruji = await prisma.user.findUnique({
+      where: { id: gurujiId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!guruji) {
+      return { success: false, error: 'Guruji not found' };
+    }
+
+    return { success: true, guruji };
+  } catch (error) {
+    console.error('Get guruji profile error:', error);
+    return { success: false, error: 'Failed to fetch guruji profile' };
+  }
+}
+
+// Update guruji profile
+export async function updateGurujiProfile(formData: FormData) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || session.user.role !== 'GURUJI') {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const name = formData.get('name') as string;
+    const phone = formData.get('phone') as string;
+
+    const guruji = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        name: name || undefined,
+        phone: phone || undefined,
+        updatedAt: new Date()
+      }
+    });
+
+    // Emit guruji updated event
+    await emitGurujiEvent(
+      SocketEventTypes.GURUJI_AVAILABLE,
+      {
+        id: guruji.id,
+        name: guruji.name || 'Guruji',
+        status: 'AVAILABLE',
+        availability: [],
+        currentQueueLength: 0
+      }
+    );
+
+    return { success: true, guruji };
+  } catch (error) {
+    console.error('Update guruji profile error:', error);
+    return { success: false, error: 'Failed to update profile' };
+  }
+}
+
+// Get guruji schedule (placeholder)
+export async function getGurujiSchedule(gurujiId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // For now, return a basic schedule structure
+    const schedule = {
+      gurujiId,
+      workingHours: { start: '09:00', end: '17:00' },
+      weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+      breaks: [{ start: '12:00', end: '13:00' }]
+    };
+
+    return { success: true, schedule };
+  } catch (error) {
+    console.error('Get guruji schedule error:', error);
+    return { success: false, error: 'Failed to fetch schedule' };
+  }
+}
+
+// Update guruji schedule (placeholder)
+export async function updateGurujiSchedule(formData: FormData) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || session.user.role !== 'GURUJI') {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Log formData for debugging (placeholder implementation)
+    console.log('Schedule update data received:', formData.keys());
+
+    // For now, return a success response
+    const schedule = {
+      gurujiId: session.user.id,
+      workingHours: { start: '09:00', end: '17:00' },
+      weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+      breaks: [{ start: '12:00', end: '13:00' }]
+    };
+
+    return { success: true, schedule };
+  } catch (error) {
+    console.error('Update guruji schedule error:', error);
+    return { success: false, error: 'Failed to update schedule' };
+  }
+}
+
+// Get guruji statistics
+export async function getGurujiStats(gurujiId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const [
+      totalAppointments,
+      todayAppointments,
+      pendingAppointments,
+      completedAppointments
+    ] = await Promise.all([
+      prisma.appointment.count({
+        where: { gurujiId }
+      }),
+      prisma.appointment.count({
+        where: {
+          gurujiId,
+          date: {
+            gte: today.toISOString().split('T')[0],
+            lt: tomorrow.toISOString().split('T')[0]
+          }
+        }
+      }),
+      prisma.appointment.count({
+        where: {
+          gurujiId,
+          status: { in: ['BOOKED', 'CONFIRMED'] }
+        }
+      }),
+      prisma.appointment.count({
+        where: {
+          gurujiId,
+          status: 'COMPLETED'
+        }
+      })
+    ]);
+
+    const stats = {
+      totalAppointments,
+      todayAppointments,
+      pendingAppointments,
+      completedAppointments
+    };
+
+    return { success: true, stats };
+  } catch (error) {
+    console.error('Get guruji stats error:', error);
+    return { success: false, error: 'Failed to fetch stats' };
+  }
 }
 
 export async function getGurujiAppointments() {
@@ -201,6 +385,20 @@ export async function sendDevoteeNotification(
         read: false,
       },
     });
+
+    // Emit notification sent event
+    await emitNotificationEvent(
+      SocketEventTypes.NOTIFICATION_SENT,
+      notification.id,
+      {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        read: false,
+        userId: devoteeId
+      }
+    );
 
     // Return in ContactHistory format
     const contactHistory: ContactHistory = {

@@ -33,7 +33,7 @@ export function useAuthToast() {
         email: credentials.email,
         password: credentials.password,
         redirect: false,
-        callbackUrl: '/',
+        callbackUrl: '/dashboard',
       });
 
       if (result?.error) {

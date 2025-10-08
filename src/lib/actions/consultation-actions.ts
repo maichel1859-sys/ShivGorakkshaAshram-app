@@ -2,13 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
-import { 
-  consultationSessionSchema, 
+import {
+  consultationSessionSchema,
   getValidationErrors
 } from '@/lib/validation/unified-schemas';
+import {
+  emitConsultationEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 // Use unified schemas for consistency
 const createConsultationSchema = consultationSessionSchema;
@@ -273,9 +277,30 @@ export async function createConsultation(formData: FormData) {
       },
     });
 
+    // Emit socket event for real-time updates
+    try {
+      await emitConsultationEvent(
+        SocketEventTypes.CONSULTATION_STARTED,
+        consultation.id,
+        {
+          id: consultation.id,
+          startTime: consultation.startTime.toISOString(),
+          status: 'IN_PROGRESS',
+          notes: consultation.notes || '',
+          appointmentId: consultation.appointmentId,
+        },
+        consultation.devoteeId,
+        consultation.gurujiId
+      );
+    } catch (socketError) {
+      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      // Socket failed - clients will use polling fallback automatically
+      // No action needed here, React Query will handle stale data refresh
+    }
+
     revalidatePath('/guruji/consultations');
     revalidatePath('/admin/consultations');
-    
+
     return { success: true, consultation };
   } catch (error) {
     console.error('Create consultation error:', error);
@@ -368,9 +393,35 @@ export async function updateConsultation(formData: FormData) {
       });
     }
 
+    // Emit socket event for real-time updates with fallback mechanism
+    try {
+      const eventType = data.status === 'COMPLETED'
+        ? SocketEventTypes.CONSULTATION_ENDED
+        : SocketEventTypes.CONSULTATION_UPDATED;
+
+      await emitConsultationEvent(
+        eventType,
+        consultation.id,
+        {
+          id: consultation.id,
+          startTime: consultation.startTime.toISOString(),
+          endTime: updatedConsultation.endTime?.toISOString(),
+          status: data.status || 'IN_PROGRESS',
+          notes: data.notes || consultation.notes || '',
+          appointmentId: consultation.appointmentId,
+        },
+        consultation.devoteeId,
+        consultation.gurujiId
+      );
+    } catch (socketError) {
+      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      // Socket failed - clients will use polling fallback automatically
+      // No action needed here, React Query will handle stale data refresh
+    }
+
     revalidatePath('/guruji/consultations');
     revalidatePath('/admin/consultations');
-    
+
     return { success: true, consultation: updatedConsultation };
   } catch (error) {
     console.error('Update consultation error:', error);

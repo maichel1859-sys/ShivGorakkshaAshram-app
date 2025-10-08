@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
       
       if (result.success) {
         setIsSuccess(true);
-        toast.success(result.message);
+        toast.success(result.message || 'Password reset successfully');
       } else {
         toast.error(result.error || 'Failed to reset password');
       }

@@ -267,7 +267,7 @@ export function CoordinatorAppointmentsClient({
       } else {
         toast.error(result.error || 'Failed to delete appointment');
       }
-    } catch (_error) {
+    } catch {
       toast.error('An error occurred while deleting the appointment');
     } finally {
       setIsDeleting(false);
@@ -289,7 +289,7 @@ export function CoordinatorAppointmentsClient({
       } else {
         toast.error(result.error || 'Failed to check in devotee');
       }
-    } catch (_error) {
+    } catch {
       toast.error('An error occurred during check-in');
     } finally {
       setIsCheckingIn(false);

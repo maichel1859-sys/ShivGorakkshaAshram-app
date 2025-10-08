@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/core/auth";
+import { authOptions } from "@/lib/auth/auth";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { Suspense, ReactNode } from "react";
 

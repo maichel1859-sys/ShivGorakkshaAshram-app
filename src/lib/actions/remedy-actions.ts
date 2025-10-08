@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
 import { z } from 'zod';
 import { 
@@ -10,6 +10,11 @@ import {
   remedyPrescriptionSchema,
   getValidationErrors
 } from '@/lib/validation/unified-schemas';
+import { 
+  emitRemedyEvent,
+  emitNotificationEvent,
+  SocketEventTypes 
+} from '@/lib/socket/socket-emitter';
 
 // Use unified schemas for consistency
 const prescribeRemedySchema = remedyPrescriptionSchema;
@@ -376,7 +381,7 @@ export async function prescribeRemedy(formData: FormData) {
     });
 
     // Create notification for devotee
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: devoteeId,
         title: "New Remedy Prescribed",
@@ -389,6 +394,37 @@ export async function prescribeRemedy(formData: FormData) {
         },
       },
     });
+
+    // Emit remedy prescribed event
+    await emitRemedyEvent(
+      SocketEventTypes.REMEDY_PRESCRIBED,
+      remedy.id,
+      {
+        id: remedy.id,
+        templateId: remedy.templateId,
+        status: 'PRESCRIBED',
+        instructions: remedy.customInstructions || remedy.template.instructions,
+        dosage: remedy.customDosage || remedy.template.dosage || undefined,
+        duration: remedy.customDuration || remedy.template.duration || undefined,
+        appointmentId: appointment.id
+      },
+      devoteeId,
+      session.user.id
+    );
+
+    // Emit notification sent event
+    await emitNotificationEvent(
+      SocketEventTypes.NOTIFICATION_SENT,
+      notification.id,
+      {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        read: notification.read,
+        userId: devoteeId
+      }
+    );
 
     // Create audit log
     await prisma.auditLog.create({
@@ -797,7 +833,7 @@ export async function prescribeRemedyDuringConsultation(formData: FormData) {
     });
 
     // Create notification for the devotee
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: consultation.appointment.userId,
         title: 'New Remedy Prescribed',
@@ -812,6 +848,37 @@ export async function prescribeRemedyDuringConsultation(formData: FormData) {
       },
     });
 
+    // Emit remedy prescribed event
+    await emitRemedyEvent(
+      SocketEventTypes.REMEDY_PRESCRIBED,
+      remedyDocument.id,
+      {
+        id: remedyDocument.id,
+        templateId: remedyDocument.templateId,
+        status: 'PRESCRIBED',
+        instructions: remedyDocument.customInstructions || remedyDocument.template.instructions,
+        dosage: remedyDocument.customDosage || remedyDocument.template.dosage || undefined,
+        duration: remedyDocument.customDuration || remedyDocument.template.duration || undefined,
+        appointmentId: consultation.appointment.id
+      },
+      consultation.appointment.userId,
+      session.user.id
+    );
+
+    // Emit notification sent event
+    await emitNotificationEvent(
+      SocketEventTypes.NOTIFICATION_SENT,
+      notification.id,
+      {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        read: false,
+        userId: consultation.appointment.userId
+      }
+    );
+
     revalidatePath('/guruji/consultations');
     revalidatePath('/user/remedies');
     revalidatePath('/guruji/remedies');
@@ -824,5 +891,270 @@ export async function prescribeRemedyDuringConsultation(formData: FormData) {
   } catch (error) {
     console.error('Prescribe remedy during consultation error:', error);
     return { success: false, error: 'Failed to prescribe remedy' };
+  }
+}
+
+// Generate PDF for remedy document
+export async function generateRemedyDocumentPDF(remedyDocumentId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const remedyDocument = await prisma.remedyDocument.findUnique({
+      where: { id: remedyDocumentId },
+      include: {
+        template: true,
+        user: true,
+        consultationSession: {
+          include: {
+            guruji: true,
+            devotee: true,
+          },
+        },
+      },
+    });
+
+    if (!remedyDocument) {
+      return { success: false, error: 'Remedy document not found' };
+    }
+
+    // Verify access permission
+    if (
+      remedyDocument.userId !== session.user.id &&
+      remedyDocument.consultationSession.gurujiId !== session.user.id &&
+      session.user.role !== 'ADMIN'
+    ) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    // TODO: Implement PDF generation
+    // This would typically use a library like puppeteer or jsPDF
+    const pdfUrl = `/api/remedies/${remedyDocumentId}/pdf`;
+
+    // Update remedy document with PDF URL
+    await prisma.remedyDocument.update({
+      where: { id: remedyDocumentId },
+      data: { pdfUrl },
+    });
+
+    return { success: true, pdfUrl };
+
+  } catch (error) {
+    console.error('Generate remedy PDF error:', error);
+    return { success: false, error: 'Failed to generate PDF' };
+  }
+}
+
+// Mark remedy as delivered
+export async function markRemedyDelivered(remedyDocumentId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const remedyDocument = await prisma.remedyDocument.findUnique({
+      where: { id: remedyDocumentId },
+      include: {
+        consultationSession: {
+          include: {
+            guruji: true,
+          },
+        },
+      },
+    });
+
+    if (!remedyDocument) {
+      return { success: false, error: 'Remedy document not found' };
+    }
+
+    // Verify permission (only guruji or admin can mark as delivered)
+    if (
+      remedyDocument.consultationSession.gurujiId !== session.user.id &&
+      session.user.role !== 'ADMIN'
+    ) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    // Update delivery status
+    const updatedRemedy = await prisma.remedyDocument.update({
+      where: { id: remedyDocumentId },
+      data: { deliveredAt: new Date() },
+      include: {
+        template: true,
+        user: true,
+      },
+    });
+
+    // Emit socket event for real-time update
+    try {
+      await emitRemedyEvent(
+        SocketEventTypes.REMEDY_COMPLETED,
+        remedyDocumentId,
+        {
+          id: updatedRemedy.id,
+          templateId: updatedRemedy.templateId,
+          status: 'DELIVERED',
+          instructions: updatedRemedy.customInstructions || updatedRemedy.template.instructions,
+          dosage: updatedRemedy.customDosage || updatedRemedy.template.dosage || undefined,
+          duration: updatedRemedy.customDuration || updatedRemedy.template.duration || undefined,
+        },
+        updatedRemedy.userId
+      );
+    } catch (socketError) {
+      console.warn('Socket emission failed:', socketError);
+    }
+
+    return { success: true, remedy: updatedRemedy };
+
+  } catch (error) {
+    console.error('Mark remedy delivered error:', error);
+    return { success: false, error: 'Failed to mark remedy as delivered' };
+  }
+}
+
+
+// Get remedy document by ID
+export async function getRemedyDocument(remedyDocumentId: string) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const remedy = await prisma.remedyDocument.findUnique({
+      where: { id: remedyDocumentId },
+      include: {
+        template: true,
+        consultationSession: {
+          include: {
+            appointment: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true
+                  }
+                },
+                guruji: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!remedy) {
+      return { success: false, error: 'Remedy document not found' };
+    }
+
+    // Verify access permission
+    const hasAccess =
+      remedy.consultationSession.appointment.userId === session.user.id ||
+      remedy.consultationSession.gurujiId === session.user.id ||
+      session.user.role === 'ADMIN' ||
+      session.user.role === 'COORDINATOR';
+
+    if (!hasAccess) {
+      return { success: false, error: 'Access denied' };
+    }
+
+    return { success: true, remedy };
+  } catch (error) {
+    console.error('Get remedy document error:', error);
+    return { success: false, error: 'Failed to fetch remedy document' };
+  }
+}
+
+// Get remedy history for a specific user (for gurujis to see previous remedies)
+export async function getUserRemedyHistory(userId: string, options?: {
+  limit?: number;
+  offset?: number;
+}) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  // Only gurujis, admins, and coordinators can view other users' remedy history
+  if (!['GURUJI', 'ADMIN', 'COORDINATOR'].includes(session.user.role)) {
+    return { success: false, error: 'Permission denied' };
+  }
+
+  try {
+    const { limit = 10, offset = 0 } = options || {};
+
+
+    const remedies = await prisma.remedyDocument.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        template: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            category: true,
+            instructions: true,
+            dosage: true,
+            duration: true,
+          },
+        },
+        consultationSession: {
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+            appointment: {
+              select: {
+                id: true,
+                date: true,
+                guruji: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+      skip: offset,
+    });
+
+    // Get total count for pagination
+    const total = await prisma.remedyDocument.count({
+      where: {
+        userId: userId,
+      },
+    });
+
+
+    return {
+      success: true,
+      remedies,
+      total,
+      hasMore: (offset + limit) < total
+    };
+  } catch (error) {
+    console.error('Get user remedy history error:', error);
+    return { success: false, error: 'Failed to fetch user remedy history' };
   }
 }

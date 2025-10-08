@@ -1,9 +1,7 @@
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/core/auth";
-import {
-  getAppointments,
-} from "@/lib/actions/appointment-actions";
+import { authOptions } from "@/lib/auth/auth";
+import { getAppointments } from "@/lib/actions/appointment-actions";
 import { cancelAppointmentAction } from "@/lib/actions/appointment-list-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,14 +108,14 @@ async function AppointmentListContent({
                       appointment.status === "COMPLETED"
                         ? "default"
                         : appointment.status === "CANCELLED"
-                          ? "destructive"
-                          : appointment.status === "BOOKED"
-                            ? "secondary"
-                            : appointment.status === "CONFIRMED"
-                              ? "default"
-                              : appointment.status === "CHECKED_IN"
-                                ? "outline"
-                                : "outline"
+                        ? "destructive"
+                        : appointment.status === "BOOKED"
+                        ? "secondary"
+                        : appointment.status === "CONFIRMED"
+                        ? "default"
+                        : appointment.status === "CHECKED_IN"
+                        ? "outline"
+                        : "outline"
                     }
                   >
                     {appointment.status}

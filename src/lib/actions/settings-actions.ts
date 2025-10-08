@@ -2,15 +2,19 @@
 
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/core/auth';
+import { authOptions } from '@/lib/auth/auth';
 import { prisma } from '@/lib/database/prisma';
+import {
+  emitUserEvent,
+  SocketEventTypes
+} from '@/lib/socket/socket-emitter';
 
 
 // Schemas
 
 
 // Get system settings
-export async function getSystemSettings() {
+export async function getSystemSettingsFromSettings() {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -103,13 +107,26 @@ export async function getUserSettings() {
 // Update user settings
 export async function updateUserSettings() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
 
   try {
     // For now, return success since userSettings table doesn't exist
+
+    // Emit user settings updated event
+    await emitUserEvent(
+      SocketEventTypes.USER_UPDATED,
+      {
+        id: session.user.id,
+        name: session.user.name || 'User',
+        email: session.user.email || '',
+        role: session.user.role,
+        status: 'settings_updated'
+      }
+    );
+
     return {
       success: true,
       message: 'Settings updated successfully',
@@ -151,13 +168,26 @@ export async function getNotificationSettings() {
 // Update notification settings
 export async function updateNotificationSettings() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
 
   try {
     // For now, return success since userSettings table doesn't exist
+
+    // Emit notification settings updated event
+    await emitUserEvent(
+      SocketEventTypes.USER_UPDATED,
+      {
+        id: session.user.id,
+        name: session.user.name || 'User',
+        email: session.user.email || '',
+        role: session.user.role,
+        status: 'notification_settings_updated'
+      }
+    );
+
     return {
       success: true,
       message: 'Notification settings updated successfully',
@@ -199,13 +229,26 @@ export async function getPrivacySettings() {
 // Update privacy settings
 export async function updatePrivacySettings() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
 
   try {
     // For now, return success since userSettings table doesn't exist
+
+    // Emit privacy settings updated event
+    await emitUserEvent(
+      SocketEventTypes.USER_UPDATED,
+      {
+        id: session.user.id,
+        name: session.user.name || 'User',
+        email: session.user.email || '',
+        role: session.user.role,
+        status: 'privacy_settings_updated'
+      }
+    );
+
     return {
       success: true,
       message: 'Privacy settings updated successfully',
@@ -219,13 +262,26 @@ export async function updatePrivacySettings() {
 // Reset user settings to defaults
 export async function resetUserSettings() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
 
   try {
     // For now, return success since userSettings table doesn't exist
+
+    // Emit settings reset event
+    await emitUserEvent(
+      SocketEventTypes.USER_UPDATED,
+      {
+        id: session.user.id,
+        name: session.user.name || 'User',
+        email: session.user.email || '',
+        role: session.user.role,
+        status: 'settings_reset'
+      }
+    );
+
     return {
       success: true,
       message: 'Settings reset to defaults successfully',

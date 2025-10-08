@@ -9,6 +9,7 @@ import { authRateLimiter, loginBackoffLimiter } from "@/lib/external/rate-limit"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET,
   // Enable CSRF protection
   useSecureCookies: process.env.NODE_ENV === 'production',
   cookies: {
@@ -143,6 +144,34 @@ export const authOptions: NextAuthOptions = {
     signIn: "/signin",
     error: "/auth/error",
   },
+  debug: process.env.NODE_ENV === 'development',
+  // Prevent credentials from being exposed in URLs
+  events: {
+    async signIn({ user, account }) {
+      try {
+        // Use enhanced audit logging
+        await prisma.auditLog.create({
+          data: {
+            userId: user.id,
+            action: 'SIGN_IN',
+            resource: 'User',
+            resourceId: user.id,
+            newData: {
+              severity: 'LOW',
+              category: 'authentication',
+              details: 'User signed in successfully',
+              provider: account?.provider || "credentials",
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+        console.log("User signed in:", user.email, "via", account?.provider || "credentials");
+      } catch (error) {
+        // Log the error but don't fail the sign-in process
+        console.error("Failed to create audit log for sign-in:", error);
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       try {
@@ -172,12 +201,9 @@ export const authOptions: NextAuthOptions = {
         // Always allow redirects to the base URL
         if (url.startsWith(baseUrl)) return url;
         
-        // For sign-in redirects, redirect to role-appropriate dashboard
+        // For sign-in redirects, redirect to dashboard
         if (url === baseUrl || url === `${baseUrl}/`) {
-          // Get the token to determine user role
-          // Note: This callback doesn't have access to the session/token directly
-          // So we'll redirect to a middleware route that will handle role-based routing
-          return `${baseUrl}/auth/redirect`;
+          return `${baseUrl}/dashboard`;
         }
         
         // For other cases, return the base URL
@@ -185,33 +211,6 @@ export const authOptions: NextAuthOptions = {
       } catch (error) {
         console.error("Redirect callback error:", error);
         return baseUrl;
-      }
-    },
-  },
-  events: {
-    async signIn({ user, account }) {
-      try {
-        // Use enhanced audit logging
-        const { createAuditLog } = await import('@/lib/audit/enhanced-audit');
-        await createAuditLog({
-          userId: user.id,
-          action: "SIGN_IN",
-          resource: "USER",
-          resourceId: user.id,
-          metadata: {
-            severity: 'LOW',
-            category: 'authentication',
-            details: 'User signed in successfully'
-          },
-          newData: {
-            provider: account?.provider || "credentials",
-            timestamp: new Date().toISOString(),
-          },
-        });
-        console.log("User signed in:", user.email, "via", account?.provider || "credentials");
-      } catch (error) {
-        // Log the error but don't fail the sign-in process
-        console.error("Failed to create audit log for sign-in:", error);
       }
     },
   },

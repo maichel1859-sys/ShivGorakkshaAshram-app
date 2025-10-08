@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback } from "react";
-import { useAppStore } from '@/store/app-store';
+import { useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -35,10 +34,12 @@ import {
   Loader2,
 } from "lucide-react";
 import {
-  getNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-} from "@/lib/actions";
+  useNotificationsWithRealtime,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+  useUnreadNotificationCount
+} from "@/hooks/queries/use-notifications";
+import { usePollingNotifications } from "@/hooks/use-polling-notifications";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -59,95 +60,58 @@ export function NotificationsManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [notificationsData, setNotificationsData] = useState<{
-    notifications: Array<{
-      id: string;
-      title: string;
-      message: string;
-      type: string;
-      read: boolean;
-      createdAt: string;
-    }>;
-    total: number;
-    unreadCount: number;
-  } | null>(null);
-  const { setLoadingState, loadingStates } = useAppStore();
-  const isLoading = loadingStates['notifications'] || false;
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
-  // Fetch notifications
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setLoadingState('notifications', true);
-      setError(null);
-      const options: Record<string, unknown> = {};
-      if (typeFilter !== "all") options.type = typeFilter;
-      if (statusFilter === "unread") options.read = false;
-      else if (statusFilter === "read") options.read = true;
+  // Use real-time notifications hook with automatic socket fallback
+  const {
+    data: notificationsData,
+    isLoading,
+    error,
+    refetch: refetchNotifications
+  } = useNotificationsWithRealtime({
+    enableRealtime: true
+  });
 
-      const result = await getNotifications(options);
-      if (!result.success) {
-        setError(result.error || "Failed to load notifications");
-      } else if (result.notifications) {
-        setNotificationsData({
-          notifications: result.notifications.map((notif) => ({
-            ...notif,
-            createdAt: notif.createdAt.toISOString(),
-          })),
-          total: result.pagination.total,
-          unreadCount: result.notifications.filter((n) => !n.read).length,
-        });
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load notifications"
-      );
-    } finally {
-      setLoadingState('notifications', false);
-    }
-  }, [typeFilter, statusFilter, setLoadingState]);
+  // Get unread count with real-time updates
+  useUnreadNotificationCount();
 
-  // Fetch notifications on mount and filter changes
-  useEffect(() => {
-    startTransition(() => {
-      fetchNotifications();
-    });
-  }, [typeFilter, statusFilter, fetchNotifications]);
+  // Real-time notification polling with socket fallback
+  usePollingNotifications();
+
+  // Mutations with optimistic updates
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+
+  // No need for manual fetching - real-time hooks handle this automatically
+
+  // Real-time hooks automatically handle filter changes
 
   const handleMarkAsRead = (notificationId: string) => {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.append("notificationId", notificationId);
-      const result = await markNotificationAsRead(formData);
-      if (result.success) {
+    markAsReadMutation.mutate(notificationId, {
+      onSuccess: () => {
         toast.success("Notification marked as read");
-        fetchNotifications(); // Refetch notifications
-      } else {
-        toast.error(result.error || "Failed to mark notification as read");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to mark notification as read");
       }
     });
   };
 
   const handleMarkAllAsRead = () => {
     if (confirm("Mark all notifications as read?")) {
-      startTransition(async () => {
-        const result = await markAllNotificationsAsRead();
-        if (result.success) {
+      markAllAsReadMutation.mutate(undefined, {
+        onSuccess: () => {
           toast.success("All notifications marked as read");
-          fetchNotifications(); // Refetch notifications
-        } else {
-          toast.error(
-            result.error || "Failed to mark all notifications as read"
-          );
+        },
+        onError: (error) => {
+          toast.error(error.message || "Failed to mark all notifications as read");
         }
       });
     }
   };
 
   const notifications = notificationsData?.notifications || [];
-  const totalNotifications = notificationsData?.total || 0;
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const totalNotifications = notifications.length;
+  const unreadCountLocal = notifications.filter((n) => !n.read).length;
 
   // Filter notifications based on search
   const filteredNotifications = notifications.filter((notification) => {
@@ -170,10 +134,12 @@ export function NotificationsManager() {
       <Card>
         <CardContent className="pt-6">
           <div className="text-center text-red-600">
-            <p>Failed to load notifications: {error}</p>
+            <p>Failed to load notifications: {error?.message || String(error)}</p>
             <Button
               variant="outline"
-              onClick={() => startTransition(() => fetchNotifications())}
+              onClick={() => {
+                refetchNotifications();
+              }}
               className="mt-2"
             >
               Retry
@@ -195,13 +161,13 @@ export function NotificationsManager() {
           </p>
         </div>
         <div className="flex gap-2">
-          {unreadCount > 0 && (
+          {unreadCountLocal > 0 && (
             <Button
               variant="outline"
               onClick={handleMarkAllAsRead}
-              disabled={isPending}
+              disabled={markAllAsReadMutation.isPending}
             >
-              {isPending ? (
+              {markAllAsReadMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <CheckCheck className="mr-2 h-4 w-4" />
@@ -237,7 +203,7 @@ export function NotificationsManager() {
             <Bell className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{unreadCount}</div>
+            <div className="text-2xl font-bold text-red-600">{unreadCountLocal}</div>
             <p className="text-xs text-muted-foreground">need attention</p>
           </CardContent>
         </Card>
@@ -394,9 +360,9 @@ export function NotificationsManager() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleMarkAsRead(notification.id)}
-                            disabled={isPending}
+                            disabled={markAsReadMutation.isPending}
                           >
-                            {isPending ? (
+                            {markAsReadMutation.isPending ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                               <Check className="h-4 w-4" />

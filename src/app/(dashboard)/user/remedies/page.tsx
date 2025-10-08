@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,70 +8,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, FileText, Calendar, User, Download, Eye } from "lucide-react";
 import toast from "react-hot-toast";
-import { getUserRemedies } from "@/lib/actions/remedy-management-actions";
+import { useUserRemedies } from "@/hooks/queries/use-remedies";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-interface RemedyDocument {
-  id: string;
-  templateName: string;
-  gurujiName: string;
-  consultationDate: string;
-  status: "ACTIVE" | "COMPLETED" | "PENDING";
-  customInstructions: string;
-  customDosage: string;
-  customDuration: string;
-  pdfUrl: string;
-  emailSent: boolean;
-  deliveredAt: string;
-  createdAt: string;
-}
 
 export default function UserRemediesPage() {
   const { t } = useLanguage();
   const router = useRouter();
-  const [remedies, setRemedies] = useState<RemedyDocument[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: remedies = [], isLoading, error } = useUserRemedies();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchRemedies = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const result = await getUserRemedies();
-      if (result.success) {
-        setRemedies(result.remedies || []);
-      } else {
-        throw new Error(result.error || t("remedies.failedToLoad", "Failed to fetch remedies"));
-      }
-    } catch (error) {
+  useEffect(() => {
+    if (error) {
       console.error("Failed to fetch remedies:", error);
       toast.error(t("remedies.failedToLoad", "Failed to load remedies"));
-    } finally {
-      setIsLoading(false);
     }
-  }, [t]);
-
-  useEffect(() => {
-    fetchRemedies();
-  }, [fetchRemedies]);
+  }, [error, t]);
 
   const filteredRemedies = remedies.filter(
     (remedy) =>
-      remedy.templateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      remedy.gurujiName.toLowerCase().includes(searchTerm.toLowerCase())
+      (remedy.template?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (remedy.consultationSession?.appointment?.guruji?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "bg-green-100 text-green-800";
-      case "COMPLETED":
-        return "bg-blue-100 text-blue-800";
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
   if (isLoading) {
     return (
@@ -108,21 +67,21 @@ export default function UserRemediesPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <FileText className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold text-lg">
-                      {remedy.templateName}
+                      {remedy.template?.name || 'Unknown Remedy'}
                     </h3>
-                    <Badge className={getStatusColor(remedy.status)}>
-                      {t(`status.${remedy.status.toLowerCase()}`, remedy.status)}
+                    <Badge className="bg-green-100 text-green-800">
+                      {t(`status.active`, "ACTIVE")}
                     </Badge>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <User className="h-4 w-4" />
-                      <span>{t("remedies.prescribedBy", "Guruji")}: {remedy.gurujiName}</span>
+                      <span>{t("remedies.prescribedBy", "Guruji")}: {remedy.consultationSession?.appointment?.guruji?.name || 'Unknown'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>{t("remedies.consultationDate", "Consultation")}: {remedy.consultationDate}</span>
+                      <span>{t("remedies.consultationDate", "Consultation")}: {remedy.consultationSession?.appointment?.date ? new Date(remedy.consultationSession.appointment.date).toLocaleDateString() : 'Unknown'}</span>
                     </div>
                   </div>
 
@@ -150,7 +109,7 @@ export default function UserRemediesPage() {
                     )}
                     <div>
                       <span className="font-medium">{t("common.created", "Created")}:</span>{" "}
-                      {remedy.createdAt}
+                      {new Date(remedy.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
@@ -184,9 +143,9 @@ export default function UserRemediesPage() {
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-4">
                     <span
-                      className={`flex items-center gap-1 ${remedy.emailSent ? "text-green-600" : "text-gray-400"}`}
+                      className={`flex items-center gap-1 ${remedy.deliveredAt ? "text-green-600" : "text-gray-400"}`}
                     >
-                      {remedy.emailSent ? "✓" : "○"} {t("remedies.emailSent", "Email Sent")}
+                      {remedy.deliveredAt ? "✓" : "○"} {t("remedies.delivered", "Delivered")}
                     </span>
                   </div>
                   {remedy.deliveredAt && (

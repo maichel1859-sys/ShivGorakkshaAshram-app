@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,6 +25,13 @@ export default function SignInPage() {
   const { isLoading, signInWithToast, signInWithGoogle } = useAuthToast();
   const { t } = useLanguage();
 
+  // Clear any URL parameters on component mount to prevent credential exposure
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -34,11 +41,23 @@ export default function SignInPage() {
   });
 
   const onSubmit = async (data: SigninFormData) => {
+    // Prevent any potential GET submission
+    if (typeof window !== "undefined") {
+      // Clear any URL parameters that might contain credentials
+      if (window.location.search) {
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+      }
+    }
+
     const result = await signInWithToast({
       email: data.email,
       password: data.password,
     });
-    
+
     // Set redirecting state if login was successful
     if (result?.success) {
       setIsRedirecting(true);
@@ -48,12 +67,12 @@ export default function SignInPage() {
   // Show full screen loading during authentication or redirect
   if (isLoading || isRedirecting) {
     return (
-      <FullScreenSpinner 
+      <FullScreenSpinner
         message={
-          isRedirecting 
-            ? t('auth.redirecting', 'Redirecting to dashboard...')
-            : t('auth.signingIn', 'Signing you in...')
-        } 
+          isRedirecting
+            ? t("auth.redirecting", "Redirecting to dashboard...")
+            : t("auth.signingIn", "Signing you in...")
+        }
       />
     );
   }
@@ -62,22 +81,29 @@ export default function SignInPage() {
     <div className="space-y-6">
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {t('auth.signInToAccount', 'Sign in to your account')}
+          {t("auth.signInToAccount", "Sign in to your account")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {t('auth.enterCredentials', 'Enter your credentials to access the system')}
+          {t(
+            "auth.enterCredentials",
+            "Enter your credentials to access the system"
+          )}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        method="POST"
+        className="space-y-4"
+      >
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium">
-            {t('auth.email', 'Email')}
+            {t("auth.email", "Email")}
           </label>
           <Input
             id="email"
             type="email"
-            placeholder={t('auth.enterEmail', 'Enter your email')}
+            placeholder={t("auth.enterEmail", "Enter your email")}
             {...register("email")}
             disabled={isLoading || isRedirecting}
           />
@@ -88,13 +114,13 @@ export default function SignInPage() {
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium">
-            {t('auth.password', 'Password')}
+            {t("auth.password", "Password")}
           </label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder={t('auth.enterPassword', 'Enter your password')}
+              placeholder={t("auth.enterPassword", "Enter your password")}
               {...register("password")}
               disabled={isLoading || isRedirecting}
             />
@@ -113,9 +139,19 @@ export default function SignInPage() {
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading || isRedirecting}>
-          {(isLoading || isRedirecting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isRedirecting ? t('auth.redirecting', 'Redirecting...') : isLoading ? t('auth.signingIn', 'Signing in...') : t('auth.signIn', 'Sign In')}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isLoading || isRedirecting}
+        >
+          {(isLoading || isRedirecting) && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
+          {isRedirecting
+            ? t("auth.redirecting", "Redirecting...")
+            : isLoading
+            ? t("auth.signingIn", "Signing in...")
+            : t("auth.signIn", "Sign In")}
         </Button>
       </form>
 
@@ -124,7 +160,7 @@ export default function SignInPage() {
           href="/forgot-password"
           className="text-sm text-primary hover:underline"
         >
-          {t('auth.forgotPassword', 'Forgot your password?')}
+          {t("auth.forgotPassword", "Forgot your password?")}
         </Link>
       </div>
 
@@ -134,7 +170,7 @@ export default function SignInPage() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            {t('auth.orContinueWith', 'Or continue with')}
+            {t("auth.orContinueWith", "Or continue with")}
           </span>
         </div>
       </div>
@@ -164,21 +200,20 @@ export default function SignInPage() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        {t('auth.continueWithGoogle', 'Continue with Google')}
+        {t("auth.continueWithGoogle", "Continue with Google")}
       </Button>
 
       <div className="text-center text-sm">
         <span className="text-muted-foreground">
-          {t('auth.dontHaveAccount', "Don't have an account?")}{" "}
+          {t("auth.dontHaveAccount", "Don't have an account?")}{" "}
         </span>
         <Link
           href="/signup"
           className="font-medium text-primary hover:underline"
         >
-          {t('auth.signUp', 'Sign up')}
+          {t("auth.signUp", "Sign up")}
         </Link>
       </div>
-
     </div>
   );
 }

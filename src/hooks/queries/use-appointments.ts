@@ -1,5 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
-import { getAppointmentAvailability, getCoordinatorAppointments, getAppointment } from '@/lib/actions/appointment-actions';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  getAppointmentAvailability, 
+  getCoordinatorAppointments, 
+  getAppointment,
+  getAppointments,
+  bookAppointment,
+  cancelAppointment,
+  rescheduleAppointment,
+  updateAppointment,
+  deleteAppointment
+} from '@/lib/actions/appointment-actions';
+import { AppointmentStatus } from '@prisma/client';
+import { toast } from 'sonner';
 
 // Query keys
 export const appointmentKeys = {
@@ -62,4 +74,147 @@ export const useAppointment = (id: string) => {
     enabled: !!id,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-}; 
+};
+
+// Hook for fetching user appointments
+export function useUserAppointments(options?: {
+  status?: AppointmentStatus;
+  limit?: number;
+  offset?: number;
+  search?: string;
+  date?: string;
+  fromDate?: string;
+  toDate?: string;
+}) {
+  return useQuery({
+    queryKey: appointmentKeys.list(options || {}),
+    queryFn: async () => {
+      const result = await getAppointments(options);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch appointments');
+      }
+      return {
+        appointments: result.appointments?.map(appointment => ({
+          ...appointment,
+          date: appointment.date.toISOString(),
+          startTime: appointment.startTime.toISOString(),
+          endTime: appointment.endTime.toISOString(),
+        })) || [],
+        total: result.total || 0,
+        hasMore: result.hasMore || false,
+      };
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+  });
+}
+
+// Hook for booking appointments
+export function useBookAppointment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const result = await bookAppointment(formData);
+      if (!result.success) {
+        throw new Error('Failed to book appointment');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Appointment booked successfully');
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to book appointment');
+    },
+  });
+}
+
+// Hook for cancelling appointments
+export function useCancelAppointment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ appointmentId, reason }: { appointmentId: string; reason?: string }) => {
+      const result = await cancelAppointment(appointmentId, reason);
+      if (!result.success) {
+        throw new Error('Failed to cancel appointment');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Appointment cancelled successfully');
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel appointment');
+    },
+  });
+}
+
+// Hook for rescheduling appointments
+export function useRescheduleAppointment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ appointmentId, formData }: { appointmentId: string; formData: FormData }) => {
+      const result = await rescheduleAppointment(appointmentId, formData);
+      if (!result.success) {
+        throw new Error('Failed to reschedule appointment');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Appointment rescheduled successfully');
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to reschedule appointment');
+    },
+  });
+}
+
+// Hook for updating appointments
+export function useUpdateAppointment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ appointmentId, formData }: { appointmentId: string; formData: FormData }) => {
+      const result = await updateAppointment(appointmentId, formData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update appointment');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Appointment updated successfully');
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update appointment');
+    },
+  });
+}
+
+// Hook for deleting appointments
+export function useDeleteAppointment() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (appointmentId: string) => {
+      const result = await deleteAppointment(appointmentId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete appointment');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast.success('Appointment deleted successfully');
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete appointment');
+    },
+  });
+} 

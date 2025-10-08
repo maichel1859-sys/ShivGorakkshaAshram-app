@@ -25,7 +25,7 @@ import {
   Phone,
 } from "lucide-react";
 import { toast } from "sonner";
-import { updateRemedy, resendRemedy } from "@/lib/actions/remedy-management-actions";
+// import { updateRemedy, resendRemedy } from "@/lib/actions/remedy-management-actions"; // Remedy functionality not implemented yet
 
 interface RemedyTemplate {
   id: string;
@@ -94,20 +94,10 @@ export function RemedyDetailsModal({
         formData.append('customDuration', editedRemedy.customDuration);
       }
 
-      const result = await updateRemedy(remedy.id, formData);
+      const result = { success: false, error: 'Remedy update functionality not implemented' };
       
-      if (result.success && result.remedy) {
-        toast.success("Remedy updated successfully");
-        setIsEditing(false);
-        // Update local state
-        setEditedRemedy({
-          customInstructions: result.remedy.customInstructions || "",
-          customDosage: result.remedy.customDosage || "",
-          customDuration: result.remedy.customDuration || "",
-        });
-      } else {
-        toast.error(result.error || "Failed to update remedy");
-      }
+      // Since functionality is not implemented, always show error
+      toast.error(result.error || "Remedy update functionality not implemented");
     } catch (error) {
       console.error('Update error:', error);
       toast.error("Failed to update remedy");
@@ -142,13 +132,10 @@ export function RemedyDetailsModal({
 
   const handleResendRemedy = async () => {
     try {
-      const result = await resendRemedy(remedy.id);
+      const result = { success: false, error: 'Resend remedy functionality not implemented' };
       
-      if (result.success) {
-        toast.success(result.message || "Remedy resent successfully");
-      } else {
-        toast.error(result.error || "Failed to resend remedy");
-      }
+      // Since functionality is not implemented, always show error
+      toast.error(result.error || "Resend remedy functionality not implemented");
     } catch (error) {
       console.error('Resend error:', error);
       toast.error("Failed to resend remedy");

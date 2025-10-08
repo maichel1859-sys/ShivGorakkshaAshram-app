@@ -196,8 +196,8 @@ export class iOSPWAManager {
 
   // Track iOS PWA usage
   trackiOSPWAUsage() {
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'ios_pwa_usage', {
+    if (typeof window !== 'undefined' && 'gtag' in window) {
+      (window as { gtag: (event: string, name: string, params?: object) => void }).gtag('event', 'ios_pwa_usage', {
         event_category: 'PWA',
         is_standalone: this.isHomeScreenApp(),
         ios_version: this.getiOSVersion(),

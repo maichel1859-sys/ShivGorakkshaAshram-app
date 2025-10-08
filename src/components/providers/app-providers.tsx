@@ -12,6 +12,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { NetworkStatus } from "@/components/ui/network-status";
 import { UniversalPWAPrompt } from "@/components/ui/universal-pwa-prompt";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { SocketProvider } from "@/components/providers/socket-provider";
 import { registerServiceWorker } from "@/lib/pwa";
 
 interface AppProvidersProps {
@@ -63,13 +64,17 @@ export function AppProviders({ children }: AppProvidersProps) {
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
+            storageKey="ashram-theme"
+            themes={["light", "dark", "system"]}
           >
             <LanguageProvider>
               <LoadingProvider>
-                <AppInitializer>
-                  {children}
-                  <Toaster position="top-right" richColors />
-                </AppInitializer>
+                <SocketProvider>
+                  <AppInitializer>
+                    {children}
+                    <Toaster position="top-right" richColors />
+                  </AppInitializer>
+                </SocketProvider>
               </LoadingProvider>
             </LanguageProvider>
           </ThemeProvider>

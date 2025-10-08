@@ -24,10 +24,13 @@ import { useUserDashboard } from "@/hooks/queries";
 import { useAppStore } from "@/store/app-store";
 import { PageSpinner } from "@/components/loading";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSocket, SocketEvents } from "@/lib/socket/socket-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { userKeys } from "@/hooks/queries/use-users";
 // LoadingSpinner available if needed
 // import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
-interface Appointment {
+interface AppointmentDisplay {
   id: string;
   date: Date;
   guruji: {
@@ -35,6 +38,19 @@ interface Appointment {
     name: string | null;
   } | null;
   status: string;
+  consultationSession?: {
+    id: string;
+    startTime: Date;
+    endTime: Date | null;
+    remedies: {
+      id: string;
+    }[];
+  } | null;
+  queueEntry?: {
+    id: string;
+    position: number | null;
+    status: string;
+  } | null;
 }
 
 
@@ -42,9 +58,11 @@ export default function UserDashboard() {
   const user = useUser();
   const router = useRouter();
   const { isLoading: authLoading, shouldRedirect, redirectTo } = useUserRedirect();
-  const { data: dashboardData, isLoading, error } = useUserDashboard();
+  const { data: dashboardData, isLoading, error, refetch } = useUserDashboard();
   const { setLoadingState } = useAppStore();
   const { t } = useLanguage();
+  const { socket } = useSocket();
+  const queryClient = useQueryClient();
 
   // Handle authentication redirect
   React.useEffect(() => {
@@ -58,6 +76,86 @@ export default function UserDashboard() {
   React.useEffect(() => {
     setLoadingState("dashboard-loading", isLoading || authLoading);
   }, [isLoading, authLoading, setLoadingState]);
+
+  // Socket event listeners for real-time updates
+  React.useEffect(() => {
+    if (!socket || !user?.id) return;
+
+    const handleDashboardUpdate = () => {
+      console.log('📊 Dashboard update received - refreshing user dashboard data');
+      queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
+      refetch();
+    };
+
+    const handleRemedyUpdate = (...args: unknown[]) => {
+      const data = args[0] as { userId?: string; devoteeId?: string; remedyId?: string } | undefined;
+      console.log('💊 Remedy update received:', data);
+      // If the remedy is for this user, update dashboard
+      if (data && (data.userId === user.id || data.devoteeId === user.id)) {
+        queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
+        refetch();
+      }
+    };
+
+    const handleNotificationUpdate = (...args: unknown[]) => {
+      const data = args[0] as { userId?: string; notificationId?: string; title?: string } | undefined;
+      console.log('🔔 Notification update received:', data);
+      // If the notification is for this user, update dashboard
+      if (data && data.userId === user.id) {
+        queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
+        refetch();
+      }
+    };
+
+    const handleConsultationUpdate = (...args: unknown[]) => {
+      const data = args[0] as { devoteeId?: string; userId?: string; consultationId?: string; gurujiId?: string } | undefined;
+      console.log('🩺 Consultation update received:', data);
+      // If the consultation involves this user, update dashboard
+      if (data && (data.devoteeId === user.id || data.userId === user.id)) {
+        queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
+        refetch();
+      }
+    };
+
+    const handleQueueUpdate = (...args: unknown[]) => {
+      const data = args[0] as { userId?: string; queueEntryId?: string; status?: string; position?: number } | undefined;
+      console.log('📋 Queue update received:', data);
+      // If the queue update is for this user, update dashboard
+      if (data && data.userId === user.id) {
+        queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
+        refetch();
+      }
+    };
+
+    // Subscribe to events
+    socket.on(SocketEvents.DASHBOARD_UPDATE, handleDashboardUpdate);
+    socket.on(SocketEvents.REMEDY_PRESCRIBED, handleRemedyUpdate);
+    socket.on(SocketEvents.REMEDY_UPDATE, handleRemedyUpdate);
+    socket.on(SocketEvents.NOTIFICATION_SENT, handleNotificationUpdate);
+    socket.on(SocketEvents.NOTIFICATION_UPDATE, handleNotificationUpdate);
+    socket.on(SocketEvents.CONSULTATION_UPDATE, handleConsultationUpdate);
+    socket.on(SocketEvents.QUEUE_UPDATED, handleQueueUpdate);
+    socket.on(SocketEvents.USER_QUEUE_STATUS, handleQueueUpdate);
+
+    // Join user-specific room for targeted updates
+    socket.emit(SocketEvents.JOIN_ROOM, {
+      room: `user_${user.id}`,
+      userId: user.id,
+      role: 'USER'
+    });
+
+    // Cleanup
+    return () => {
+      socket.off(SocketEvents.DASHBOARD_UPDATE, handleDashboardUpdate);
+      socket.off(SocketEvents.REMEDY_PRESCRIBED, handleRemedyUpdate);
+      socket.off(SocketEvents.REMEDY_UPDATE, handleRemedyUpdate);
+      socket.off(SocketEvents.NOTIFICATION_SENT, handleNotificationUpdate);
+      socket.off(SocketEvents.NOTIFICATION_UPDATE, handleNotificationUpdate);
+      socket.off(SocketEvents.CONSULTATION_UPDATE, handleConsultationUpdate);
+      socket.off(SocketEvents.QUEUE_UPDATED, handleQueueUpdate);
+      socket.off(SocketEvents.USER_QUEUE_STATUS, handleQueueUpdate);
+    };
+  }, [socket, user?.id, queryClient, refetch]);
 
   // Show loading while checking auth or loading data
   if (isLoading || authLoading) {
@@ -87,6 +185,9 @@ export default function UserDashboard() {
   const appointmentCount = dashboardData?.stats?.appointmentCount || 0;
   const currentQueuePosition = dashboardData?.stats?.currentQueuePosition;
   const currentQueueStatus = dashboardData?.stats?.currentQueueStatus;
+  const pendingRemedies = dashboardData?.stats?.pendingRemedies || 0;
+  const totalRemedies = dashboardData?.stats?.totalRemedies || 0;
+  const completedConsultations = dashboardData?.stats?.completedConsultations || 0;
   const recentAppointments = dashboardData?.recentAppointments || [];
 
   return (
@@ -151,8 +252,10 @@ export default function UserDashboard() {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.readyForDownload', 'Ready for download')}</p>
+            <div className="text-2xl font-bold">{pendingRemedies}</div>
+            <p className="text-xs text-muted-foreground">
+              {t('dashboard.totalRemedies', `${totalRemedies} total prescribed`)}
+            </p>
           </CardContent>
         </Card>
 
@@ -165,7 +268,9 @@ export default function UserDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{appointmentCount}</div>
-            <p className="text-xs text-muted-foreground">{t('dashboard.completed', '0 completed')}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('dashboard.completedConsultations', `${completedConsultations} consultations completed`)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -183,7 +288,7 @@ export default function UserDashboard() {
           <CardContent>
             {recentAppointments.length > 0 ? (
               <div className="space-y-3">
-                {recentAppointments.map((appointment: Appointment) => (
+                {recentAppointments.map((appointment: AppointmentDisplay) => (
                   <div
                     key={appointment.id}
                     className="flex items-center justify-between p-3 border rounded-lg"

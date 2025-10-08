@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/core/auth";
+import { authOptions } from "@/lib/auth/auth";
 
 import { getUserSettings, getFamilyContacts } from "@/lib/actions";
 import { UserSettingsForm } from "@/components/forms/user-settings-form";

@@ -7,7 +7,7 @@ export { prisma } from './database/prisma';
 export * from './actions';
 
 // Authentication & Core
-export { authOptions } from './core/auth';
+export { authOptions } from './auth/auth';
 
 // External Services
 export * from './external/rate-limit';

@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/core/auth";
+import { authOptions } from "@/lib/auth/auth";
 
 export default async function AuthRedirectPage() {
   const session = await getServerSession(authOptions);
@@ -11,7 +11,7 @@ export default async function AuthRedirectPage() {
 
   // Redirect based on user role
   const role = session.user.role;
-  
+
   switch (role) {
     case "ADMIN":
       redirect("/admin");
