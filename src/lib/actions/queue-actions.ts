@@ -914,6 +914,46 @@ export async function completeConsultation(formData: FormData) {
       });
     }
 
+    // Update appointment status to COMPLETED
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: queueEntry.appointmentId },
+      data: { 
+        status: 'COMPLETED',
+        updatedAt: new Date()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Emit appointment completed event
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_COMPLETED,
+      updatedAppointment.id,
+      {
+        id: updatedAppointment.id,
+        userId: updatedAppointment.userId,
+        gurujiId: updatedAppointment.gurujiId || '',
+        date: updatedAppointment.date.toISOString(),
+        time: updatedAppointment.startTime.toISOString(),
+        status: updatedAppointment.status,
+        priority: updatedAppointment.priority,
+        reason: updatedAppointment.reason || undefined
+      }
+    );
+
     // Create notification for user
     await prisma.notification.create({
       data: {
@@ -935,6 +975,9 @@ export async function completeConsultation(formData: FormData) {
     invalidateQueueCache();
     revalidatePath('/guruji/queue');
     revalidatePath('/user/queue');
+    revalidatePath('/coordinator/appointments');
+    revalidatePath('/guruji/appointments');
+    revalidatePath('/user/appointments');
     
     return { success: true };
   } catch (error) {

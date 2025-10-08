@@ -33,6 +33,24 @@ const TIME_WINDOW_CONFIG: TimeWindowConfig = {
 };
 
 /**
+ * Normalize appointment time to handle timezone issues
+ * This ensures we're comparing times in the same timezone context
+ */
+function normalizeAppointmentTime(appointmentTime: Date): Date {
+  // Get the appointment time components
+  const year = appointmentTime.getFullYear();
+  const month = appointmentTime.getMonth();
+  const date = appointmentTime.getDate();
+  const hours = appointmentTime.getHours();
+  const minutes = appointmentTime.getMinutes();
+  const seconds = appointmentTime.getSeconds();
+  
+  // Create a new date in the current timezone context
+  // This ensures we're working with the same timezone as the current time
+  return new Date(year, month, date, hours, minutes, seconds);
+}
+
+/**
  * Process QR code scan for appointment check-in with geolocation validation
  * Users must be within 100m of the QR code location to scan successfully
  */
@@ -105,33 +123,43 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
     }
 
     // Validate time window (20 min before to 15 min after appointment)
-    const appointmentTime = new Date(appointment.startTime);
+    const appointmentTime = normalizeAppointmentTime(new Date(appointment.startTime));
     const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
     const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
 
     // Debug logging for time validation
     console.log(`⏰ Time validation debug:`, {
       appointmentTime: appointmentTime.toISOString(),
+      appointmentTimeLocal: appointmentTime.toLocaleString(),
       scanTime: scanTime.toISOString(),
+      scanTimeLocal: scanTime.toLocaleString(),
       timeWindowStart: timeWindowStart.toISOString(),
       timeWindowEnd: timeWindowEnd.toISOString(),
       timeWindowConfig: TIME_WINDOW_CONFIG,
-      timeUntilAppointment: Math.round((appointmentTime.getTime() - scanTime.getTime()) / (1000 * 60)) + ' minutes'
+      timeUntilAppointment: Math.round((appointmentTime.getTime() - scanTime.getTime()) / (1000 * 60)) + ' minutes',
+      timezoneOffset: new Date().getTimezoneOffset(),
+      isInTimeWindow: scanTime >= timeWindowStart && scanTime <= timeWindowEnd
     });
 
     if (scanTime < timeWindowStart) {
       const minutesEarly = Math.round((timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60));
+      const appointmentTimeStr = appointmentTime.toLocaleString();
+      const timeWindowStartStr = timeWindowStart.toLocaleString();
+      
       return { 
         success: false, 
-        error: `Too early to check in. Please scan QR code ${TIME_WINDOW_CONFIG.beforeAppointment} minutes before your appointment time. You are ${minutesEarly} minutes too early.` 
+        error: `Too early to check in. Your appointment is at ${appointmentTimeStr}. You can check in starting from ${timeWindowStartStr}. You are ${minutesEarly} minutes too early.` 
       };
     }
 
     if (scanTime > timeWindowEnd) {
       const minutesLate = Math.round((scanTime.getTime() - timeWindowEnd.getTime()) / (1000 * 60));
+      const appointmentTimeStr = appointmentTime.toLocaleString();
+      const timeWindowEndStr = timeWindowEnd.toLocaleString();
+      
       return { 
         success: false, 
-        error: `Too late to check in. You can only scan within ${TIME_WINDOW_CONFIG.afterAppointment} minutes after your appointment time. You are ${minutesLate} minutes too late.` 
+        error: `Too late to check in. Your appointment was at ${appointmentTimeStr}. The check-in window closed at ${timeWindowEndStr}. You are ${minutesLate} minutes too late.` 
       };
     }
 
@@ -464,7 +492,7 @@ export async function getTodayAppointmentWithTimeWindow() {
     }
 
     // Calculate time window
-    const appointmentTime = new Date(appointment.startTime);
+    const appointmentTime = normalizeAppointmentTime(new Date(appointment.startTime));
     const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
     const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
     const now = new Date();

@@ -35,7 +35,7 @@ function addSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=()')
+  response.headers.set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=()')
   response.headers.set('Content-Security-Policy', CSP_HEADER)
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
   response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')

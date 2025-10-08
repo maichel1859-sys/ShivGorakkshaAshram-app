@@ -45,6 +45,12 @@ export function getCurrentLocation(): Promise<Coordinates> {
       return;
     }
 
+    // Check if we're in a secure context (HTTPS or localhost)
+    if (!window.isSecureContext) {
+      reject(new Error('Geolocation requires a secure context (HTTPS). Please access the app via HTTPS or localhost.'));
+      return;
+    }
+
     const options: PositionOptions = {
       enableHighAccuracy: true,
       timeout: 15000, // Increased timeout to 15 seconds
@@ -78,6 +84,55 @@ export function getCurrentLocation(): Promise<Coordinates> {
       options
     );
   });
+}
+
+/**
+ * Check geolocation permissions and provide diagnostics
+ */
+export async function checkGeolocationSupport(): Promise<{
+  supported: boolean;
+  secureContext: boolean;
+  permission: PermissionState | null;
+  error?: string;
+}> {
+  const result = {
+    supported: false,
+    secureContext: false,
+    permission: null as PermissionState | null,
+    error: undefined as string | undefined
+  };
+
+  try {
+    // Check if geolocation is supported
+    result.supported = 'geolocation' in navigator;
+    if (!result.supported) {
+      result.error = 'Geolocation is not supported by this browser';
+      return result;
+    }
+
+    // Check secure context
+    result.secureContext = window.isSecureContext;
+    if (!result.secureContext) {
+      result.error = 'Geolocation requires a secure context (HTTPS or localhost)';
+      return result;
+    }
+
+    // Check permissions if available
+    if ('permissions' in navigator) {
+      try {
+        const permission = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        result.permission = permission.state;
+      } catch (permError) {
+        // Permissions API might not support geolocation on all browsers
+        console.warn('Could not check geolocation permissions:', permError);
+      }
+    }
+
+    return result;
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : 'Unknown error checking geolocation support';
+    return result;
+  }
 }
 
 /**
