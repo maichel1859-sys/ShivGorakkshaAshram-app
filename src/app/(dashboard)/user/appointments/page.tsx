@@ -19,7 +19,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AppointmentsPage() {
+interface AppointmentsPageProps {
+  searchParams: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function AppointmentsPage({ searchParams }: AppointmentsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const showAllAppointments = resolvedSearchParams.view === 'all';
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -66,25 +75,35 @@ export default function AppointmentsPage() {
         <div className="flex items-center justify-between">
           <TranslatedText
             as="h2"
-            translationKey="appointments.recent"
-            fallback="Recent Appointments"
+            translationKey={showAllAppointments ? "appointments.all" : "appointments.recent"}
+            fallback={showAllAppointments ? "All Appointments" : "Recent Appointments"}
             className="text-2xl font-semibold"
           />
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/user/appointments?view=all">
-              <Calendar className="mr-2 h-4 w-4" />
-              <TranslatedText translationKey="appointments.viewAll" fallback="View All" />
-            </Link>
-          </Button>
+          {!showAllAppointments && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/user/appointments?view=all">
+                <Calendar className="mr-2 h-4 w-4" />
+                <TranslatedText translationKey="appointments.viewAll" fallback="View All" />
+              </Link>
+            </Button>
+          )}
+          {showAllAppointments && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/user/appointments">
+                <Calendar className="mr-2 h-4 w-4" />
+                <TranslatedText translationKey="appointments.viewRecent" fallback="View Recent" />
+              </Link>
+            </Button>
+          )}
         </div>
 
         <Suspense fallback={<TranslatedText translationKey="appointments.loading" fallback="Loading appointments..." />}>
-          <AppointmentList />
+          <AppointmentList showAll={showAllAppointments} />
         </Suspense>
       </div>
 
       {/* Appointment Management */}
-      <AppointmentManager />
+      <AppointmentManager showAll={showAllAppointments} />
     </div>
   );
 }

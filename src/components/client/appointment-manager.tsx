@@ -55,7 +55,11 @@ interface Appointment {
   };
 }
 
-export function AppointmentManager() {
+interface AppointmentManagerProps {
+  showAll?: boolean;
+}
+
+export function AppointmentManager({ showAll = false }: AppointmentManagerProps) {
   const { data: session } = useSession();
   const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState<AppointmentStatus | "all">("all");
@@ -82,6 +86,7 @@ export function AppointmentManager() {
       setError(null);
       const result = await getAppointments({
         status: activeTab !== "all" ? activeTab : undefined,
+        limit: showAll ? undefined : 10,
       });
 
       if (result.success && result.appointments) {
@@ -160,7 +165,7 @@ export function AppointmentManager() {
     } finally {
       setLoadingState('appointment-manager', false);
     }
-  }, [activeTab, setLoadingState]);
+  }, [activeTab, setLoadingState, showAll]);
 
   useEffect(() => {
     fetchAppointments();

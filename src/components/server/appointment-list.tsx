@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
 import { getAppointments } from "@/lib/actions/appointment-actions";
-import { cancelAppointmentAction } from "@/lib/actions/appointment-list-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ interface AppointmentListProps {
   limit?: number;
   showActions?: boolean;
   status?: AppointmentStatus;
+  showAll?: boolean;
 }
 
 async function AppointmentListContent({
@@ -24,6 +24,7 @@ async function AppointmentListContent({
   status,
   limit = 10,
   showActions = true,
+  showAll = false,
 }: AppointmentListProps) {
   const session = await getServerSession(authOptions);
 
@@ -35,7 +36,7 @@ async function AppointmentListContent({
     // Use our Server Action to get appointments
     const result = await getAppointments({
       status,
-      limit,
+      limit: showAll ? undefined : limit,
       userId: userId || session.user.id,
     });
 
@@ -160,22 +161,9 @@ async function AppointmentListContent({
                 (appointment.status === "BOOKED" ||
                   appointment.status === "CONFIRMED") && (
                   <div className="flex flex-wrap gap-2">
-                    <form action="/user/appointments/reschedule" method="GET">
-                      <input type="hidden" name="id" value={appointment.id} />
-                      <Button size="sm" variant="outline" type="submit">
-                        Reschedule
-                      </Button>
-                    </form>
-                    <form action={cancelAppointmentAction}>
-                      <input
-                        type="hidden"
-                        name="appointmentId"
-                        value={appointment.id}
-                      />
-                      <Button size="sm" variant="destructive" type="submit">
-                        Cancel
-                      </Button>
-                    </form>
+                    <p className="text-sm text-muted-foreground">
+                      Use the appointment manager below to reschedule or cancel this appointment.
+                    </p>
                     {appointment.qrCode && (
                       <Button size="sm" variant="secondary">
                         Show QR

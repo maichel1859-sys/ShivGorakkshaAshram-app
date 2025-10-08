@@ -54,8 +54,9 @@ import {
   Users,
   Download,
   Filter,
+  CalendarIcon,
 } from 'lucide-react';
-import { deleteAppointment, updateAppointmentStatus } from '@/lib/actions/appointment-actions';
+import { deleteAppointment, updateAppointmentStatus, rescheduleAppointment } from '@/lib/actions/appointment-actions';
 import { manualCheckIn } from '@/lib/actions/coordinator-actions';
 import { AppointmentStatus } from '@prisma/client';
 import { toast } from 'sonner';
@@ -117,9 +118,13 @@ export function CoordinatorAppointmentsClient({
   const [dateFilter, setDateFilter] = useState(initialSearchParams.date || 'all');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
 
   // Optimistic updates
   const [optimisticAppointments, setOptimisticAppointments] = useOptimistic(
@@ -294,6 +299,48 @@ export function CoordinatorAppointmentsClient({
     } finally {
       setIsCheckingIn(false);
     }
+  };
+
+  const handleReschedule = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setRescheduleDate(tomorrow.toISOString().split('T')[0]);
+    setRescheduleTime('09:00');
+    setShowRescheduleDialog(true);
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!selectedAppointment || !rescheduleDate || !rescheduleTime) return;
+
+    setIsRescheduling(true);
+    setOptimisticAppointments({ type: 'reschedule', id: selectedAppointment.id });
+
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append('date', rescheduleDate);
+        formData.append('time', rescheduleTime);
+
+        await rescheduleAppointment(selectedAppointment.id, formData);
+        toast.success('Appointment rescheduled successfully');
+        setShowRescheduleDialog(false);
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to reschedule appointment');
+        router.refresh(); // Revert optimistic update
+      } finally {
+        setIsRescheduling(false);
+      }
+    });
+  };
+
+  const handleRescheduleCancel = () => {
+    setShowRescheduleDialog(false);
+    setSelectedAppointment(null);
+    setRescheduleDate('');
+    setRescheduleTime('');
   };
 
   const canCheckIn = (appointment: Appointment) => {
@@ -524,6 +571,13 @@ export function CoordinatorAppointmentsClient({
                             {t('appointments.markConfirmed', 'Mark Confirmed')}
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => handleReschedule(appointment)}
+                            disabled={appointment.status === 'CANCELLED' || appointment.status === 'COMPLETED'}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {t('appointments.reschedule', 'Reschedule')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => handleStatusUpdate(appointment.id, 'CANCELLED' as AppointmentStatus)}
                             disabled={appointment.status === 'CANCELLED'}
                           >
@@ -608,6 +662,67 @@ export function CoordinatorAppointmentsClient({
                 <UserCheck className="mr-2 h-4 w-4" />
               )}
               {t('appointments.checkIn', 'Check In')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('appointments.rescheduleTitle', 'Reschedule Appointment')}</DialogTitle>
+            <DialogDescription>
+              {selectedAppointment && (
+                <>
+                  {t('appointments.rescheduleDescription', 'Reschedule appointment for')} {selectedAppointment.user.name}?
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">{t('appointments.newDate', 'New Date')}</label>
+              <Input
+                type="date"
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">{t('appointments.newTime', 'New Time')}</label>
+              <Input
+                type="time"
+                value={rescheduleTime}
+                onChange={(e) => setRescheduleTime(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            {rescheduleDate && rescheduleTime && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>{t('appointments.newAppointment', 'New appointment')}:</strong><br />
+                  {new Date(rescheduleDate).toLocaleDateString()} at {rescheduleTime}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleRescheduleCancel} disabled={isRescheduling}>
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              onClick={handleRescheduleSubmit}
+              disabled={!rescheduleDate || !rescheduleTime || isRescheduling}
+            >
+              {isRescheduling ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarIcon className="mr-2 h-4 w-4" />
+              )}
+              {t('appointments.reschedule', 'Reschedule')}
             </Button>
           </DialogFooter>
         </DialogContent>
