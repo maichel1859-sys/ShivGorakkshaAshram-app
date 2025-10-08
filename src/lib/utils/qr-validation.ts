@@ -35,7 +35,7 @@ export function validateLocationQRData(qrData: string): { valid: boolean; data?:
       const locationData: LocationQRData = {
         locationId: 'ASHRAM_MAIN',
         locationName: 'Shiv Goraksha Ashram',
-        timestamp: Date.now()
+        timestamp: 0 // Use 0 to indicate manual input, will use current time in processing
       };
 
       return { valid: true, data: locationData };

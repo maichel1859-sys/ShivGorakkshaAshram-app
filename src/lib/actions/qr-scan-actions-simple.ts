@@ -51,7 +51,9 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
     }
 
     const { locationId, locationName, timestamp, coordinates: qrCoordinates } = validation.data!;
-    const scanTime = new Date(timestamp);
+    // Use current time as scan time for manual input or simple QR codes
+    // For actual QR codes with embedded timestamp, use that timestamp
+    const scanTime = timestamp > 0 ? new Date(timestamp) : new Date();
 
     console.log(`QR Scan attempt - User: ${session.user.id}, Location: ${locationName} (${locationId}), Time: ${scanTime.toISOString()}`);
 
@@ -107,17 +109,29 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
     const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
     const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
 
+    // Debug logging for time validation
+    console.log(`⏰ Time validation debug:`, {
+      appointmentTime: appointmentTime.toISOString(),
+      scanTime: scanTime.toISOString(),
+      timeWindowStart: timeWindowStart.toISOString(),
+      timeWindowEnd: timeWindowEnd.toISOString(),
+      timeWindowConfig: TIME_WINDOW_CONFIG,
+      timeUntilAppointment: Math.round((appointmentTime.getTime() - scanTime.getTime()) / (1000 * 60)) + ' minutes'
+    });
+
     if (scanTime < timeWindowStart) {
+      const minutesEarly = Math.round((timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60));
       return { 
         success: false, 
-        error: `Too early to check in. Please scan QR code ${TIME_WINDOW_CONFIG.beforeAppointment} minutes before your appointment time.` 
+        error: `Too early to check in. Please scan QR code ${TIME_WINDOW_CONFIG.beforeAppointment} minutes before your appointment time. You are ${minutesEarly} minutes too early.` 
       };
     }
 
     if (scanTime > timeWindowEnd) {
+      const minutesLate = Math.round((scanTime.getTime() - timeWindowEnd.getTime()) / (1000 * 60));
       return { 
         success: false, 
-        error: `Too late to check in. You can only scan within ${TIME_WINDOW_CONFIG.afterAppointment} minutes after your appointment time.` 
+        error: `Too late to check in. You can only scan within ${TIME_WINDOW_CONFIG.afterAppointment} minutes after your appointment time. You are ${minutesLate} minutes too late.` 
       };
     }
 
@@ -407,4 +421,80 @@ export async function createTestQRCode(): Promise<string> {
     }
   };
   return JSON.stringify(qrData);
+}
+
+/**
+ * Get user's today's appointment with check-in time window information
+ */
+export async function getTodayAppointmentWithTimeWindow() {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Get user's appointment for today
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: today,
+          lt: tomorrow
+        },
+        status: {
+          in: ['BOOKED', 'CONFIRMED']
+        }
+      },
+      include: {
+        guruji: true
+      }
+    });
+
+    if (!appointment) {
+      return { 
+        success: false, 
+        error: 'No appointment found for today' 
+      };
+    }
+
+    // Calculate time window
+    const appointmentTime = new Date(appointment.startTime);
+    const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
+    const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
+    const now = new Date();
+
+    // Check if currently in time window
+    const isInTimeWindow = now >= timeWindowStart && now <= timeWindowEnd;
+    const canCheckIn = isInTimeWindow;
+
+    // Calculate time until check-in window opens
+    const minutesUntilWindow = Math.round((timeWindowStart.getTime() - now.getTime()) / (1000 * 60));
+    const minutesUntilAppointment = Math.round((appointmentTime.getTime() - now.getTime()) / (1000 * 60));
+
+    return {
+      success: true,
+      data: {
+        appointment,
+        timeWindow: {
+          start: timeWindowStart,
+          end: timeWindowEnd,
+          isInTimeWindow,
+          canCheckIn,
+          minutesUntilWindow: minutesUntilWindow > 0 ? minutesUntilWindow : 0,
+          minutesUntilAppointment: minutesUntilAppointment > 0 ? minutesUntilAppointment : 0,
+          config: TIME_WINDOW_CONFIG
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('Get today appointment with time window error:', error);
+    return { success: false, error: 'Failed to get appointment information' };
+  }
 }
