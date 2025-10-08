@@ -6,6 +6,7 @@
  */
 
 import { headers } from 'next/headers';
+import { formatAppointmentTime, formatAppointmentDate } from '@/lib/utils/time-formatting';
 
 // Socket server configuration
 const SOCKET_SERVER_URL = process.env.SOCKET_SERVER_URL || 'http://localhost:7077';
@@ -91,8 +92,8 @@ export interface AppointmentSocketEvent extends BaseSocketEvent {
     id: string;
     userId: string;
     gurujiId: string;
-    date: string;
-    time: string;
+    date: string; // Formatted date: "Jan 15, 2024"
+    time: string; // Formatted time: "5:00 PM"
     status: string;
     reason?: string;
     priority: string;
@@ -302,8 +303,8 @@ export async function emitAppointmentEvent(
     id: string;
     userId: string;
     gurujiId: string;
-    date: string;
-    time: string;
+    date: string; // Raw date (Date object or ISO string)
+    time: string; // Raw time (Date object or ISO string)
     status: string;
     reason?: string;
     priority: string;
@@ -311,6 +312,13 @@ export async function emitAppointmentEvent(
     position?: number;
   }
 ): Promise<void> {
+  // Format the date and time consistently
+  const formattedData = {
+    ...data,
+    date: formatAppointmentDate(data.date),
+    time: formatAppointmentTime(data.time)
+  };
+
   const event: AppointmentSocketEvent = {
     id: `appointment-${appointmentId}-${Date.now()}`,
     type,
@@ -318,7 +326,7 @@ export async function emitAppointmentEvent(
     userId: data.userId,
     gurujiId: data.gurujiId,
     timestamp: Date.now(),
-    data
+    data: formattedData
   };
   
   await emitSocketEvent(event);

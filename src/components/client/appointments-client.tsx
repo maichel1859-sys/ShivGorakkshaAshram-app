@@ -45,6 +45,7 @@ import {
 import { deleteAppointment, updateAppointmentStatus } from '@/lib/actions/appointment-actions';
 import { AppointmentStatus } from '@prisma/client';
 import { format } from 'date-fns';
+import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
 import { toast } from 'sonner';
 
 interface Appointment {
@@ -312,10 +313,10 @@ export function AppointmentsClient({ initialData, initialSearchParams }: Appoint
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <div className="font-medium">
-                            {format(new Date(appointment.date), 'MMM dd, yyyy')}
+                            {formatAppointmentDate(appointment.date)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {format(new Date(appointment.date), 'h:mm a')}
+                            {formatAppointmentTime(appointment.startTime)}
                           </div>
                         </div>
                       </div>
@@ -332,7 +333,7 @@ export function AppointmentsClient({ initialData, initialSearchParams }: Appoint
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {format(new Date(appointment.createdAt), 'MMM dd, yyyy')}
+                        {formatAppointmentDate(appointment.createdAt)}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

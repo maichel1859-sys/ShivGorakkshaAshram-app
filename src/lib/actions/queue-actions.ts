@@ -413,8 +413,8 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
               id: updatedAppointment.id,
               userId: updatedAppointment.userId,
               gurujiId: updatedAppointment.gurujiId || '',
-              date: updatedAppointment.date.toISOString(),
-              time: updatedAppointment.startTime.toISOString(),
+              date: updatedAppointment.date,
+              time: updatedAppointment.startTime,
               status: updatedAppointment.status,
               priority: updatedAppointment.priority,
               reason: updatedAppointment.reason || undefined
@@ -764,8 +764,8 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
           id: updatedAppointment.id,
           userId: updatedAppointment.userId,
           gurujiId: updatedAppointment.gurujiId || '',
-          date: updatedAppointment.date.toISOString(),
-          time: updatedAppointment.startTime.toISOString(),
+          date: updatedAppointment.date,
+          time: updatedAppointment.startTime,
           status: updatedAppointment.status,
           priority: updatedAppointment.priority,
           reason: updatedAppointment.reason || undefined
@@ -946,8 +946,8 @@ export async function completeConsultation(formData: FormData) {
         id: updatedAppointment.id,
         userId: updatedAppointment.userId,
         gurujiId: updatedAppointment.gurujiId || '',
-        date: updatedAppointment.date.toISOString(),
-        time: updatedAppointment.startTime.toISOString(),
+        date: updatedAppointment.date,
+        time: updatedAppointment.startTime,
         status: updatedAppointment.status,
         priority: updatedAppointment.priority,
         reason: updatedAppointment.reason || undefined

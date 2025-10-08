@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/loading";
 import { Calendar, Clock, User, MapPin, QrCode } from "lucide-react";
 import { format } from "date-fns";
 import { redirect } from "next/navigation";
+import { formatAppointmentDate, formatAppointmentTimeRange } from '@/lib/utils/time-formatting';
 import { AppointmentStatus } from "@prisma/client";
 
 interface AppointmentListProps {
@@ -91,13 +92,12 @@ async function AppointmentListContent({
                   </div>
                   <div>
                     <CardTitle className="text-lg">
-                      {format(new Date(appointment.date), "MMM dd, yyyy")}
+                      {formatAppointmentDate(appointment.date)}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground flex items-center space-x-1">
                       <Clock className="h-3 w-3" />
                       <span>
-                        {format(new Date(appointment.startTime), "hh:mm a")} -
-                        {format(new Date(appointment.endTime), "hh:mm a")}
+                        {formatAppointmentTimeRange(appointment.startTime, appointment.endTime)}
                       </span>
                     </p>
                   </div>

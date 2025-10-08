@@ -331,8 +331,8 @@ export async function bookAppointment(formData: FormData) {
         id: appointment.id,
         userId: appointment.userId,
         gurujiId: appointment.gurujiId || '',
-        date: appointment.date.toISOString(),
-        time: appointment.startTime.toISOString(),
+        date: appointment.date,
+        time: appointment.startTime,
         status: appointment.status,
         priority: appointment.priority,
         reason: appointment.reason || undefined
@@ -421,8 +421,8 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
         id: updatedAppointment.id,
         userId: updatedAppointment.userId,
         gurujiId: updatedAppointment.gurujiId || '',
-        date: updatedAppointment.date.toISOString(),
-        time: updatedAppointment.startTime.toISOString(),
+        date: updatedAppointment.date,
+        time: updatedAppointment.startTime,
         status: updatedAppointment.status,
         priority: updatedAppointment.priority,
         reason: reason || undefined
@@ -531,8 +531,8 @@ export async function rescheduleAppointment(appointmentId: string, formData: For
         id: updatedAppointment.id,
         userId: updatedAppointment.userId,
         gurujiId: updatedAppointment.gurujiId || '',
-        date: updatedAppointment.date.toISOString(),
-        time: updatedAppointment.startTime.toISOString(),
+        date: updatedAppointment.date,
+        time: updatedAppointment.startTime,
         status: updatedAppointment.status,
         priority: updatedAppointment.priority,
         reason: updatedAppointment.reason || undefined
@@ -627,8 +627,8 @@ export async function updateAppointment(id: string, formData: FormData) {
         id: updatedAppointment.id,
         userId: updatedAppointment.userId,
         gurujiId: updatedAppointment.gurujiId || '',
-        date: updatedAppointment.date.toISOString(),
-        time: updatedAppointment.startTime.toISOString(),
+        date: updatedAppointment.date,
+        time: updatedAppointment.startTime,
         status: updatedAppointment.status,
         priority: updatedAppointment.priority,
         reason: updatedAppointment.reason || undefined

@@ -25,6 +25,7 @@ import {
   Phone,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatAppointmentTime } from "@/lib/utils/time-formatting";
 // import { updateRemedy, resendRemedy } from "@/lib/actions/remedy-management-actions"; // Remedy functionality not implemented yet
 
 interface RemedyTemplate {
@@ -436,7 +437,7 @@ export function RemedyDetailsModal({
                     <div>
                       <h4 className="font-medium mb-2">Time</h4>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(consultation.startTime).toLocaleTimeString()}
+                        {formatAppointmentTime(consultation.startTime)}
                       </p>
                     </div>
                   </div>

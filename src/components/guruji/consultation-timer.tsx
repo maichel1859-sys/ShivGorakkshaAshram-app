@@ -10,6 +10,7 @@ import { useSocket, SocketEvents } from "@/lib/socket/socket-client";
 import { updateConsultation } from "@/lib/actions/consultation-actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils/helpers";
+import { formatAppointmentTime } from "@/lib/utils/time-formatting";
 
 interface ConsultationSession {
   id: string;
@@ -255,11 +256,11 @@ export function ConsultationTimer({
             {formatTime(elapsedSeconds)}
           </div>
           <div className="text-sm text-muted-foreground">
-            Started: {startTime.toLocaleTimeString()}
+            Started: {formatAppointmentTime(startTime)}
             {isCompleted && endTime && (
               <>
                 <br />
-                Ended: {endTime.toLocaleTimeString()}
+                Ended: {formatAppointmentTime(endTime)}
               </>
             )}
           </div>

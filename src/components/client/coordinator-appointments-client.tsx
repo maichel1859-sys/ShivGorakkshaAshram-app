@@ -60,6 +60,7 @@ import { manualCheckIn } from '@/lib/actions/coordinator-actions';
 import { AppointmentStatus } from '@prisma/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Appointment {
@@ -455,9 +456,9 @@ export function CoordinatorAppointmentsClient({
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div>{format(new Date(appointment.date), 'MMM dd, yyyy')}</div>
+                          <div>{formatAppointmentDate(appointment.date)}</div>
                           <div className="text-sm text-muted-foreground">
-                            {format(appointment.startTime, 'h:mm a')} - {format(appointment.endTime, 'h:mm a')}
+                            {formatAppointmentTime(appointment.startTime)} - {formatAppointmentTime(appointment.endTime)}
                           </div>
                         </div>
                       </div>

@@ -31,6 +31,7 @@ import { PageSpinner } from "@/components/loading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format, isToday, isTomorrow, isThisWeek, isPast } from "date-fns";
 import { useUserAppointments } from "@/hooks/queries/use-appointments";
+import { formatAppointmentDate, formatAppointmentTimeRange, formatAppointmentTime } from "@/lib/utils/time-formatting";
 
 interface AppointmentData {
   id: string;
@@ -238,14 +239,13 @@ export default function GurujiAppointmentsPage() {
                     <Calendar className="h-3 w-3" />
                     <span>
                       {getTimeLabel(apt)} -{" "}
-                      {format(new Date(apt.date), "MMM dd, yyyy")}
+                      {formatAppointmentDate(apt.date)}
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Clock className="h-3 w-3" />
                     <span>
-                      {format(new Date(apt.startTime), "h:mm a")} -{" "}
-                      {format(new Date(apt.endTime), "h:mm a")}
+                      {formatAppointmentTimeRange(apt.startTime, apt.endTime)}
                     </span>
                   </div>
                 </div>
@@ -265,9 +265,9 @@ export default function GurujiAppointmentsPage() {
                 {apt.queueEntry && (
                   <div className="text-sm text-muted-foreground">
                     <strong>Queue Position:</strong> #{apt.queueEntry.position}{" "}
-                    |<strong> Checked in:</strong>{" "}
+                    |                    <strong> Checked in:</strong>{" "}
                     {apt.queueEntry.checkedInAt
-                      ? format(new Date(apt.queueEntry.checkedInAt), "h:mm a")
+                      ? formatAppointmentTime(apt.queueEntry.checkedInAt)
                       : "Not checked in"}
                   </div>
                 )}

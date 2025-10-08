@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar, Clock, User, RefreshCw, Plus, CalendarIcon } from "lucide-react";
 import { format, addDays, isAfter } from "date-fns";
 import { AppointmentStatus } from "@prisma/client";
+import { formatAppointmentDate, formatAppointmentTimeRange } from '@/lib/utils/time-formatting';
 
 interface Appointment {
   id: string;
@@ -406,17 +407,12 @@ export function AppointmentManager() {
                         </div>
                         <div>
                           <CardTitle className="text-lg">
-                            {format(new Date(appointment.date), "MMM dd, yyyy")}
+                            {formatAppointmentDate(appointment.date)}
                           </CardTitle>
                           <p className="text-sm text-muted-foreground flex items-center space-x-1">
                             <Clock className="h-3 w-3" />
                             <span>
-                              {format(
-                                new Date(appointment.startTime),
-                                "hh:mm a"
-                              )}{" "}
-                              -
-                              {format(new Date(appointment.endTime), "hh:mm a")}
+                              {formatAppointmentTimeRange(appointment.startTime, appointment.endTime)}
                             </span>
                           </p>
                         </div>
