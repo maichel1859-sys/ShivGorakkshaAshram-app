@@ -14,6 +14,7 @@ import {
   emitAppointmentEvent,
   SocketEventTypes
 } from '@/lib/socket/socket-emitter';
+import { toAppZonedDate } from '@/lib/utils/time-formatting';
 import { 
   invalidateQueueCache
 } from '@/lib/services/queue.service';
@@ -486,7 +487,7 @@ export async function rescheduleAppointment(appointmentId: string, formData: For
     }
 
     // Validate new date and time
-    const newDateTime = new Date(`${date}T${time}:00`);
+    const newDateTime = toAppZonedDate(date, time);
     
     // For development: Allow any date/time (no restrictions)
     // In production, you would add time restrictions here
@@ -599,7 +600,7 @@ export async function updateAppointment(id: string, formData: FormData) {
     const updateData: Record<string, unknown> = {};
 
     if (date && time) {
-      const newDateTime = new Date(`${date}T${time}:00`);
+      const newDateTime = toAppZonedDate(date, time);
       updateData.date = newDateTime;
       updateData.startTime = newDateTime;
       updateData.endTime = new Date(newDateTime.getTime() + 30 * 60000);
@@ -1065,8 +1066,8 @@ export async function createAppointmentForUser(formData: FormData) {
     }
 
     // Check guruji availability
-    const appointmentDate = new Date(data.date);
-    const startTime = new Date(`${data.date}T${data.startTime}`);
+    const appointmentDate = toAppZonedDate(data.date, '00:00');
+    const startTime = toAppZonedDate(data.date, data.startTime);
     const endTime = new Date(startTime.getTime() + 5 * 60000); // 5 minutes duration
 
     const conflictingAppointment = await prisma.appointment.findFirst({
@@ -1279,8 +1280,8 @@ export async function createOfflineAppointment(formData: FormData) {
     }
 
     // Check guruji availability
-    const appointmentDate = new Date(data.date);
-    const startTime = new Date(`${data.date}T${data.startTime}`);
+    const appointmentDate = toAppZonedDate(data.date, '00:00');
+    const startTime = toAppZonedDate(data.date, data.startTime);
     const endTime = new Date(startTime.getTime() + 5 * 60000);
 
     const conflictingAppointment = await prisma.appointment.findFirst({
@@ -1560,8 +1561,8 @@ export async function createFamilyBooking(formData: FormData) {
     }
 
     // Create appointment date and time
-    const appointmentDate = new Date(data.date);
-    const startTime = new Date(`${data.date}T${data.startTime}`);
+    const appointmentDate = toAppZonedDate(data.date, '00:00');
+    const startTime = toAppZonedDate(data.date, data.startTime);
     const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes duration
 
     // Check for conflicts

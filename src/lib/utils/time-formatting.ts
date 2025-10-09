@@ -3,15 +3,39 @@
  * This ensures all appointment times are displayed consistently regardless of user's timezone
  */
 
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+
+// App-wide timezone configuration (defaults to IST)
+const APP_TIMEZONE = process.env.NEXT_PUBLIC_APP_TIMEZONE || 'Asia/Kolkata';
+const APP_TZ_OFFSET = process.env.NEXT_PUBLIC_APP_TZ_OFFSET || '+05:30';
+
+function ensureDate(input: Date | string): Date {
+  return typeof input === 'string' ? new Date(input) : input;
+}
+
+function formatInTimeZone(dateTime: Date | string, opts: Intl.DateTimeFormatOptions): string {
+  const d = ensureDate(dateTime);
+  return new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, ...opts }).format(d);
+}
+
+/**
+ * Convert a local date/time in app timezone to a UTC Date
+ * Example: toAppZonedDate('2025-10-09', '09:35') -> Date at 04:05 UTC
+ */
+export function toAppZonedDate(dateStr: string, timeStr?: string): Date {
+  const time = timeStr ? `${timeStr}:${timeStr.includes(':') ? '00' : ''}` : '00:00:00';
+  // Construct an ISO string with explicit offset, e.g., 2025-10-09T09:35:00+05:30
+  // If timeStr already includes seconds, keep them (above we normalize to at least HH:MM:SS)
+  const normalized = `${dateStr}T${time.includes(':') ? time : `${time}:00`}`;
+  return new Date(`${normalized}${APP_TZ_OFFSET}`);
+}
 
 /**
  * Format appointment time consistently across all components
  * Always shows time in 12-hour format with AM/PM
  */
 export function formatAppointmentTime(dateTime: Date | string): string {
-  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
-  return format(date, 'h:mm a');
+  return formatInTimeZone(dateTime, { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 /**
@@ -19,8 +43,7 @@ export function formatAppointmentTime(dateTime: Date | string): string {
  * Shows time in 12-hour format with leading zero (e.g., 05:00 PM)
  */
 export function formatAppointmentTimeWithLeadingZero(dateTime: Date | string): string {
-  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
-  return format(date, 'hh:mm a');
+  return formatInTimeZone(dateTime, { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 /**
@@ -28,8 +51,7 @@ export function formatAppointmentTimeWithLeadingZero(dateTime: Date | string): s
  * Shows date in format: Jan 15, 2024
  */
 export function formatAppointmentDate(dateTime: Date | string): string {
-  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
-  return format(date, 'MMM dd, yyyy');
+  return formatInTimeZone(dateTime, { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
 /**
@@ -37,8 +59,9 @@ export function formatAppointmentDate(dateTime: Date | string): string {
  * Shows: Jan 15, 2024 at 5:00 PM
  */
 export function formatAppointmentDateTime(dateTime: Date | string): string {
-  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
-  return format(date, 'MMM dd, yyyy \'at\' h:mm a');
+  const date = formatAppointmentDate(dateTime);
+  const time = formatAppointmentTime(dateTime);
+  return `${date} at ${time}`;
 }
 
 /**
@@ -46,9 +69,9 @@ export function formatAppointmentDateTime(dateTime: Date | string): string {
  * Shows: 5:00 PM - 5:05 PM
  */
 export function formatAppointmentTimeRange(startTime: Date | string, endTime: Date | string): string {
-  const start = typeof startTime === 'string' ? parseISO(startTime) : startTime;
-  const end = typeof endTime === 'string' ? parseISO(endTime) : endTime;
-  return `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`;
+  const startFormatted = formatAppointmentTime(startTime);
+  const endFormatted = formatAppointmentTime(endTime);
+  return `${startFormatted} - ${endFormatted}`;
 }
 
 /**
@@ -56,9 +79,9 @@ export function formatAppointmentTimeRange(startTime: Date | string, endTime: Da
  * Shows: 05:00 PM - 05:05 PM
  */
 export function formatAppointmentTimeRangeWithLeadingZero(startTime: Date | string, endTime: Date | string): string {
-  const start = typeof startTime === 'string' ? parseISO(startTime) : startTime;
-  const end = typeof endTime === 'string' ? parseISO(endTime) : endTime;
-  return `${format(start, 'hh:mm a')} - ${format(end, 'hh:mm a')}`;
+  const startFormatted = formatAppointmentTimeWithLeadingZero(startTime);
+  const endFormatted = formatAppointmentTimeWithLeadingZero(endTime);
+  return `${startFormatted} - ${endFormatted}`;
 }
 
 /**
@@ -66,15 +89,9 @@ export function formatAppointmentTimeRangeWithLeadingZero(startTime: Date | stri
  * Shows: 5:00 PM - 5:05 PM or just 5:00 PM if no end time
  */
 export function formatAppointmentTimeRangeOptional(startTime: Date | string, endTime?: Date | string | null): string {
-  const start = typeof startTime === 'string' ? parseISO(startTime) : startTime;
-  const startFormatted = format(start, 'h:mm a');
-  
-  if (!endTime) {
-    return startFormatted;
-  }
-  
-  const end = typeof endTime === 'string' ? parseISO(endTime) : endTime;
-  const endFormatted = format(end, 'h:mm a');
+  const startFormatted = formatAppointmentTime(startTime);
+  if (!endTime) return startFormatted;
+  const endFormatted = formatAppointmentTime(endTime);
   return `${startFormatted} - ${endFormatted}`;
 }
 
@@ -83,8 +100,7 @@ export function formatAppointmentTimeRangeOptional(startTime: Date | string, end
  * Shows: Checked in at 4:45 PM
  */
 export function formatCheckInTime(dateTime: Date | string): string {
-  const date = typeof dateTime === 'string' ? parseISO(dateTime) : dateTime;
-  return `Checked in at ${format(date, 'h:mm a')}`;
+  return `Checked in at ${formatAppointmentTime(dateTime)}`;
 }
 
 /**
@@ -105,7 +121,7 @@ export function formatRelativeTime(dateTime: Date | string): string {
       const hours = Math.floor(absMinutes / 60);
       return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     } else {
-      return format(date, 'MMM dd, h:mm a');
+      return `${formatAppointmentDate(date)} ${formatAppointmentTime(date)}`;
     }
   } else {
     // Future time
@@ -115,7 +131,7 @@ export function formatRelativeTime(dateTime: Date | string): string {
       const hours = Math.floor(diffInMinutes / 60);
       return `in ${hours} hour${hours > 1 ? 's' : ''}`;
     } else {
-      return format(date, 'MMM dd, h:mm a');
+      return `${formatAppointmentDate(date)} ${formatAppointmentTime(date)}`;
     }
   }
 }
