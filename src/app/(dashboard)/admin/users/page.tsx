@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Search, Filter, Users, UserPlus } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
 import { UsersPagination } from "@/components/admin/users-pagination";
+import { formatDateIST } from "@/store/time-store";
 
 // Server Component for User List
 async function UserListServer({
@@ -174,11 +175,11 @@ async function UserListServer({
               <div className="mt-4 pt-4 border-t">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>
-                    Joined: {new Date(user.createdAt).toLocaleDateString()}
+                    Joined: {formatDateIST(new Date(user.createdAt))}
                   </span>
                   <span>
                     Last updated:{" "}
-                    {new Date(user.updatedAt).toLocaleDateString()}
+                    {formatDateIST(new Date(user.updatedAt))}
                   </span>
                 </div>
               </div>

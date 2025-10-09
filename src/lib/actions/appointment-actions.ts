@@ -827,7 +827,14 @@ export async function getAppointmentAvailability(options?: {
 }
 
 // Get coordinator appointments
-export async function getCoordinatorAppointments() {
+export async function getCoordinatorAppointments(options?: {
+  search?: string;
+  status?: string;
+  date?: string;
+  fromDate?: string;
+  limit?: number;
+  offset?: number;
+}) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
@@ -840,7 +847,54 @@ export async function getCoordinatorAppointments() {
   }
 
   try {
+    // Build where clause based on options
+    const where: Record<string, unknown> = {};
+
+    // Status filter
+    if (options?.status && options.status !== 'all') {
+      where.status = options.status;
+    }
+
+    // Date filters
+    if (options?.date) {
+      where.date = options.date;
+    } else if (options?.fromDate) {
+      where.date = {
+        gte: options.fromDate,
+      };
+    }
+
+    // Search filter (search in user name, email, phone)
+    if (options?.search) {
+      where.OR = [
+        {
+          user: {
+            name: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          user: {
+            email: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          user: {
+            phone: {
+              contains: options.search,
+            },
+          },
+        },
+      ];
+    }
+
     const appointments = await prisma.appointment.findMany({
+      where,
       include: {
         user: {
           select: {
@@ -862,6 +916,8 @@ export async function getCoordinatorAppointments() {
         { date: 'asc' },
         { startTime: 'asc' },
       ],
+      take: options?.limit || 100,
+      skip: options?.offset || 0,
     });
 
     return {

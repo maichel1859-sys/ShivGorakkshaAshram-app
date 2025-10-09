@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Camera, CheckCircle, AlertCircle, Clock, MapPin, Navigation, Settings, Info } from 'lucide-react';
-import { processQRScanSimple } from '@/lib/actions/qr-scan-actions-simple';
+import { processQRScanSimple, processManualTextCheckIn } from '@/lib/actions/qr-scan-actions-simple';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast';
 import { getCurrentLocation } from '@/lib/utils/geolocation';
@@ -158,17 +158,55 @@ export default function StaticQRScanner() {
   }, [isScanning, startCamera]);
 
 
-  const handleManualQRInput = () => {
-    const qrData = prompt(
-      'Enter QR code data in any of these formats:\n' +
-      '• Full QR code JSON data\n' +
+  const handleManualQRInput = async () => {
+    const input = prompt(
+      'Enter location code or QR data:\n\n' +
+      'Simple location codes:\n' +
       '• ASHRAM_MAIN\n' +
-      '• ASHRAM\n' +
+      '• RECEPTION_001\n' +
       '• MAIN\n\n' +
+      'Or paste full QR code JSON data\n\n' +
       'What is displayed on your QR code?'
     );
-    if (qrData?.trim()) {
-      processQRCode(qrData.trim());
+    
+    if (input?.trim()) {
+      const inputData = input.trim();
+      
+      // Check if it's a simple location code
+      const simpleLocationCodes = ['ASHRAM_MAIN', 'RECEPTION_001', 'MAIN', 'ASHRAM'];
+      const isSimpleCode = simpleLocationCodes.some(code => 
+        inputData.toUpperCase().includes(code.toUpperCase())
+      );
+      
+      if (isSimpleCode) {
+        // Use manual text check-in for simple codes
+        setIsProcessing(true);
+        setError(null);
+        setScanResult(null);
+        
+        try {
+          const result = await processManualTextCheckIn(inputData, userLocation || undefined);
+          setScanResult(result);
+          
+          if (result.success) {
+            showToast.success(result.data?.message || 'Successfully checked in!');
+            setTimeout(() => {
+              router.push('/user/queue');
+              router.refresh();
+            }, 2000);
+          } else {
+            showToast.error(result.error || 'Manual check-in failed');
+          }
+        } catch (err) {
+          console.error('Manual check-in error:', err);
+          setError('Failed to process manual check-in. Please try again.');
+        } finally {
+          setIsProcessing(false);
+        }
+      } else {
+        // Use regular QR processing for complex data
+        processQRCode(inputData);
+      }
     }
   };
 
@@ -428,11 +466,19 @@ export default function StaticQRScanner() {
 
           {/* Manual Input Helper */}
           <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <p className="font-medium mb-1">💡 Manual Input Formats:</p>
-            <div className="space-y-1">
-              <p>• Full QR data: JSON string from QR code</p>
-              <p>• Location ID: ASHRAM_MAIN</p>
-              <p>• Simple format: ASHRAM or MAIN</p>
+            <p className="font-medium mb-2">💡 Manual Check-in Options:</p>
+            <div className="space-y-2">
+              <div>
+                <p className="font-medium">Simple Location Codes:</p>
+                <p>• ASHRAM_MAIN (Main Ashram)</p>
+                <p>• RECEPTION_001 (Reception Desk)</p>
+                <p>• MAIN (Main Location)</p>
+              </div>
+              <div>
+                <p className="font-medium">Alternative:</p>
+                <p>• Ask reception staff for the QR code text</p>
+                <p>• Paste full QR code JSON data</p>
+              </div>
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useOptimistic, useEffect } from 'react';
+import { useState, useTransition, useOptimistic, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSocket, SocketEvents } from '@/lib/socket/socket-client';
 import Link from 'next/link';
@@ -55,9 +55,10 @@ import {
   Download,
   Filter,
   CalendarIcon,
+  X,
 } from 'lucide-react';
 import { deleteAppointment, updateAppointmentStatus, rescheduleAppointment } from '@/lib/actions/appointment-actions';
-import { manualCheckIn } from '@/lib/actions/coordinator-actions';
+import { manualCheckInCoordinator } from '@/lib/actions/coordinator-actions';
 import { AppointmentStatus } from '@prisma/client';
 import { toast } from 'sonner';
 import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
@@ -228,7 +229,7 @@ export function CoordinatorAppointmentsClient({
     }
   };
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     const params = new URLSearchParams();
     if (searchTerm) params.set('search', searchTerm);
     if (statusFilter !== 'all') params.set('status', statusFilter);
@@ -237,7 +238,16 @@ export function CoordinatorAppointmentsClient({
     startTransition(() => {
       router.push(`/coordinator/appointments?${params.toString()}`);
     });
-  };
+  }, [searchTerm, statusFilter, dateFilter, router]);
+
+  // Auto-search when filters change (with debounce for search term)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSearch();
+    }, searchTerm ? 500 : 0); // Debounce search term, immediate for other filters
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, statusFilter, dateFilter, handleSearch]);
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: AppointmentStatus) => {
     setOptimisticAppointments({ type: 'update_status', id: appointmentId, status: newStatus });
@@ -286,7 +296,7 @@ export function CoordinatorAppointmentsClient({
     setOptimisticAppointments({ type: 'check_in', id: selectedAppointment.id });
 
     try {
-      const result = await manualCheckIn(selectedAppointment.id, 'RECEPTION_001');
+      const result = await manualCheckInCoordinator(selectedAppointment.id, 'RECEPTION_001');
       if (result.success) {
         toast.success(`${selectedAppointment.user.name} checked in successfully`);
         setShowCheckInDialog(false);
@@ -347,20 +357,8 @@ export function CoordinatorAppointmentsClient({
     return ['BOOKED', 'CONFIRMED'].includes(appointment.status);
   };
 
-  // Apply client-side filtering for immediate feedback
-  const filteredAppointments = optimisticAppointments.filter(appointment => {
-    const matchesSearch = !searchTerm ||
-      appointment.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (appointment.user.phone && appointment.user.phone.includes(searchTerm));
-
-    const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-
-    const matchesDate = dateFilter === 'all' ||
-      (dateFilter === 'today' && appointment.date === new Date().toISOString().split('T')[0]);
-
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+  // Use optimistic appointments directly since filtering is now done server-side
+  const filteredAppointments = optimisticAppointments;
 
   return (
     <div className="space-y-6">
@@ -436,13 +434,17 @@ export function CoordinatorAppointmentsClient({
                 <SelectItem value="week">{t('common.thisWeek', 'This Week')}</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleSearch} disabled={isPending}>
-              {isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-              {t('common.search', 'Search')}
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setDateFilter('all');
+              }}
+              disabled={isPending}
+            >
+              <X className="h-4 w-4 mr-2" />
+              {t('common.clearFilters', 'Clear Filters')}
             </Button>
           </div>
         </CardContent>
