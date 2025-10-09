@@ -49,6 +49,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       
       {/* Universal Cross-Platform PWA Installation Prompt */}
       <UniversalPWAPrompt />
+      
     </>
   );
 }

@@ -150,9 +150,9 @@ export const useQueueUnified = (options: UseQueueOptions) => {
   } = useQuery({
     queryKey: queueKeys.entries(role),
     queryFn: () => fetchQueueData(role),
-    staleTime: connectionStatus.connected && !fallbackState.isUsingFallback ? 120000 : 15000,
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnWindowFocus: !connectionStatus.connected,
+    staleTime: connectionStatus.connected && !fallbackState.isUsingFallback ? 60000 : 10000, // Reduced stale time
+    gcTime: 5 * 60 * 1000, // Reduced cache time for better memory usage
+    refetchOnWindowFocus: false, // Disabled for better performance
     refetchOnReconnect: true,
     refetchInterval: autoRefresh ? getPollingInterval() : false,
     refetchIntervalInBackground: fallbackState.isUsingFallback || !connectionStatus.connected,
@@ -160,8 +160,8 @@ export const useQueueUnified = (options: UseQueueOptions) => {
       // Enhanced retry logic with fallback awareness
       if (!isOnline) return false;
 
-      // More aggressive retry when using fallback
-      const maxRetries = fallbackState.isUsingFallback ? 5 : 3;
+      // Reduced retry attempts for faster failure detection
+      const maxRetries = fallbackState.isUsingFallback ? 3 : 2;
 
       // Don't retry if it's an auth error
       if (error?.message?.includes('Authentication')) return false;
@@ -170,12 +170,14 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     },
     retryDelay: (attemptIndex) => {
       // Faster retry when using fallback
-      const baseDelay = fallbackState.isUsingFallback ? 500 : 1000;
-      return Math.min(baseDelay * 2 ** attemptIndex, 10000);
+      const baseDelay = fallbackState.isUsingFallback ? 300 : 500;
+      return Math.min(baseDelay * 2 ** attemptIndex, 5000); // Reduced max delay
     },
     enabled: true,
     placeholderData: (previousData) => previousData,
     structuralSharing: true,
+    // Performance optimizations
+    notifyOnChangeProps: ['data', 'error', 'isLoading'], // Only re-render on these changes
   });
 
   // Socket-based real-time updates with enhanced fallback state management
@@ -204,7 +206,8 @@ export const useQueueUnified = (options: UseQueueOptions) => {
 
       // Invalidate and refetch the cache
       queryClient.invalidateQueries({
-        queryKey: queueKeys.entries(role)
+        queryKey: queueKeys.entries(role),
+        exact: true, // Only invalidate exact matches
       });
     };
 

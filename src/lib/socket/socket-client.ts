@@ -91,9 +91,12 @@ class SocketClient {
 
     this.socket = io(SOCKET_SERVER_URL, {
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
-      timeout: 20000,
-      forceNew: true,
+      transports: ['websocket'], // Prefer websocket for better performance
+      timeout: 10000, // Reduced timeout for faster connection
+      forceNew: false, // Reuse connections when possible
+      // Performance optimizations
+      upgrade: true,
+      rememberUpgrade: true,
     });
 
     this.setupEventListeners();

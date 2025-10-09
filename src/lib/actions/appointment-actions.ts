@@ -140,7 +140,20 @@ export async function getAppointments(options?: {
     const [appointments, total] = await Promise.all([
       prisma.appointment.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          status: true,
+          priority: true,
+          reason: true,
+          notes: true,
+          isRecurring: true,
+          qrCode: true,
+          checkedInAt: true,
+          createdAt: true,
+          updatedAt: true,
           user: {
             select: {
               id: true,

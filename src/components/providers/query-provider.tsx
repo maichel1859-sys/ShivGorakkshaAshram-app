@@ -14,8 +14,8 @@ export function QueryProvider({ children }: QueryProviderProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            gcTime: 10 * 60 * 1000, // 10 minutes
+            staleTime: 2 * 60 * 1000, // 2 minutes (reduced for faster updates)
+            gcTime: 5 * 60 * 1000, // 5 minutes (reduced memory usage)
             retry: (failureCount, error: unknown) => {
               // Don't retry on 4xx errors
               if (error && typeof error === "object" && "status" in error) {
@@ -24,15 +24,23 @@ export function QueryProvider({ children }: QueryProviderProps) {
                   return false;
                 }
               }
-              return failureCount < 3;
+              return failureCount < 2; // Reduced retry attempts
             },
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
+            // Performance optimizations
+            structuralSharing: true,
+            placeholderData: (previousData: unknown) => previousData,
           },
           mutations: {
             retry: false,
             onError: (error) => {
               console.error("Mutation error:", error);
+            },
+            // Optimistic updates for better UX
+            onMutate: async () => {
+              // Cancel outgoing refetches
+              await queryClient.cancelQueries();
             },
           },
         },

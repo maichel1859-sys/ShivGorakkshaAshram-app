@@ -103,6 +103,7 @@ export function AppointmentManager({ showAll = false }: AppointmentManagerProps)
             startTime: apt.startTime.toISOString(),
             endTime: apt.endTime?.toISOString(),
             reason: apt.reason || undefined,
+            priority: apt.priority || 'MEDIUM', // Default priority
             checkedInAt: apt.checkedInAt?.toISOString(),
             guruji: apt.guruji
               ? {
