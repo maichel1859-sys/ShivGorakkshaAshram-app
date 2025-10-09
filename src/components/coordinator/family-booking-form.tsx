@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { familyBookingSchema, type FamilyBooking } from "@/lib/validation/unified-schemas";
+import { createFamilyBooking } from "@/lib/actions/appointment-actions";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FamilyBookingFormProps {
@@ -93,11 +94,13 @@ export function FamilyBookingForm({
         }
       });
 
-      // TODO: Call server action to create family booking
-      // const result = await createFamilyBooking(formData);
+      // Call server action to create family booking
+      const result = await createFamilyBooking(formData);
       
-      // Simulate success for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!result.success) {
+        toast.error(result.error || "Failed to book family appointment");
+        return;
+      }
       
       toast.success("Family member appointment booked successfully!");
       

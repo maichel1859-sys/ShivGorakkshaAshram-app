@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -597,10 +598,10 @@ export default function RemediesPage() {
                       </Button>
                     </div>
                     <Button size="sm" asChild>
-                      <a href={`/guruji/remedies/prescribe/${template.id}`}>
+                      <Link href={`/guruji/remedies/prescribe/${template.id}`}>
                         <Send className="mr-1 h-3 w-3" />
                         Use
-                      </a>
+                      </Link>
                     </Button>
                   </div>
                 </div>

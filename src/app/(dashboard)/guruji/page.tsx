@@ -37,6 +37,7 @@ import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatAppointmentDate, formatAppointmentTimeRangeOptional } from "@/lib/utils/time-formatting";
 import { useThemeAware } from "@/hooks/use-theme-aware";
+import Link from "next/link";
 
 export default function GurujiDashboard() {
   const { data: session } = useSession();
@@ -652,10 +653,10 @@ export default function GurujiDashboard() {
           </div>
           <div className="mt-4 text-center">
             <Button variant="outline" size="sm" asChild>
-              <a href="/guruji/appointments">
+              <Link href="/guruji/appointments">
                 <Calendar className="h-4 w-4 mr-2" />
                 {t("nav.myAppointments", "View All Appointments")}
-              </a>
+              </Link>
             </Button>
           </div>
         </CardContent>

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAppointmentTime } from "@/lib/utils/time-formatting";
+import { updateRemedyStatus, generateRemedyDocumentPDF } from "@/lib/actions/remedy-actions";
 // import { updateRemedy, resendRemedy } from "@/lib/actions/remedy-management-actions"; // Remedy functionality not implemented yet
 
 interface RemedyTemplate {
@@ -95,21 +96,38 @@ export function RemedyDetailsModal({
         formData.append('customDuration', editedRemedy.customDuration);
       }
 
-      const result = { success: false, error: 'Remedy update functionality not implemented' };
+      const result = await updateRemedyStatus(formData);
       
-      // Since functionality is not implemented, always show error
-      toast.error(result.error || "Remedy update functionality not implemented");
+      if (!result.success) {
+        toast.error(result.error || "Failed to update remedy");
+        return;
+      }
+      
+      toast.success("Remedy updated successfully");
+      setIsEditing(false);
     } catch (error) {
       console.error('Update error:', error);
       toast.error("Failed to update remedy");
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (remedy.pdfUrl) {
       window.open(remedy.pdfUrl, '_blank');
     } else {
-      toast.info("PDF generation coming soon");
+      try {
+        // Generate PDF using the server action
+        const result = await generateRemedyDocumentPDF(remedy.id);
+        if (result.success && result.pdfUrl) {
+          window.open(result.pdfUrl, '_blank');
+          toast.success("PDF generated successfully");
+        } else {
+          toast.error(result.error || "Failed to generate PDF");
+        }
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        toast.error("Failed to generate PDF");
+      }
     }
   };
 

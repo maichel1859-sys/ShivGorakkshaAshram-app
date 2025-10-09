@@ -198,7 +198,7 @@ export function AppointmentsClient({ initialData, initialSearchParams }: Appoint
           </p>
         </div>
         <Button asChild>
-          <Link href="/admin/appointments/create">
+          <Link href="/admin/users/create">
             <CalendarPlus className="mr-2 h-4 w-4" />
             Schedule Appointment
           </Link>

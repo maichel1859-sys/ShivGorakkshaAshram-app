@@ -335,7 +335,7 @@ export default function UserDashboard() {
             <Link href="/user/remedies">{t('nav.myRemedies', 'My Remedies')}</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/user/qr">{t('nav.qrScanner', 'QR Scanner')}</Link>
+            <Link href="/user/qr-scanner">{t('nav.qrScanner', 'QR Scanner')}</Link>
           </Button>
         </CardContent>
       </Card>

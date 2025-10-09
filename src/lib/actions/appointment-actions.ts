@@ -1405,3 +1405,161 @@ export async function createOfflineAppointment(formData: FormData) {
     return { success: false, error: 'Failed to create offline appointment' };
   }
 }
+
+// Create family booking (Coordinator/Admin only)
+export async function createFamilyBooking(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    return { success: false, error: 'Authentication required' };
+  }
+
+  // Only Coordinators and Admins can book for family members
+  if (!['COORDINATOR', 'ADMIN'].includes(session.user.role)) {
+    return { success: false, error: 'Access denied' };
+  }
+
+  try {
+    const data = {
+      familyMemberName: formData.get('familyMemberName') as string,
+      familyMemberPhone: formData.get('familyMemberPhone') as string,
+      relationship: formData.get('relationship') as string,
+      gurujiId: formData.get('gurujiId') as string,
+      date: formData.get('date') as string,
+      startTime: formData.get('startTime') as string,
+      reason: formData.get('reason') as string,
+      priority: formData.get('priority') as string || 'NORMAL',
+      notes: formData.get('notes') as string || undefined,
+      consentGiven: formData.get('consentGiven') === 'true',
+    };
+
+    if (!data.familyMemberName || !data.familyMemberPhone || !data.gurujiId || !data.date || !data.startTime || !data.reason) {
+      return { success: false, error: 'Missing required fields' };
+    }
+
+    if (!data.consentGiven) {
+      return { success: false, error: 'Family member consent is required' };
+    }
+
+    // Check if guruji exists
+    const guruji = await prisma.user.findFirst({
+      where: {
+        id: data.gurujiId,
+        role: 'GURUJI',
+        isActive: true,
+      },
+    });
+
+    if (!guruji) {
+      return { success: false, error: 'Guruji not found or not available' };
+    }
+
+    // Create appointment date and time
+    const appointmentDate = new Date(data.date);
+    const startTime = new Date(`${data.date}T${data.startTime}`);
+    const endTime = new Date(startTime.getTime() + 30 * 60000); // 30 minutes duration
+
+    // Check for conflicts
+    const conflictingAppointment = await prisma.appointment.findFirst({
+      where: {
+        gurujiId: data.gurujiId,
+        date: appointmentDate,
+        OR: [
+          {
+            AND: [
+              { startTime: { lte: startTime } },
+              { endTime: { gt: startTime } }
+            ]
+          },
+          {
+            AND: [
+              { startTime: { lt: endTime } },
+              { endTime: { gte: endTime } }
+            ]
+          }
+        ],
+        status: { notIn: ['CANCELLED'] }
+      }
+    });
+
+    if (conflictingAppointment) {
+      return { success: false, error: 'Time slot not available' };
+    }
+
+    // Create appointment for family member
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId: session.user.id, // Coordinator/Admin as the booker
+        gurujiId: data.gurujiId,
+        date: appointmentDate,
+        startTime,
+        endTime,
+        reason: data.reason,
+        priority: data.priority as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT',
+        notes: `Family booking for ${data.familyMemberName} (${data.relationship}). Phone: ${data.familyMemberPhone}. ${data.notes || ''}`,
+        status: 'BOOKED',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        guruji: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: 'CREATE_FAMILY_BOOKING',
+        resource: 'APPOINTMENT',
+        resourceId: appointment.id,
+        newData: {
+          familyMemberName: data.familyMemberName,
+          familyMemberPhone: data.familyMemberPhone,
+          relationship: data.relationship,
+          gurujiId: data.gurujiId,
+          date: data.date,
+          startTime: data.startTime,
+          bookedBy: session.user.role,
+        },
+      },
+    });
+
+    // Emit appointment created event
+    await emitAppointmentEvent(
+      SocketEventTypes.APPOINTMENT_CREATED,
+      appointment.id,
+      {
+        id: appointment.id,
+        userId: appointment.userId,
+        gurujiId: appointment.gurujiId || '',
+        date: appointment.date,
+        time: appointment.startTime,
+        status: appointment.status,
+        priority: appointment.priority,
+        reason: appointment.reason || undefined
+      }
+    );
+
+    revalidatePath('/coordinator/appointments');
+    revalidatePath('/admin/appointments');
+    revalidatePath('/guruji/appointments');
+
+    return { success: true, appointment };
+  } catch (error) {
+    console.error('Create family booking error:', error);
+    return { success: false, error: 'Failed to create family booking' };
+  }
+}

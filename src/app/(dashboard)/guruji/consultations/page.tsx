@@ -18,7 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { PageSpinner } from '@/components/ui/page-spinner';
-import { showToast } from '@/lib/toast';
+// import { showToast } from '@/lib/toast'; // Not used in current implementation
 import { useQueueUnified } from '@/hooks/use-queue-unified';
 import { useGurujiConsultations } from '@/hooks/queries/use-guruji';
 import { QueueEntry } from '@/types';
@@ -58,24 +58,9 @@ export default function GurujiConsultationsPage() {
 
   // Handle consultation completion with remedy requirement
   const onCompleteConsultation = async (entry: QueueEntry) => {
-    // TODO: Implement consultation functionality when consultations are available
-    const hasRemedy = false; // Placeholder for remedy check
-
-    if (!hasRemedy) {
-      showToast.info(
-        `Please prescribe a remedy for ${entry.user.name || 'Unknown'} before completing the consultation.`,
-        {
-          action: {
-            label: 'Prescribe Remedy',
-            onClick: () => {
-              showToast.info('Remedy prescription feature coming soon');
-            }
-          }
-        }
-      );
-    } else {
-      await completeConsultation(entry.id);
-    }
+    // For now, allow completion without remedy check
+    // TODO: Implement proper remedy checking when consultation data is available
+    await completeConsultation(entry.id);
   };
 
   if (queueLoading || consultationsLoading) {
@@ -284,10 +269,33 @@ export default function GurujiConsultationsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-center p-8 text-gray-500">
-                <p>Consultations feature is under development</p>
-                <p className="text-sm mt-2">This will display completed consultations when the feature is fully implemented.</p>
-              </div>
+              {consultations.map((consultation: Record<string, unknown>) => (
+                <div key={consultation.id as string} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">{(consultation.devotee as Record<string, unknown>)?.name as string || 'Unknown'}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Completed: {consultation.completedAt ? formatTimeIST(consultation.completedAt as Date) : 'N/A'}
+                      </p>
+                      {Boolean(consultation.remedyDocument) && (
+                        <Badge variant="secondary" className="mt-2">
+                          Remedy Prescribed
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">
+                        Duration: {(consultation.duration as string) || 'N/A'}
+                      </p>
+                      {Boolean(consultation.remedyDocument) && (
+                        <Button size="sm" variant="outline" className="mt-2">
+                          View Remedy
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

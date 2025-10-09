@@ -16,13 +16,13 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import { searchUsers } from "@/lib/actions/reception-actions";
 
 interface User {
   id: string;
   name: string;
   phone: string;
   email?: string;
-  lastVisit: string;
   hasAppointment: boolean;
   appointmentTime?: string;
 }
@@ -41,34 +41,7 @@ export function SimpleUserLookup({
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Mock user data - replace with actual API call
-  const mockUsers = [
-    {
-      id: "1",
-      name: "Rajesh Kumar",
-      phone: "+91 98765 43210",
-      email: "rajesh@example.com",
-      lastVisit: "2024-01-15",
-      hasAppointment: true,
-      appointmentTime: "10:30 AM",
-    },
-    {
-      id: "2",
-      name: "Priya Sharma",
-      phone: "+91 87654 32109",
-      email: "priya@example.com",
-      lastVisit: "2024-01-10",
-      hasAppointment: false,
-    },
-    {
-      id: "3",
-      name: "Amit Patel",
-      phone: "+91 76543 21098",
-      lastVisit: "2024-01-08",
-      hasAppointment: true,
-      appointmentTime: "2:00 PM",
-    },
-  ];
+  // Real user search using server action
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -80,23 +53,36 @@ export function SimpleUserLookup({
     setHasSearched(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const results = mockUsers.filter(
-        (user) =>
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.phone.includes(searchTerm) ||
-          user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      setSearchResults(results);
-
-      if (results.length === 0) {
-        toast.info("No devotees found with that information");
+      // Use real searchUsers server action
+      const formData = new FormData();
+      formData.append('query', searchTerm);
+      
+      const result = await searchUsers(formData);
+      
+      if (result.success && result.users) {
+        // Transform API response to match expected interface
+        const transformedUsers: User[] = result.users.map((apiUser: Record<string, unknown>) => ({
+          id: apiUser.id as string,
+          name: (apiUser.name as string) || 'Unknown',
+          phone: (apiUser.phone as string) || 'No phone',
+          email: apiUser.email as string,
+          hasAppointment: (apiUser.upcomingAppointments as number) > 0,
+          appointmentTime: (apiUser.upcomingAppointments as number) > 0 ? 'Scheduled' : undefined,
+        }));
+        
+        setSearchResults(transformedUsers);
+        
+        if (transformedUsers.length === 0) {
+          toast.info("No devotees found with that information");
+        }
+      } else {
+        toast.error(result.error || "Search failed. Please try again.");
+        setSearchResults([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('Search error:', error);
       toast.error("Search failed. Please try again.");
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -178,9 +164,6 @@ export function SimpleUserLookup({
                           </span>
                           {user.email && <span>{user.email}</span>}
                         </div>
-                        <p className="text-xs text-gray-500">
-                          Last visit: {user.lastVisit}
-                        </p>
                       </div>
                     </div>
                     <div className="text-right">

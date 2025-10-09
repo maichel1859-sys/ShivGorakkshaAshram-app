@@ -380,7 +380,7 @@ export function CoordinatorAppointmentsClient({
             {t('common.export', 'Export')}
           </Button>
           <Button asChild>
-            <Link href="/coordinator/appointments/new">
+            <Link href="/coordinator/reception?action=booking">
               <CalendarPlus className="mr-2 h-4 w-4" />
               {t('appointments.schedule', 'Schedule Appointment')}
             </Link>

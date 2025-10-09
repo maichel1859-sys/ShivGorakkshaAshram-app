@@ -10,6 +10,7 @@ import { Calendar, Clock, User, MapPin, QrCode } from "lucide-react";
 import { redirect } from "next/navigation";
 import { formatAppointmentDate, formatAppointmentTimeRange } from '@/lib/utils/time-formatting';
 import { AppointmentStatus } from "@prisma/client";
+import Link from "next/link";
 
 interface AppointmentListProps {
   userId?: string;
@@ -69,7 +70,7 @@ async function AppointmentListContent({
             </p>
             {!userId && (
               <Button className="mt-4" asChild>
-                <a href="/user/appointments/book">Book Appointment</a>
+                <Link href="/user/appointments/book">Book Appointment</Link>
               </Button>
             )}
           </CardContent>
