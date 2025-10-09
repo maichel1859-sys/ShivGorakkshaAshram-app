@@ -169,21 +169,25 @@ export function CoordinatorAppointmentsClient({
 
       console.log('🔌 [Coordinator] Received appointment update:', data);
 
-      // Update the appointments list in real-time
-      setOptimisticAppointments({
-        type: 'update_status',
-        id: data.appointmentId,
-        status: data.status,
-      });
-
       // Refresh the page data to get latest information
       router.refresh();
 
-      // Show notification for new bookings
-      if (data.action === 'booked') {
+      // Show notifications based on action
+      if (data.action === 'booked' || data.action === 'created' || data.action === 'created_for_user') {
         const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
         const gurujiName = (data as { gurujiName?: string }).gurujiName || 'Guruji';
         console.log(`📅 New appointment: ${devoteeName} booked with ${gurujiName}`);
+        toast.success(`New appointment booked for ${devoteeName}`);
+      } else if (data.status === 'COMPLETED') {
+        const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
+        console.log(`✅ Appointment completed: ${devoteeName}`);
+        toast.success(`Consultation completed for ${devoteeName}`, {
+          description: 'Ready for next devotee'
+        });
+      } else if (data.status === 'CHECKED_IN') {
+        const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
+        console.log(`✓ Devotee checked in: ${devoteeName}`);
+        toast.info(`${devoteeName} checked in successfully`);
       }
     };
 
@@ -192,7 +196,7 @@ export function CoordinatorAppointmentsClient({
     return () => {
       socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
     };
-  }, [socket, setOptimisticAppointments, router]);
+  }, [socket, router]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

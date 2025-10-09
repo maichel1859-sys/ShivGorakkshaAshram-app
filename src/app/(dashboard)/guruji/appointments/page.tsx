@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSocket, SocketEvents } from "@/lib/socket/socket-client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +66,8 @@ interface AppointmentData {
 }
 
 export default function GurujiAppointmentsPage() {
+  const router = useRouter();
+  const { socket } = useSocket();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -78,6 +83,43 @@ export default function GurujiAppointmentsPage() {
     appointmentsData?.appointments || [],
     [appointmentsData?.appointments]
   );
+
+  // Socket listener for appointment updates
+  useEffect(() => {
+    const handleAppointmentUpdate = (...args: unknown[]) => {
+      const data = args[0] as {
+        appointmentId: string;
+        gurujiId?: string;
+        status: string;
+        action: string;
+        devoteeName?: string;
+        timestamp: string;
+      };
+
+      console.log('🔌 [Guruji] Received appointment update:', data);
+
+      // Refresh appointments list
+      refetch();
+      router.refresh();
+
+      // Show notifications based on action
+      if (data.action === 'booked' || data.action === 'created') {
+        toast.success('New appointment assigned to you!');
+      } else if (data.status === 'CHECKED_IN') {
+        const devoteeName = data.devoteeName || 'A devotee';
+        toast.info(`${devoteeName} has checked in`);
+      } else if (data.status === 'COMPLETED') {
+        const devoteeName = data.devoteeName || 'A devotee';
+        toast.success(`Consultation completed for ${devoteeName}`);
+      }
+    };
+
+    socket.on(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+
+    return () => {
+      socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
+    };
+  }, [socket, refetch, router]);
 
   // Filter appointments based on search and filters
   const filteredAppointments = useMemo(() => {

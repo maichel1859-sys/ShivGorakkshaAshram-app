@@ -938,7 +938,7 @@ export async function completeConsultation(formData: FormData) {
       },
     });
 
-    // Emit appointment completed event
+    // Emit appointment completed event with devotee details
     await emitAppointmentEvent(
       SocketEventTypes.APPOINTMENT_COMPLETED,
       updatedAppointment.id,
@@ -950,8 +950,10 @@ export async function completeConsultation(formData: FormData) {
         time: updatedAppointment.startTime,
         status: updatedAppointment.status,
         priority: updatedAppointment.priority,
-        reason: updatedAppointment.reason || undefined
-      }
+        reason: updatedAppointment.reason || undefined,
+        devoteeName: updatedAppointment.user.name || 'Unknown',
+        gurujiName: updatedAppointment.guruji?.name || 'Unknown'
+      } as any
     );
 
     // Create notification for user
@@ -970,15 +972,26 @@ export async function completeConsultation(formData: FormData) {
 
     // Recalculate positions for this guruji's queue
     await recalculateQueuePositions(session.user.id);
-    
+
     // Invalidate cache
     invalidateQueueCache();
+
+    // Revalidate all relevant paths to update UI everywhere
     revalidatePath('/guruji/queue');
-    revalidatePath('/user/queue');
-    revalidatePath('/coordinator/appointments');
     revalidatePath('/guruji/appointments');
+    revalidatePath('/guruji');
+    revalidatePath('/user/queue');
     revalidatePath('/user/appointments');
-    
+    revalidatePath('/user');
+    revalidatePath('/coordinator/appointments');
+    revalidatePath('/coordinator/queue');
+    revalidatePath('/coordinator');
+    revalidatePath('/admin/appointments');
+    revalidatePath('/admin/queue');
+    revalidatePath('/admin');
+
+    console.log(`✅ Consultation completed - Appointment: ${updatedAppointment.id}, User: ${queueEntry.user.name}`);
+
     return { success: true };
   } catch (error) {
     console.error('Complete consultation error:', error);

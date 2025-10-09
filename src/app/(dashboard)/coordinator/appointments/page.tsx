@@ -9,6 +9,10 @@ interface Props {
   }>;
 }
 
+// Disable caching to ensure fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CoordinatorAppointmentsPage({ searchParams }: Props) {
   const resolvedSearchParams = await searchParams;
   return <CoordinatorAppointmentsServer searchParams={resolvedSearchParams} />;

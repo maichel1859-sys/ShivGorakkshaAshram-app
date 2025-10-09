@@ -355,7 +355,9 @@ export async function bookAppointment(formData: FormData) {
     revalidatePath('/user/appointments');
     revalidatePath('/admin/appointments');
     revalidatePath('/guruji/appointments');
+    revalidatePath('/guruji');
     revalidatePath('/coordinator/appointments');
+    revalidatePath('/coordinator');
 
     return { success: true, appointment };
   } catch (error) {
@@ -829,7 +831,7 @@ export async function getAppointmentAvailability(options?: {
 // Get coordinator appointments
 export async function getCoordinatorAppointments() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
     return { success: false, error: 'Authentication required' };
   }
@@ -840,7 +842,22 @@ export async function getCoordinatorAppointments() {
   }
 
   try {
+    // Get today's date at start of day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const appointments = await prisma.appointment.findMany({
+      where: {
+        // Show appointments from today onwards, or all appointments with status BOOKED/CONFIRMED
+        OR: [
+          { date: { gte: today } },
+          {
+            status: {
+              in: ['BOOKED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS']
+            }
+          }
+        ]
+      },
       include: {
         user: {
           select: {
@@ -863,6 +880,8 @@ export async function getCoordinatorAppointments() {
         { startTime: 'asc' },
       ],
     });
+
+    console.log(`📋 Coordinator fetched ${appointments.length} appointments`);
 
     return {
       success: true,

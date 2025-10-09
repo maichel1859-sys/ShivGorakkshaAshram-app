@@ -225,7 +225,7 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
 
     // Emit socket events for real-time updates with fallback mechanism
     try {
-      // Emit appointment check-in event
+      // Emit appointment check-in event with devotee details
       await emitAppointmentEvent(
         SocketEventTypes.APPOINTMENT_CHECKED_IN,
         appointment.id,
@@ -239,7 +239,9 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
           priority: appointment.priority || 'NORMAL',
           estimatedWait: estimatedWaitMinutes,
           position: queuePosition,
-        }
+          devoteeName: appointment.user.name || 'Unknown',
+          gurujiName: appointment.guruji?.name || 'Unknown'
+        } as any
       );
 
       // Emit queue entry added event

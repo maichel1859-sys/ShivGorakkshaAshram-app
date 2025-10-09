@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/auth";
 import { getCoordinatorAppointments } from "@/lib/actions/appointment-actions";
 import { CoordinatorAppointmentsClient } from "@/components/client/coordinator-appointments-client";
 import { AppointmentsSkeleton } from "./appointments-skeleton";
+import { unstable_noStore as noStore } from 'next/cache';
 
 interface CoordinatorAppointmentsServerProps {
   searchParams?: {
@@ -17,6 +18,7 @@ interface CoordinatorAppointmentsServerProps {
 async function CoordinatorAppointmentsContent({
   searchParams,
 }: CoordinatorAppointmentsServerProps) {
+  noStore(); // Opt out of caching for this component
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
