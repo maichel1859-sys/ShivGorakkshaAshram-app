@@ -21,6 +21,7 @@ import {
 import { useCoordinatorDashboard } from "@/hooks/queries/use-coordinator";
 import { PageSpinner } from "@/components/loading";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatTimeIST, formatDateIST } from "@/store/time-store";
 import Link from "next/link";
 
 export default function CoordinatorDashboard() {
@@ -107,10 +108,10 @@ export default function CoordinatorDashboard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="text-left sm:text-right">
             <div className="text-xl lg:text-2xl font-mono font-semibold">
-              {currentTime.toLocaleTimeString()}
+              {formatTimeIST(currentTime)}
             </div>
             <div className="text-sm text-muted-foreground">
-              {currentTime.toLocaleDateString()}
+              {formatDateIST(currentTime)}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

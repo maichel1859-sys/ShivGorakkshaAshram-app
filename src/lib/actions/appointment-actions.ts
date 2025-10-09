@@ -829,7 +829,14 @@ export async function getAppointmentAvailability(options?: {
 }
 
 // Get coordinator appointments
-export async function getCoordinatorAppointments() {
+export async function getCoordinatorAppointments(options?: {
+  search?: string;
+  status?: string;
+  date?: string;
+  fromDate?: string;
+  limit?: number;
+  offset?: number;
+}) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -842,22 +849,86 @@ export async function getCoordinatorAppointments() {
   }
 
   try {
+    // Build where clause based on options
+    const where: Record<string, unknown> = {};
+
     // Get today's date at start of day
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        // Show appointments from today onwards, or all appointments with status BOOKED/CONFIRMED
-        OR: [
-          { date: { gte: today } },
-          {
-            status: {
-              in: ['BOOKED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS']
-            }
+    // Default: Show appointments from today onwards, or all appointments with active statuses
+    // This can be overridden by specific options
+    if (!options?.date && !options?.fromDate) {
+      where.OR = [
+        { date: { gte: today } },
+        {
+          status: {
+            in: ['BOOKED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS']
           }
-        ]
-      },
+        }
+      ];
+    }
+
+    // Status filter (overrides default if provided)
+    if (options?.status && options.status !== 'all') {
+      where.status = options.status;
+      delete where.OR; // Remove default OR clause if specific status is requested
+    }
+
+    // Date filters (overrides default if provided)
+    if (options?.date) {
+      where.date = options.date;
+      delete where.OR; // Remove default OR clause if specific date is requested
+    } else if (options?.fromDate) {
+      where.date = {
+        gte: options.fromDate,
+      };
+      delete where.OR; // Remove default OR clause if specific date range is requested
+    }
+
+    // Search filter (search in user name, email, phone)
+    if (options?.search) {
+      // If we already have an OR clause from default filtering, we need to combine them
+      const searchOR = [
+        {
+          user: {
+            name: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          user: {
+            email: {
+              contains: options.search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          user: {
+            phone: {
+              contains: options.search,
+            },
+          },
+        },
+      ];
+
+      if (where.OR) {
+        // Combine default date/status OR with search OR using AND
+        where.AND = [
+          { OR: where.OR },
+          { OR: searchOR }
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchOR;
+      }
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where,
       include: {
         user: {
           select: {
@@ -879,6 +950,8 @@ export async function getCoordinatorAppointments() {
         { date: 'asc' },
         { startTime: 'asc' },
       ],
+      take: options?.limit || 100,
+      skip: options?.offset || 0,
     });
 
     console.log(`📋 Coordinator fetched ${appointments.length} appointments`);

@@ -48,7 +48,7 @@ async function CoordinatorAppointmentsContent({
     options.fromDate = weekAgo.toISOString().split("T")[0];
   }
 
-  const result = await getCoordinatorAppointments();
+  const result = await getCoordinatorAppointments(options);
 
   if (!result.success) {
     return (
@@ -122,35 +122,10 @@ async function CoordinatorAppointmentsContent({
     }
   );
 
-  // Filter appointments based on search params (server-side filtering)
-  let filteredAppointments = transformedAppointments;
-
-  if (search) {
-    filteredAppointments = filteredAppointments.filter(
-      (apt) =>
-        apt.user.name.toLowerCase().includes(search.toLowerCase()) ||
-        apt.user.email.toLowerCase().includes(search.toLowerCase()) ||
-        (apt.user.phone && apt.user.phone.includes(search))
-    );
-  }
-
-  if (status && status !== "all") {
-    filteredAppointments = filteredAppointments.filter(
-      (apt) => apt.status === status
-    );
-  }
-
-  if (date === "today") {
-    const today = new Date().toISOString().split("T")[0];
-    filteredAppointments = filteredAppointments.filter(
-      (apt) => apt.date === today
-    );
-  }
-
   // Ensure we have the correct data structure
   const appointmentsData = {
-    appointments: filteredAppointments,
-    total: filteredAppointments.length,
+    appointments: transformedAppointments,
+    total: transformedAppointments.length,
     hasMore: false, // Since we're loading all appointments for coordinator
   };
 

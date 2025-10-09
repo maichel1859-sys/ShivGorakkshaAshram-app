@@ -31,6 +31,7 @@ import {
 } from "@/lib/actions/dashboard-actions";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
+import { formatTimeIST } from "@/store/time-store";
 
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
@@ -143,7 +144,7 @@ export default function AdminDashboardPage() {
               <Activity className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs sm:text-sm text-muted-foreground">
                 {t("dashboard.lastUpdated", "Last updated")}:{" "}
-                {new Date().toLocaleTimeString()}
+                {formatTimeIST(new Date())}
               </span>
             </div>
           </div>
