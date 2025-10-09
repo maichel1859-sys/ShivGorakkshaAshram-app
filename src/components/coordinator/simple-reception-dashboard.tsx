@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import { SimpleAppointmentBooking } from "./simple-appointment-booking";
 import { ManualCheckIn } from "./manual-checkin";
 import { CheckedInDevotees } from "./checked-in-devotees";
 import { toast } from "sonner";
+import { useTimeStore, startTimeSync } from "@/store/time-store";
 
 type ActionType =
   | "welcome"
@@ -59,6 +60,12 @@ interface WorkflowData {
 export function SimpleReceptionDashboard() {
   const [currentAction, setCurrentAction] = useState<ActionType>("welcome");
   const [workflowData, setWorkflowData] = useState<WorkflowData>({});
+  const currentTime = useTimeStore((s) => s.currentTime);
+  const formatTime = useTimeStore((s) => s.formatTime);
+
+  useEffect(() => {
+    startTimeSync();
+  }, []);
 
   const resetToWelcome = () => {
     setCurrentAction("welcome");
@@ -225,7 +232,7 @@ export function SimpleReceptionDashboard() {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-sm">
             <Clock className="h-3 w-3 mr-1" />
-            {new Date().toLocaleTimeString()}
+            {formatTime(currentTime)}
           </Badge>
           {currentAction !== "welcome" && (
             <Button variant="outline" onClick={resetToWelcome}>

@@ -18,13 +18,15 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getCheckedInDevotees } from '@/lib/actions/coordinator-actions';
-import { format } from 'date-fns';
+import { useTimeStore } from '@/store/time-store';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 
 export function CheckedInDevotees() {
   const { t } = useLanguage();
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const formatTime = useTimeStore((s) => s.formatTime);
+  const formatDate = useTimeStore((s) => s.formatDate);
 
   // Fetch checked-in devotees data
   const {
@@ -120,7 +122,7 @@ export function CheckedInDevotees() {
           </CardTitle>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              {t('common.lastUpdate', 'Last updated')}: {format(lastRefresh, 'HH:mm:ss')}
+              {t('common.lastUpdate', 'Last updated')}: {formatTime(lastRefresh)}
             </span>
             <Button
               onClick={handleRefresh}
@@ -193,7 +195,7 @@ export function CheckedInDevotees() {
 
                       <span className="flex items-center">
                         <Clock className="mr-1 h-3 w-3" />
-                        {t('reception.checkedInDevotees.checkedInAt', 'Checked in')}: {format(devotee.checkedInAt, 'HH:mm')}
+                        {t('reception.checkedInDevotees.checkedInAt', 'Checked in')}: {formatTime(devotee.checkedInAt)}
                       </span>
 
                       {devotee.position && (
@@ -210,8 +212,7 @@ export function CheckedInDevotees() {
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {format(devotee.appointment.date, 'MMM dd, yyyy')} at{' '}
-                            {format(devotee.appointment.startTime, 'h:mm a')}
+                            {formatDate(devotee.appointment.date)} at {formatTime(devotee.appointment.startTime)}
                           </span>
                         </div>
                         {devotee.appointment.reason && (

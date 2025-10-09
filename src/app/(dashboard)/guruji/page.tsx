@@ -185,15 +185,9 @@ export default function GurujiDashboard() {
         console.log("Consultation started for:", entry.user.name);
         commonToasts.consultationStarted(entry.user.name || "Unknown User");
 
-        // Invalidate cache and refetch data immediately
+        // Invalidate cache and refetch once for consistency
         invalidateCache();
         await refetch();
-
-        // Force an additional refresh after a short delay to ensure consistency
-        setTimeout(async () => {
-          invalidateCache();
-          await refetch();
-        }, 1000);
 
         return result;
       } else {
@@ -353,15 +347,9 @@ export default function GurujiDashboard() {
         setActiveConsultationId(null);
         setPrescribingForId(null);
 
-        // Force queue refresh to remove completed consultation
+        // Refresh once to remove completed consultation
         invalidateCache();
         await refetch();
-
-        // Additional refresh to ensure UI consistency
-        setTimeout(async () => {
-          invalidateCache();
-          await refetch();
-        }, 1000);
       } else {
         console.error("Failed to complete consultation:", result?.error);
         showToast.error(result?.error || "Failed to complete consultation");
@@ -1032,15 +1020,9 @@ export default function GurujiDashboard() {
                   setActiveConsultationId(null);
                   setPrescribingForId(null);
 
-                  // Force immediate queue refresh
+                  // Refresh once to ensure completed consultation is removed
                   invalidateCache();
                   await refetch();
-
-                  // Additional refresh to ensure completed consultation is removed
-                  setTimeout(async () => {
-                    invalidateCache();
-                    await refetch();
-                  }, 1000);
                 } else {
                   console.error("Failed to complete consultation:", result?.error);
                   showToast.error("Remedy prescribed but failed to complete consultation. Please complete manually.");
