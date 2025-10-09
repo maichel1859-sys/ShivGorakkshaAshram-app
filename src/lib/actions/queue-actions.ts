@@ -950,10 +950,8 @@ export async function completeConsultation(formData: FormData) {
         time: updatedAppointment.startTime,
         status: updatedAppointment.status,
         priority: updatedAppointment.priority,
-        reason: updatedAppointment.reason || undefined,
-        devoteeName: updatedAppointment.user.name || 'Unknown',
-        gurujiName: updatedAppointment.guruji?.name || 'Unknown'
-      } as any
+        reason: updatedAppointment.reason || undefined
+      }
     );
 
     // Create notification for user

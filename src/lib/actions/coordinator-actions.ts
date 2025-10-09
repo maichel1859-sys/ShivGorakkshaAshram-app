@@ -238,10 +238,8 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
           status: 'CHECKED_IN',
           priority: appointment.priority || 'NORMAL',
           estimatedWait: estimatedWaitMinutes,
-          position: queuePosition,
-          devoteeName: appointment.user.name || 'Unknown',
-          gurujiName: appointment.guruji?.name || 'Unknown'
-        } as any
+          position: queuePosition
+        }
       );
 
       // Emit queue entry added event
