@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useTransition, useOptimistic, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -61,7 +61,7 @@ import { deleteAppointment, updateAppointmentStatus, rescheduleAppointment } fro
 import { manualCheckInCoordinator } from '@/lib/actions/coordinator-actions';
 import { AppointmentStatus } from '@prisma/client';
 import { toast } from 'sonner';
-import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
+import { useTimeStore } from '@/store/time-store';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Appointment {
@@ -168,7 +168,7 @@ export function CoordinatorAppointmentsClient({
         timestamp: string;
       };
 
-      console.log('🔌 [Coordinator] Received appointment update:', data);
+      console.log('ðŸ”Œ [Coordinator] Received appointment update:', data);
 
       // Refresh the page data to get latest information
       router.refresh();
@@ -177,17 +177,17 @@ export function CoordinatorAppointmentsClient({
       if (data.action === 'booked' || data.action === 'created' || data.action === 'created_for_user') {
         const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
         const gurujiName = (data as { gurujiName?: string }).gurujiName || 'Guruji';
-        console.log(`📅 New appointment: ${devoteeName} booked with ${gurujiName}`);
+        console.log(`ðŸ“… New appointment: ${devoteeName} booked with ${gurujiName}`);
         toast.success(`New appointment booked for ${devoteeName}`);
       } else if (data.status === 'COMPLETED') {
         const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
-        console.log(`✅ Appointment completed: ${devoteeName}`);
+        console.log(`âœ… Appointment completed: ${devoteeName}`);
         toast.success(`Consultation completed for ${devoteeName}`, {
           description: 'Ready for next devotee'
         });
       } else if (data.status === 'CHECKED_IN') {
         const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
-        console.log(`✓ Devotee checked in: ${devoteeName}`);
+        console.log(`âœ“ Devotee checked in: ${devoteeName}`);
         toast.info(`${devoteeName} checked in successfully`);
       }
     };
@@ -508,9 +508,9 @@ export function CoordinatorAppointmentsClient({
                       <div className="flex items-center space-x-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div>{formatAppointmentDate(appointment.date)}</div>
+                          <div>{useTimeStore.getState().formatDate(appointment.date)}</div>
                           <div className="text-sm text-muted-foreground">
-                            {formatAppointmentTime(appointment.startTime)} - {formatAppointmentTime(appointment.endTime)}
+                            {useTimeStore.getState().formatTime(appointment.startTime)} - {useTimeStore.getState().formatTime(appointment.endTime)}
                           </div>
                         </div>
                       </div>
@@ -710,7 +710,7 @@ export function CoordinatorAppointmentsClient({
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
                   <strong>{t('appointments.newAppointment', 'New appointment')}:</strong><br />
-                  {new Date(rescheduleDate).toLocaleDateString()} at {rescheduleTime}
+                  {useTimeStore.getState().formatDate(rescheduleDate)} at {rescheduleTime}
                 </p>
               </div>
             )}

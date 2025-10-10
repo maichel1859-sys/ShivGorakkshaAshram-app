@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -342,8 +342,8 @@ export default function CoordinatorDashboard() {
                             {appointment.devoteeName}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {appointment.gurujiName} •{" "}
-                            {new Date(appointment.time).toLocaleTimeString()}
+                            {appointment.gurujiName} â€¢{" "}
+                            {useTimeStore.getState().formatTime(appointment.time)}
                           </p>
                         </div>
                       </div>
@@ -389,3 +389,7 @@ export default function CoordinatorDashboard() {
     </div>
   );
 }
+
+import { useTimeStore } from "@/store/time-store";
+
+

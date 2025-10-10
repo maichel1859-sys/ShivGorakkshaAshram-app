@@ -34,7 +34,7 @@ import { PageSpinner } from "@/components/loading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { format, isToday, isTomorrow, isThisWeek, isPast } from "date-fns";
 import { useUserAppointments } from "@/hooks/queries/use-appointments";
-import { formatAppointmentDate, formatAppointmentTimeRange, formatAppointmentTime } from "@/lib/utils/time-formatting";
+import { useTimeStore } from "@/store/time-store";
 
 interface AppointmentData {
   id: string;
@@ -281,13 +281,13 @@ export default function GurujiAppointmentsPage() {
                     <Calendar className="h-3 w-3" />
                     <span>
                       {getTimeLabel(apt)} -{" "}
-                      {formatAppointmentDate(apt.date)}
+                      {useTimeStore.getState().formatDate(apt.date)}
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Clock className="h-3 w-3" />
                     <span>
-                      {formatAppointmentTimeRange(apt.startTime, apt.endTime)}
+                      {useTimeStore.getState().formatTimeRange(apt.startTime, apt.endTime)}
                     </span>
                   </div>
                 </div>
@@ -309,7 +309,7 @@ export default function GurujiAppointmentsPage() {
                     <strong>Queue Position:</strong> #{apt.queueEntry.position}{" "}
                     |                    <strong> Checked in:</strong>{" "}
                     {apt.queueEntry.checkedInAt
-                      ? formatAppointmentTime(apt.queueEntry.checkedInAt)
+                      ? useTimeStore.getState().formatTime(apt.queueEntry.checkedInAt)
                       : "Not checked in"}
                   </div>
                 )}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -81,7 +81,7 @@ export default function UserRemediesPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>{t("remedies.consultationDate", "Consultation")}: {remedy.consultationSession?.appointment?.date ? new Date(remedy.consultationSession.appointment.date).toLocaleDateString() : 'Unknown'}</span>
+                      <span>{t("remedies.consultationDate", "Consultation")}: {remedy.consultationSession?.appointment?.date ? useTimeStore.getState().formatDate(remedy.consultationSession.appointment.date) : 'Unknown'}</span>
                     </div>
                   </div>
 
@@ -109,7 +109,7 @@ export default function UserRemediesPage() {
                     )}
                     <div>
                       <span className="font-medium">{t("common.created", "Created")}:</span>{" "}
-                      {new Date(remedy.createdAt).toLocaleDateString()}
+                      {useTimeStore.getState().formatDate(remedy.createdAt)}
                     </div>
                   </div>
                 </div>
@@ -145,13 +145,13 @@ export default function UserRemediesPage() {
                     <span
                       className={`flex items-center gap-1 ${remedy.deliveredAt ? "text-green-600" : "text-gray-400"}`}
                     >
-                      {remedy.deliveredAt ? "✓" : "○"} {t("remedies.delivered", "Delivered")}
+                      {remedy.deliveredAt ? "âœ“" : "â—‹"} {t("remedies.delivered", "Delivered")}
                     </span>
                   </div>
                   {remedy.deliveredAt && (
                     <span>
                       {t("remedies.delivered", "Delivered")}:{" "}
-                      {new Date(remedy.deliveredAt).toLocaleDateString()}
+                      {useTimeStore.getState().formatDate(remedy.deliveredAt)}
                     </span>
                   )}
                 </div>
@@ -177,3 +177,4 @@ export default function UserRemediesPage() {
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";

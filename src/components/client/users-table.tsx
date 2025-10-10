@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import {
@@ -293,7 +293,7 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
                       
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                        <span>{useTimeStore.getState().formatDate(user.createdAt)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -375,7 +375,7 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {new Date(user.createdAt).toLocaleDateString()}
+                          {useTimeStore.getState().formatDate(user.createdAt)}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -439,3 +439,4 @@ export function UsersTable({ initialFilters }: UsersTableProps) {
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";

@@ -146,7 +146,7 @@ export function PrescribeRemedyModal({
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(remedy.consultationSession.appointment.date).toLocaleDateString()}
+                            {useTimeStore.getState().formatDate(remedy.consultationSession.appointment.date)}
                           </div>
                           <div className="flex items-center gap-1">
                             <span>By: {remedy.consultationSession.appointment.guruji?.name || 'Unknown'}</span>
@@ -275,3 +275,4 @@ export function PrescribeRemedyModal({
     </Dialog>
   );
 }
+import { useTimeStore } from "@/store/time-store";

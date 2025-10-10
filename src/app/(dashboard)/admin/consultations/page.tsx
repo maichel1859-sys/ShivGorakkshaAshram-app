@@ -31,7 +31,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAdminConsultations } from "@/hooks/queries";
-import { formatAppointmentDate, formatAppointmentTime } from "@/lib/utils/time-formatting";
+import { useTimeStore } from "@/store/time-store";
 
 import { Prisma } from "@prisma/client";
 
@@ -329,9 +329,9 @@ export default function AdminConsultationsPage() {
                             </span>
                             <span className="flex items-center">
                               <Clock className="mr-1 h-3 w-3" />
-                              {formatAppointmentDate(consultation.startTime)}{" "}
+                              {useTimeStore.getState().formatDate(consultation.startTime)}{" "}
                               at{" "}
-                              {formatAppointmentTime(consultation.startTime)}
+                              {useTimeStore.getState().formatTime(consultation.startTime)}
                             </span>
                             {consultation.recordings &&
                               Array.isArray(consultation.recordings) &&

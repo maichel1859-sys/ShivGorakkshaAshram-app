@@ -255,7 +255,7 @@ export async function cancelAppointment(appointmentId: string) {
         userId: updatedAppointment.userId,
         gurujiId: updatedAppointment.gurujiId || '',
         date: updatedAppointment.date.toISOString().split('T')[0],
-        time: updatedAppointment.startTime.toLocaleTimeString(),
+        time: formatAppointmentTime(updatedAppointment.startTime),
         status: updatedAppointment.status,
         reason: updatedAppointment.reason || '',
         priority: updatedAppointment.priority
@@ -268,3 +268,4 @@ export async function cancelAppointment(appointmentId: string) {
     return { success: false, error: 'Failed to cancel appointment' };
   }
 }
+import { formatAppointmentTime } from "@/lib/utils/time-formatting";

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,7 +247,7 @@ export default function BookAppointmentPage() {
         <Card className="mt-4 sm:mt-6 border-orange-200 bg-orange-50 dark:bg-orange-950/20 rounded-xl">
           <CardHeader className="rounded-t-xl pb-4">
             <CardTitle className="text-orange-800 dark:text-orange-200 text-lg">
-              🔧 Debug Information (Dev Only)
+              ðŸ”§ Debug Information (Dev Only)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
@@ -313,13 +313,13 @@ export default function BookAppointmentPage() {
                 {t("appointments.beforeAppointment", "Before Your Appointment")}
               </h4>
               <ul className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                <li>• {t("appointments.arriveEarly", "Arrive 2 minutes early")}</li>
+                <li>â€¢ {t("appointments.arriveEarly", "Arrive 2 minutes early")}</li>
                 <li>
-                  • <strong>{t("appointments.scanQrConfirm", "Scan QR code at reception to confirm")}</strong>
+                  â€¢ <strong>{t("appointments.scanQrConfirm", "Scan QR code at reception to confirm")}</strong>
                 </li>
-                <li>• {t("appointments.bringRecords", "Bring any relevant medical records")}</li>
-                <li>• {t("appointments.prepareSymptoms", "Prepare a list of symptoms")}</li>
-                <li>• {t("appointments.comfortableClothing", "Wear comfortable clothing")}</li>
+                <li>â€¢ {t("appointments.bringRecords", "Bring any relevant medical records")}</li>
+                <li>â€¢ {t("appointments.prepareSymptoms", "Prepare a list of symptoms")}</li>
+                <li>â€¢ {t("appointments.comfortableClothing", "Wear comfortable clothing")}</li>
               </ul>
             </div>
             <div>
@@ -327,10 +327,10 @@ export default function BookAppointmentPage() {
                 {t("appointments.whatToExpect", "What to Expect")}
               </h4>
               <ul className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                <li>• {t("appointments.consultationDuration", "Consultation duration: 5 minutes")}</li>
-                <li>• {t("appointments.digitalPrescription", "Digital remedy prescription")}</li>
-                <li>• {t("appointments.followUpScheduling", "Follow-up appointment scheduling")}</li>
-                <li>• {t("appointments.healthRecommendations", "Health recommendations")}</li>
+                <li>â€¢ {t("appointments.consultationDuration", "Consultation duration: 5 minutes")}</li>
+                <li>â€¢ {t("appointments.digitalPrescription", "Digital remedy prescription")}</li>
+                <li>â€¢ {t("appointments.followUpScheduling", "Follow-up appointment scheduling")}</li>
+                <li>â€¢ {t("appointments.healthRecommendations", "Health recommendations")}</li>
               </ul>
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function BookAppointmentPage() {
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
                     <strong>{t("appointments.date", "Date")}:</strong>{" "}
-                    {selectedDate ? selectedDate.toLocaleDateString() : "N/A"}
+                    {selectedDate ? useTimeStore.getState().formatDate(selectedDate) : "N/A"}
                   </p>
                   <p>
                     <strong>{t("appointments.time", "Time")}:</strong> {selectedTime}
@@ -374,7 +374,7 @@ export default function BookAppointmentPage() {
             </div>
             <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl">
               <p className="text-sm text-blue-700 dark:text-blue-300 font-medium mb-2">
-                📍 {t("appointments.importantConfirmation", "Important: To confirm your appointment and join the queue")}
+                ðŸ“ {t("appointments.importantConfirmation", "Important: To confirm your appointment and join the queue")}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400">
                 {t("appointments.qrCodeRequired", "You must scan the QR code at the ashram reception when you arrive. Without scanning the QR code, you won't be added to the consultation queue.")}
@@ -424,3 +424,5 @@ export default function BookAppointmentPage() {
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";
+

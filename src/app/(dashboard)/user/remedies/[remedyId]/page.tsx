@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { PageSpinner } from "@/components/loading";
 import { useRemedyDocument } from "@/hooks/queries/use-remedies";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { formatTimeIST } from "@/store/time-store";
+import { formatTimeIST, useTimeStore } from "@/store/time-store";
 
 
 export default function UserRemedyDetailsPage() {
@@ -56,7 +56,7 @@ Instructions: ${remedy.customInstructions || remedy.template.instructions}
 Dosage: ${remedy.customDosage || remedy.template.dosage || 'As prescribed'}
 Duration: ${remedy.customDuration || remedy.template.duration || 'As needed'}
 
-Prescribed on: ${new Date(remedy.createdAt).toLocaleDateString()}
+Prescribed on: ${useTimeStore.getState().formatDate(remedy.createdAt)}
 Guruji: ${remedy.consultationSession?.appointment?.guruji?.name || 'N/A'}
 
 Om Shanti 🙏
@@ -294,7 +294,7 @@ Om Shanti 🙏
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">
-                            <strong>Date:</strong> {remedy.consultationSession?.appointment?.date ? new Date(remedy.consultationSession.appointment.date).toLocaleDateString() : 'N/A'}
+                            <strong>Date:</strong> {remedy.consultationSession?.appointment?.date ? useTimeStore.getState().formatDate(remedy.consultationSession.appointment.date) : 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

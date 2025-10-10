@@ -24,8 +24,10 @@ interface TimeState {
   getCurrentTime: () => Date;
   getCurrentTimeIST: () => Date;
   formatTime: (date: Date | string) => string;
+  formatTimeWithSeconds: (date: Date | string) => string;
   formatDate: (date: Date | string) => string;
   formatDateTime: (date: Date | string) => string;
+  formatTimeRange: (start: Date | string, end?: Date | string | null) => string;
   isToday: (date: Date | string) => boolean;
   isAppointmentInTimeWindow: (appointmentTime: Date | string, windowBefore: number, windowAfter: number) => boolean;
 }
@@ -63,6 +65,17 @@ export const useTimeStore = create<TimeState>()(
       });
     },
 
+    formatTimeWithSeconds: (date: Date | string) => {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      return dateObj.toLocaleTimeString('en-IN', {
+        timeZone: IST_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+    },
+
     formatDate: (date: Date | string) => {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       return dateObj.toLocaleDateString('en-IN', {
@@ -84,6 +97,25 @@ export const useTimeStore = create<TimeState>()(
         minute: '2-digit',
         hour12: true
       });
+    },
+
+    formatTimeRange: (start: Date | string, end?: Date | string | null) => {
+      const s = typeof start === 'string' ? new Date(start) : start;
+      const e = end ? (typeof end === 'string' ? new Date(end) : end) : null;
+      const startStr = s.toLocaleTimeString('en-IN', {
+        timeZone: IST_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      if (!e) return startStr;
+      const endStr = e.toLocaleTimeString('en-IN', {
+        timeZone: IST_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      return `${startStr} - ${endStr}`;
     },
 
     isToday: (date: Date | string) => {

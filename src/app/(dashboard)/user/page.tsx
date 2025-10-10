@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { logger } from '@/lib/logger';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +68,7 @@ export default function UserDashboard() {
   // Handle authentication redirect
   React.useEffect(() => {
     if (shouldRedirect && redirectTo) {
-      console.log('🔀 UserDashboard: Redirecting to', redirectTo);
+      logger.debug('ðŸ”€ UserDashboard: Redirecting to', redirectTo);
       router.push(redirectTo);
     }
   }, [shouldRedirect, redirectTo, router]);
@@ -82,14 +83,14 @@ export default function UserDashboard() {
     if (!socket || !user?.id) return;
 
     const handleDashboardUpdate = () => {
-      console.log('📊 Dashboard update received - refreshing user dashboard data');
+      logger.debug('ðŸ“Š Dashboard update received - refreshing user dashboard data');
       queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
       refetch();
     };
 
     const handleRemedyUpdate = (...args: unknown[]) => {
       const data = args[0] as { userId?: string; devoteeId?: string; remedyId?: string } | undefined;
-      console.log('💊 Remedy update received:', data);
+      logger.debug('ðŸ’Š Remedy update received:', data);
       // If the remedy is for this user, update dashboard
       if (data && (data.userId === user.id || data.devoteeId === user.id)) {
         queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
@@ -99,7 +100,7 @@ export default function UserDashboard() {
 
     const handleNotificationUpdate = (...args: unknown[]) => {
       const data = args[0] as { userId?: string; notificationId?: string; title?: string } | undefined;
-      console.log('🔔 Notification update received:', data);
+      logger.debug('ðŸ”” Notification update received:', data);
       // If the notification is for this user, update dashboard
       if (data && data.userId === user.id) {
         queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
@@ -109,7 +110,7 @@ export default function UserDashboard() {
 
     const handleConsultationUpdate = (...args: unknown[]) => {
       const data = args[0] as { devoteeId?: string; userId?: string; consultationId?: string; gurujiId?: string } | undefined;
-      console.log('🩺 Consultation update received:', data);
+      logger.debug('ðŸ©º Consultation update received:', data);
       // If the consultation involves this user, update dashboard
       if (data && (data.devoteeId === user.id || data.userId === user.id)) {
         queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
@@ -119,7 +120,7 @@ export default function UserDashboard() {
 
     const handleQueueUpdate = (...args: unknown[]) => {
       const data = args[0] as { userId?: string; queueEntryId?: string; status?: string; position?: number } | undefined;
-      console.log('📋 Queue update received:', data);
+      logger.debug('ðŸ“‹ Queue update received:', data);
       // If the queue update is for this user, update dashboard
       if (data && data.userId === user.id) {
         queryClient.invalidateQueries({ queryKey: userKeys.dashboard() });
@@ -295,7 +296,7 @@ export default function UserDashboard() {
                   >
                     <div>
                       <p className="font-medium">
-                        {new Date(appointment.date).toLocaleDateString()}
+                        {useTimeStore.getState().formatDate(appointment.date)}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {appointment.guruji?.name || t('dashboard.unknownGuruji', 'Unknown Guruji')}
@@ -344,3 +345,6 @@ export default function UserDashboard() {
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";
+
+

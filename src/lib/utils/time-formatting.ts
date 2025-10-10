@@ -5,9 +5,9 @@
 
 import { parseISO } from 'date-fns';
 
-// App-wide timezone configuration (defaults to IST)
-const APP_TIMEZONE = process.env.NEXT_PUBLIC_APP_TIMEZONE || 'Asia/Kolkata';
-const APP_TZ_OFFSET = process.env.NEXT_PUBLIC_APP_TZ_OFFSET || '+05:30';
+// App-wide timezone configuration (fixed default: IST)
+const APP_TIMEZONE = 'Asia/Kolkata';
+const APP_TZ_OFFSET = '+05:30';
 
 function ensureDate(input: Date | string): Date {
   return typeof input === 'string' ? new Date(input) : input;

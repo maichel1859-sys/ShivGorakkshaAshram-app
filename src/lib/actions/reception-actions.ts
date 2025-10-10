@@ -302,7 +302,7 @@ export async function createPhoneBooking(formData: FormData) {
         userId: devotee.id,
         gurujiId: validatedData.gurujiId,
         date: appointmentDate.toISOString().split('T')[0],
-        time: appointmentDate.toLocaleTimeString(),
+        time: formatAppointmentTime(appointmentDate),
         status: appointment.status,
         reason: appointment.reason || '',
         priority: appointment.priority
@@ -673,3 +673,4 @@ export async function searchUsers(formData: FormData) {
     return { success: false, error: 'Failed to search users' };
   }
 }
+import { formatAppointmentTime } from "@/lib/utils/time-formatting";

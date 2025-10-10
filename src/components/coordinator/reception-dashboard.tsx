@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,7 @@ import { ManualCheckIn } from "./manual-checkin";
 import { CheckedInDevotees } from "./checked-in-devotees";
 import { toast } from "sonner";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
+import { useTimeStore, startTimeSync } from "@/store/time-store";
 
 type WorkflowStep = 
   | "welcome" 
@@ -50,6 +51,12 @@ interface WorkflowData {
 export function ReceptionDashboard() {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>("welcome");
   const [workflowData, setWorkflowData] = useState<WorkflowData>({});
+  const currentTime = useTimeStore((s) => s.currentTime);
+  const formatTime = useTimeStore((s) => s.formatTime);
+
+  useEffect(() => {
+    startTimeSync();
+  }, []);
   
   // Use unified queue hook with React Query caching and socket fallback
   const {
@@ -227,7 +234,7 @@ export function ReceptionDashboard() {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-sm">
             <Clock className="h-3 w-3 mr-1" />
-            {new Date().toLocaleTimeString()}
+            {formatTime(currentTime)}
           </Badge>
           {currentStep !== "welcome" && (
             <Button variant="outline" onClick={resetWorkflow}>

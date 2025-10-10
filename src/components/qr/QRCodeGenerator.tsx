@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import QRCode from "qrcode";
@@ -149,7 +149,7 @@ export function QRCodeGenerator({
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Date:</span>
-              <span>{new Date(appointmentDate).toLocaleDateString()}</span>
+              <span>{useTimeStore.getState().formatDate(appointmentDate)}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Time:</span>
@@ -288,3 +288,4 @@ export function QRCodeDisplay({
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";

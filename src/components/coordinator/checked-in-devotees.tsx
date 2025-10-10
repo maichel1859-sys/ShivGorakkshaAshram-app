@@ -26,6 +26,7 @@ export function CheckedInDevotees() {
   const { t } = useLanguage();
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const formatTime = useTimeStore((s) => s.formatTime);
+  const formatTimeWithSeconds = useTimeStore((s) => s.formatTimeWithSeconds);
   const formatDate = useTimeStore((s) => s.formatDate);
 
   // Fetch checked-in devotees data
@@ -122,7 +123,7 @@ export function CheckedInDevotees() {
           </CardTitle>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              {t('common.lastUpdate', 'Last updated')}: {formatTime(lastRefresh)}
+              {t('common.lastUpdate', 'Last updated')}: {formatTimeWithSeconds(lastRefresh)}
             </span>
             <Button
               onClick={handleRefresh}

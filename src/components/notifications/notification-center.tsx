@@ -134,9 +134,7 @@ export function NotificationCenter({
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(
-                            notification.createdAt
-                          ).toLocaleDateString()}
+                          {useTimeStore.getState().formatDate(notification.createdAt)}
                         </p>
                       </div>
                       <div className="flex items-center space-x-1 ml-2">
@@ -176,3 +174,4 @@ export function NotificationCenter({
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";

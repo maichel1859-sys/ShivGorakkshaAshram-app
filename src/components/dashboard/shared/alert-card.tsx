@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import { cn } from "@/lib/utils/helpers";
+import { useTimeStore } from "@/store/time-store";
 import {
   AlertTriangle,
   CheckCircle,
@@ -111,6 +112,7 @@ export function AlertCard({
   emptyMessage = "No alerts at this time",
   className,
 }: AlertCardProps) {
+  const { formatDate } = useTimeStore.getState();
   const formatTimestamp = (timestamp: Date) => {
     const now = new Date();
     const diffInMinutes = Math.floor(
@@ -120,7 +122,7 @@ export function AlertCard({
     if (diffInMinutes < 1) return "Just now";
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return timestamp.toLocaleDateString();
+    return formatDate(timestamp);
   };
 
   const groupAlertsByType = (alerts: AlertItem[]) => {
@@ -340,7 +342,7 @@ export const ALERT_TEMPLATES = {
     id: "maintenance-alert",
     type: "warning",
     title: "Scheduled Maintenance",
-    message: `System maintenance is scheduled to begin at ${startTime.toLocaleTimeString()} and will last approximately ${duration}.`,
+    message: `System maintenance is scheduled to begin at ${useTimeStore.getState().formatTime(startTime)} and will last approximately ${duration}.`,
     priority: "high",
     timestamp: new Date(),
     category: "System",
@@ -369,7 +371,7 @@ export const ALERT_TEMPLATES = {
     id: "backup-failed",
     type: "error",
     title: "Backup Failed",
-    message: `The automated backup process failed. Last successful backup was on ${lastSuccessful.toLocaleDateString()}.`,
+    message: `The automated backup process failed. Last successful backup was on ${useTimeStore.getState().formatDate(lastSuccessful)}.`,
     priority: "critical",
     timestamp: new Date(),
     category: "Backup",

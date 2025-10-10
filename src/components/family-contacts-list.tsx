@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useAddFamilyContact, useDeleteFamilyContact } from "@/hooks/queries";
@@ -215,7 +215,7 @@ export function FamilyContactsList({ contacts }: FamilyContactsListProps) {
 
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm text-muted-foreground">
-                      Added: {new Date(contact.createdAt).toLocaleDateString()}
+                      Added: {useTimeStore.getState().formatDate(contact.createdAt)}
                     </p>
                   </div>
                 </CardContent>
@@ -227,3 +227,4 @@ export function FamilyContactsList({ contacts }: FamilyContactsListProps) {
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";

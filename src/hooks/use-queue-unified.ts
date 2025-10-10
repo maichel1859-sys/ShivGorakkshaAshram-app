@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { logger } from '@/lib/logger';
 
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -193,7 +194,7 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     }
 
     const handleQueueUpdate = (data: unknown) => {
-      console.log('🔄 Queue real-time update received:', data);
+      logger.debug('ðŸ”„ Queue real-time update received:', data);
 
       // Update fallback state - socket is working
       setFallbackState(prev => ({
@@ -244,7 +245,7 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     const pollingInterval = shouldUseFastPolling ? refreshInterval / 2 : refreshInterval;
 
     if (shouldUseFastPolling) {
-      console.log('⚠️ Socket disconnected, using fallback polling every', pollingInterval, 'ms');
+      logger.debug('âš ï¸ Socket disconnected, using fallback polling every', pollingInterval, 'ms');
       
       const interval = setInterval(() => {
         refetch();
@@ -490,3 +491,4 @@ export const useQueueUnified = (options: UseQueueOptions) => {
       queryClient.setQueryData(queueKeys.entries(role), data),
   };
 };
+

@@ -1,4 +1,5 @@
-"use client";
+﻿"use client";
+import { logger } from '@/lib/logger';
 
 import { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
@@ -37,12 +38,12 @@ export function SocketProvider({ children }: SocketProviderProps) {
       try {
         const result = connectToSocketServer();
         if (result.success) {
-          console.log('🔌 Socket.IO connected successfully');
+          logger.info('Socket.IO connected');
         } else {
-          console.warn('🔌 Socket.IO connection failed:', result.message);
+          logger.warn('Socket.IO connection failed:', result.message);
         }
       } catch (error) {
-        console.error('🔌 Socket.IO initialization error:', error);
+        logger.error('Socket.IO initialization error:', error);
       }
     };
 
@@ -62,7 +63,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       // Subscribe to notification events
       subscribeToNotificationEvents(userId);
 
-      console.log(`🔌 Subscribed to events for ${role}: ${userId}`);
+      console.log(`ðŸ”Œ Subscribed to events for ${role}: ${userId}`);
     }
   }, [session]);
 
@@ -85,3 +86,4 @@ export const useSocketContext = () => {
 };
 
 export default SocketProvider;
+

@@ -61,11 +61,14 @@ export const changeLanguage = (language: string) => {
 };
 
 // Date formatting utilities
+const APP_TIMEZONE = 'Asia/Kolkata';
+
 export const formatDate = (date: Date | string, language?: string) => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const lang = language || getCurrentLanguage();
   
   return dateObj.toLocaleDateString(lang, {
+    timeZone: APP_TIMEZONE,
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -77,6 +80,7 @@ export const formatTime = (date: Date | string, language?: string) => {
   const lang = language || getCurrentLanguage();
   
   return dateObj.toLocaleTimeString(lang, {
+    timeZone: APP_TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -87,6 +91,7 @@ export const formatDateTime = (date: Date | string, language?: string) => {
   const lang = language || getCurrentLanguage();
   
   return dateObj.toLocaleString(lang, {
+    timeZone: APP_TIMEZONE,
     year: 'numeric',
     month: 'long',
     day: 'numeric',

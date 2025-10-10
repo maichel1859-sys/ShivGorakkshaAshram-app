@@ -25,7 +25,7 @@ import {
   Phone,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatAppointmentTime } from "@/lib/utils/time-formatting";
+import { useTimeStore } from "@/store/time-store";
 import { updateRemedyStatus, generateRemedyDocumentPDF } from "@/lib/actions/remedy-actions";
 // import { updateRemedy, resendRemedy } from "@/lib/actions/remedy-management-actions"; // Remedy functionality not implemented yet
 
@@ -356,7 +356,7 @@ export function RemedyDetailsModal({
                     <div>
                       <h4 className="font-medium mb-2">Prescribed On</h4>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(remedy.createdAt).toLocaleDateString()}
+                        {useTimeStore.getState().formatDate(remedy.createdAt)}
                       </p>
                     </div>
                   </div>
@@ -449,13 +449,13 @@ export function RemedyDetailsModal({
                     <div>
                       <h4 className="font-medium mb-2">Date</h4>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(consultation.startTime).toLocaleDateString()}
+                        {useTimeStore.getState().formatDate(consultation.startTime)}
                       </p>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Time</h4>
                       <p className="text-sm text-muted-foreground">
-                        {formatAppointmentTime(consultation.startTime)}
+                        {useTimeStore.getState().formatTime(consultation.startTime)}
                       </p>
                     </div>
                   </div>
@@ -487,3 +487,4 @@ export function RemedyDetailsModal({
     </Dialog>
   );
 }
+ 

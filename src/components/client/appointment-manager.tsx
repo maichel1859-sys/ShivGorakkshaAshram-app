@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar, Clock, User, RefreshCw, Plus, CalendarIcon } from "lucide-react";
 import { format, addDays, isAfter } from "date-fns";
 import { AppointmentStatus } from "@prisma/client";
-import { formatAppointmentDate, formatAppointmentTimeRange } from '@/lib/utils/time-formatting';
+import { useTimeStore } from '@/store/time-store';
 
 interface Appointment {
   id: string;
@@ -413,12 +413,12 @@ export function AppointmentManager({ showAll = false }: AppointmentManagerProps)
                         </div>
                         <div>
                           <CardTitle className="text-lg">
-                            {formatAppointmentDate(appointment.date)}
+                            {useTimeStore.getState().formatDate(appointment.date)}
                           </CardTitle>
                           <p className="text-sm text-muted-foreground flex items-center space-x-1">
                             <Clock className="h-3 w-3" />
                             <span>
-                              {formatAppointmentTimeRange(appointment.startTime, appointment.endTime)}
+                              {useTimeStore.getState().formatTimeRange(appointment.startTime, appointment.endTime)}
                             </span>
                           </p>
                         </div>

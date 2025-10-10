@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { deleteAppointment, updateAppointmentStatus } from '@/lib/actions/appointment-actions';
 import { AppointmentStatus } from '@prisma/client';
-import { formatAppointmentDate, formatAppointmentTime } from '@/lib/utils/time-formatting';
+import { useTimeStore } from '@/store/time-store';
 import { toast } from 'sonner';
 
 interface Appointment {
@@ -314,10 +314,10 @@ export function AppointmentsClient({ initialData, initialSearchParams }: Appoint
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <div className="font-medium">
-                            {formatAppointmentDate(appointment.date)}
+                            {useTimeStore.getState().formatDate(appointment.date)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatAppointmentTime(appointment.startTime)}
+                            {useTimeStore.getState().formatTime(appointment.startTime)}
                           </div>
                         </div>
                       </div>
@@ -334,7 +334,7 @@ export function AppointmentsClient({ initialData, initialSearchParams }: Appoint
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {formatAppointmentDate(appointment.createdAt)}
+                        {useTimeStore.getState().formatDate(appointment.createdAt)}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

@@ -384,9 +384,7 @@ export function SimpleAppointmentBooking({
                       </p>
                       <p>
                         <strong>Date:</strong>{" "}
-                        {new Date(
-                          bookingResult.appointment.date
-                        ).toLocaleDateString()}
+                        {useTimeStore.getState().formatDate(bookingResult.appointment.date)}
                       </p>
                       <p>
                         <strong>Time:</strong> {selectedTime}
@@ -449,3 +447,4 @@ export function SimpleAppointmentBooking({
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";

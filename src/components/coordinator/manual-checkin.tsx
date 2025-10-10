@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { manualCheckIn, searchAppointments } from '@/lib/actions/coordinator-actions';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { formatAppointmentDate, formatAppointmentTimeRange } from '@/lib/utils/time-formatting';
+import { useTimeStore } from '@/store/time-store';
 
 interface AppointmentSearchResult {
   id: string;
@@ -249,11 +249,11 @@ export function ManualCheckIn() {
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {formatAppointmentDate(appointment.startTime)}
+                            {useTimeStore.getState().formatDate(appointment.startTime)}
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {formatAppointmentTimeRange(appointment.startTime, appointment.endTime)}
+                            {useTimeStore.getState().formatTimeRange(appointment.startTime, appointment.endTime)}
                           </div>
                         </div>
                         {appointment.reason && (

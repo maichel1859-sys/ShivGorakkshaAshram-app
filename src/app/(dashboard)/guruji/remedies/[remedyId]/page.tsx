@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/loading";
-import { formatAppointmentDate, formatAppointmentTime } from "@/lib/utils/time-formatting";
+import { useTimeStore } from "@/store/time-store";
 import { useRemedyTemplate } from "@/hooks/queries/use-remedies";
 import { updateRemedyTemplate } from "@/lib/actions/remedy-actions";
 
@@ -347,7 +347,7 @@ export default function RemedyDetailsPage() {
             <div className="text-right">
               <p className="text-sm text-muted-foreground">Prescribed on</p>
               <p className="font-medium">
-                {new Date(remedy.createdAt).toLocaleDateString()}
+                {useTimeStore.getState().formatDate(remedy.createdAt)}
               </p>
             </div>
           </div>
@@ -465,7 +465,7 @@ export default function RemedyDetailsPage() {
                   <Label>Prescribed On</Label>
                   <div className="mt-2 p-3 bg-muted rounded-md">
                     <p className="text-sm">
-                      {new Date(remedy.createdAt).toLocaleDateString()}
+                      {useTimeStore.getState().formatDate(remedy.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -577,7 +577,7 @@ export default function RemedyDetailsPage() {
                       <Label>Date</Label>
                       <div className="mt-1 p-3 bg-muted rounded-md">
                         <p className="text-sm">
-                          {formatAppointmentDate(consultation.startTime)}
+                          {useTimeStore.getState().formatDate(consultation.startTime)}
                         </p>
                       </div>
                     </div>
@@ -585,7 +585,7 @@ export default function RemedyDetailsPage() {
                       <Label>Time</Label>
                       <div className="mt-1 p-3 bg-muted rounded-md">
                         <p className="text-sm">
-                          {formatAppointmentTime(consultation.startTime)}
+                          {useTimeStore.getState().formatTime(consultation.startTime)}
                         </p>
                       </div>
                     </div>
@@ -646,7 +646,7 @@ export default function RemedyDetailsPage() {
                         <Label>Delivered On</Label>
                         <div className="mt-1 p-3 bg-muted rounded-md">
                           <p className="text-sm">
-                            {new Date(remedy.deliveredAt).toLocaleDateString()}
+                            {useTimeStore.getState().formatDate(remedy.deliveredAt)}
                           </p>
                         </div>
                       </div>

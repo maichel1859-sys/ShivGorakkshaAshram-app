@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -374,7 +374,7 @@ export function UsersManager() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {new Date(user.createdAt).toLocaleDateString()}
+                          {useTimeStore.getState().formatDate(user.createdAt)}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -443,3 +443,4 @@ export function UsersManager() {
     </div>
   );
 }
+import { useTimeStore } from "@/store/time-store";
