@@ -30,6 +30,7 @@ import { CheckedInDevotees } from "./checked-in-devotees";
 import { toast } from "sonner";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
 import { useTimeStore, startTimeSync } from "@/store/time-store";
+import type { QueueEntry } from "@/types/queue";
 
 type WorkflowStep = 
   | "welcome" 
@@ -86,10 +87,10 @@ export function ReceptionDashboard() {
   // Calculate real-time stats from queue data
   const todayStats = {
     totalCheckins: stats?.total || 0,
-    newRegistrations: queueEntries?.filter(entry => 
+    newRegistrations: queueEntries?.filter((entry: QueueEntry) => 
       new Date(entry.checkedInAt).toDateString() === new Date().toDateString()
     ).length || 0,
-    emergencyDevotees: queueEntries?.filter(entry => entry.priority === 'EMERGENCY').length || 0,
+    emergencyDevotees: queueEntries?.filter((entry: QueueEntry) => entry.priority === 'EMERGENCY').length || 0,
     waitingInQueue: stats?.waiting || 0,
     averageWaitTime: stats?.averageWaitTime ? `${Math.round(stats.averageWaitTime)} min` : "N/A",
     nextAvailableSlot: "N/A", // This would need appointment slot logic

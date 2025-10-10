@@ -268,7 +268,7 @@ export default function CoordinatorQueuePage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredEntries.map((entry) => (
+              {filteredEntries.map((entry: QueueEntry) => (
                 <div
                   key={entry.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
@@ -353,3 +353,4 @@ export default function CoordinatorQueuePage() {
     </div>
   );
 }
+

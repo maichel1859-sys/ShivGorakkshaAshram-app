@@ -277,64 +277,38 @@ export async function processQRScanSimple(
     }
 
     // Get current queue position (simplified - we'll use gurujiId for now)
-    const currentQueueCount = await prisma.queueEntry.count({
-      where: {
-        gurujiId: appointment.gurujiId,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
+        // Create queue entry within a transaction to avoid race conditions
+    const queueEntry = await prisma.$transaction(async (tx) => {
+      const agg = await tx.queueEntry.aggregate({
+        _max: { position: true },
+        where: {
+          gurujiId: appointment.gurujiId,
+          createdAt: { gte: today, lt: tomorrow },
+          status: { in: ['WAITING','IN_PROGRESS'] },
         },
-        status: {
-          in: ["WAITING", "IN_PROGRESS"],
+      });
+      const newPosition = (agg._max.position || 0) + 1;
+      const estimatedWaitMinutes = newPosition * 5;
+      return tx.queueEntry.create({
+        data: {
+          appointmentId: appointment.id,
+          userId: session.user.id,
+          gurujiId: appointment.gurujiId,
+          position: newPosition,
+          status: 'WAITING',
+          priority: appointment.priority || 'NORMAL',
+          estimatedWait: estimatedWaitMinutes,
+          checkedInAt: scanTime,
+          notes: `Checked in via QR scan at ${locationName}`,
         },
-      },
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+          guruji: { select: { id: true, name: true } },
+          appointment: { select: { id: true, date: true, startTime: true, endTime: true, reason: true } },
+        },
+      });
     });
-
-    const queuePosition = currentQueueCount + 1;
-
-    // Calculate estimated wait time (5 minutes per person)
-    const estimatedWaitMinutes = queuePosition * 5;
-
-    // Create queue entry
-    const queueEntry = await prisma.queueEntry.create({
-      data: {
-        appointmentId: appointment.id,
-        userId: session.user.id,
-        gurujiId: appointment.gurujiId,
-        position: queuePosition,
-        status: "WAITING",
-        priority: appointment.priority || "NORMAL",
-        estimatedWait: estimatedWaitMinutes,
-        checkedInAt: scanTime,
-        notes: `Checked in via QR scan at ${locationName}`,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        guruji: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        appointment: {
-          select: {
-            id: true,
-            date: true,
-            startTime: true,
-            endTime: true,
-            reason: true,
-          },
-        },
-      },
-    });
-
+// Create queue entry
     // Update appointment status
     await prisma.appointment.update({
       where: { id: appointment.id },
@@ -353,6 +327,9 @@ export async function processQRScanSimple(
       priority: queueEntry.priority,
       appointmentId: appointment.id,
     });
+
+    const queuePosition = queueEntry.position;
+    const estimatedWaitMinutes = queueEntry.estimatedWait || (queuePosition * 5);
 
     await emitAppointmentEvent(
       SocketEventTypes.APPOINTMENT_CHECKED_IN,
@@ -506,6 +483,8 @@ export async function processManualTextCheckIn(
  * Get location name from location code
  */
 function getLocationNameFromCode(locationCode: string): string {
+  // mark parameter as intentionally unused while allowing future use
+  void locationCode;
   // Only support main ashram location
   return "Shiv Goraksha Ashram";
 }
@@ -517,6 +496,8 @@ function getLocationCoordinates(locationCode: string): {
   latitude: number;
   longitude: number;
 } {
+  // mark parameter as intentionally unused while allowing future use
+  void locationCode;
   // Only support main ashram location
   return { latitude: 18.61091405943072, longitude: 73.77134861482362 };
 }
@@ -624,5 +605,6 @@ export async function getTodayAppointmentWithTimeWindow() {
     return { success: false, error: "Failed to get appointment information" };
   }
 }
+
 
 

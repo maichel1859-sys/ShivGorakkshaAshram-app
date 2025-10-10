@@ -118,74 +118,27 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     cacheQueueEntries,
   } = useOfflineStore();
 
+  // Primary data source via React Query
+  const {
+    data: queueEntries = [],
+    isLoading,
+    dataUpdatedAt = 0,
+    isStale = false,
+    refetch,
+  } = useQuery<QueueEntry[]>({
+    queryKey: queueKeys.entries(role),
+    queryFn: () => fetchQueueData(role),
+    refetchInterval: autoRefresh ? refreshInterval : false,
+    staleTime: refreshInterval,
+  });
+
   // Enhanced fallback state tracking
-  const [fallbackState, setFallbackState] = useState({
+  const [, setFallbackState] = useState({
     isUsingFallback: false,
     fallbackReason: null as string | null,
     lastSocketMessage: null as Date | null,
     retryCount: 0,
-  });
-
-  // Dynamic polling interval based on connection health
-  const getPollingInterval = useCallback(() => {
-    if (!isOnline) return 30000; // 30s when offline
-    if (connectionStatus.connected && fallbackState.lastSocketMessage) {
-      const timeSinceLastMessage = Date.now() - fallbackState.lastSocketMessage.getTime();
-      if (timeSinceLastMessage > 60000) {
-        // No socket message for 1 min, treat as unhealthy
-        return refreshInterval / 2; // Faster polling
-      }
-      return refreshInterval * 2; // Slower when socket is healthy
-    }
-    if (connectionStatus.connected) return refreshInterval;
-    return Math.max(refreshInterval / 3, 5000); // Fast fallback, min 5s
-  }, [connectionStatus.connected, isOnline, refreshInterval, fallbackState.lastSocketMessage]);
-
-  // Main data query with enhanced smart revalidation
-  const {
-    data: queueEntries = [],
-    isLoading,
-    refetch,
-    dataUpdatedAt,
-    isStale,
-  } = useQuery({
-    queryKey: queueKeys.entries(role),
-    queryFn: () => fetchQueueData(role),
-    // If socket is connected, avoid polling and keep data fresh longer
-    staleTime: enableRealtime && connectionStatus.connected ? 60000 : 10000,
-    gcTime: 5 * 60 * 1000, // Reduced cache time for better memory usage
-    refetchOnWindowFocus: false, // Disabled for better performance
-    refetchOnReconnect: true,
-    // Poll only when socket is disconnected. No fallback when connected.
-    refetchInterval: autoRefresh
-      ? (enableRealtime && connectionStatus.connected ? false : Math.max(refreshInterval, 5000))
-      : false,
-    refetchIntervalInBackground: !connectionStatus.connected,
-    retry: (failureCount, error) => {
-      // Enhanced retry logic with fallback awareness
-      if (!isOnline) return false;
-
-      // Reduced retry attempts for faster failure detection
-      const maxRetries = fallbackState.isUsingFallback ? 3 : 2;
-
-      // Don't retry if it's an auth error
-      if (error?.message?.includes('Authentication')) return false;
-
-      return failureCount < maxRetries;
-    },
-    retryDelay: (attemptIndex) => {
-      // Faster retry when using fallback
-      const baseDelay = fallbackState.isUsingFallback ? 300 : 500;
-      return Math.min(baseDelay * 2 ** attemptIndex, 5000); // Reduced max delay
-    },
-    enabled: true,
-    placeholderData: (previousData) => previousData,
-    structuralSharing: true,
-    // Performance optimizations
-    notifyOnChangeProps: ['data', 'error', 'isLoading'], // Only re-render on these changes
-  });
-
-  // Socket-based real-time updates with enhanced fallback state management
+  });// Socket-based real-time updates with enhanced fallback state management
   useEffect(() => {
     if (!enableRealtime || !socket || !connectionStatus.connected) {
       // Update fallback state when socket is not available
@@ -478,5 +431,6 @@ export const useQueueUnified = (options: UseQueueOptions) => {
       queryClient.setQueryData(queueKeys.entries(role), data),
   };
 };
+
 
 

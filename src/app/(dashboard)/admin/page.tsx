@@ -1,5 +1,6 @@
 "use client";
 
+import { useSocket } from "@/lib/socket/socket-client";
 import {
   Card,
   CardContent,
@@ -35,6 +36,7 @@ import { formatTimeIST } from "@/store/time-store";
 
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
+  const { connectionStatus } = useSocket();
 
   // React Query hooks for dashboard data
   const {
@@ -51,7 +53,7 @@ export default function AdminDashboardPage() {
       return result.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    refetchInterval: connectionStatus.connected ? false : 30 * 1000, // Refetch every 30 seconds
   });
 
   const {
@@ -68,7 +70,7 @@ export default function AdminDashboardPage() {
       return result.data;
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 15 * 1000, // Refetch every 15 seconds
+    refetchInterval: connectionStatus.connected ? false : 15 * 1000, // Refetch every 15 seconds
   });
 
   const isLoading = statsLoading || alertsLoading;

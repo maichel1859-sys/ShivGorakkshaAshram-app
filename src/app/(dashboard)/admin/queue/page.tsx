@@ -149,7 +149,7 @@ export default function AdminQueuePage() {
       });
       
       const results = await Promise.all(promises);
-      const successful = results.filter(r => r.success).length;
+      const successful = results.filter((r: { success: boolean }) => r.success).length;
       const failed = results.length - successful;
       
       if (successful > 0) {
@@ -278,16 +278,16 @@ export default function AdminQueuePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleBulkAction("start", filteredQueueEntries.filter(e => e.status === "WAITING").map(e => e.id))}
-                  disabled={actionLoading || filteredQueueEntries.filter(e => e.status === "WAITING").length === 0}
+                  onClick={() => handleBulkAction("start", filteredQueueEntries.filter((e: QueueEntry) => e.status === "WAITING").map((e: QueueEntry) => e.id))}
+                  disabled={actionLoading || filteredQueueEntries.filter((e: QueueEntry) => e.status === "WAITING").length === 0}
                 >
                   Start All Waiting
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleBulkAction("complete", filteredQueueEntries.filter(e => e.status === "IN_PROGRESS").map(e => e.id))}
-                  disabled={actionLoading || filteredQueueEntries.filter(e => e.status === "IN_PROGRESS").length === 0}
+                  onClick={() => handleBulkAction("complete", filteredQueueEntries.filter((e: QueueEntry) => e.status === "IN_PROGRESS").map((e: QueueEntry) => e.id))}
+                  disabled={actionLoading || filteredQueueEntries.filter((e: QueueEntry) => e.status === "IN_PROGRESS").length === 0}
                 >
                   Complete All In Progress
                 </Button>

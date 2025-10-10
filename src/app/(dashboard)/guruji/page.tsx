@@ -249,9 +249,9 @@ export default function GurujiDashboard() {
 
   // Filter entries by status for display
   const waitingEntries =
-    queueEntries?.filter((entry) => entry.status === "WAITING") || [];
+    queueEntries?.filter((entry: QueueEntry) => entry.status === "WAITING") || [];
   const inProgressEntries =
-    queueEntries?.filter((entry) => entry.status === "IN_PROGRESS") || [];
+    queueEntries?.filter((entry: QueueEntry) => entry.status === "IN_PROGRESS") || [];
 
   // Custom handlers that integrate with dashboard-specific state
   const onStartConsultation = async (entry: QueueEntry) => {
@@ -858,7 +858,7 @@ export default function GurujiDashboard() {
         <CardContent>
           {waitingEntries.length > 0 ? (
             <div className="space-y-3">
-              {waitingEntries.map((devotee) => (
+              {waitingEntries.map((devotee: QueueEntry) => (
                 <div
                   key={devotee.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"

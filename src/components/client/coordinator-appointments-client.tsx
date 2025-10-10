@@ -167,18 +167,12 @@ export function CoordinatorAppointmentsClient({
       router.refresh();
 
       if (data.action === 'booked' || data.action === 'created' || data.action === 'created_for_user') {
-        const devoteeName = data.devoteeName || 'A devotee';
-        const gurujiName = data.gurujiName || 'Guruji';
-        //
-      console.log('New appointment booked');
+        console.log('New appointment booked');
       } else if (data.status === "COMPLETED") {
-        const devoteeName = data.devoteeName || 'A devotee';
-        //
         console.log('Appointment completed');
       } else if (data.status === "CHECKED_IN") {
-        const devoteeName = data.devoteeName || 'A devotee';
         console.log('Devotee checked in');
-        toast.info(devoteeName + ' checked in successfully');
+        toast.info((data.devoteeName || 'A devotee') + ' checked in successfully');
       }
     };
 

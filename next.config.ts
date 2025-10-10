@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  // Produce a smaller, self-contained server output
+  output: "standalone",
+  // Remove console.* in production bundles only
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+  },
+  // Enforce type and lint correctness in builds
+  // Now that TypeScript errors are resolved, keep strict.
+  serverExternalPackages: ["@prisma/client", "bcryptjs"],
   experimental: {
     // reactCompiler: true, // Disabled until babel-plugin-react-compiler is installed
     staleTimes: {
@@ -11,17 +19,17 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
       },
-    }
+    },
   },
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '**',
+        protocol: "https",
+        hostname: "**",
       },
     ],
   },

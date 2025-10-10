@@ -40,8 +40,7 @@ export default function GurujiConsultationsPage() {
   const {
     queueEntries,
     loading: queueLoading,
-    startConsultation,
-    completeConsultation
+    startConsultation
   } = useQueueUnified({
     role: 'guruji',
     autoRefresh: true,
@@ -53,7 +52,7 @@ export default function GurujiConsultationsPage() {
   const { data: consultations = [], isLoading: consultationsLoading } = useGurujiConsultations(session?.user?.id);
 
   // Filter queue entries for consultation view
-  const filteredQueueEntries = queueEntries.filter((entry) => {
+  const filteredQueueEntries = queueEntries.filter((entry: QueueEntry) => {
     const matchesSearch = entry.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          entry.user.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -120,7 +119,7 @@ export default function GurujiConsultationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {filteredQueueEntries.filter(entry => entry.status === 'WAITING').length}
+              {filteredQueueEntries.filter((entry: QueueEntry) => entry.status === 'WAITING').length}
             </div>
             <p className="text-xs text-muted-foreground">Patients in queue</p>
           </CardContent>
@@ -133,7 +132,7 @@ export default function GurujiConsultationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {filteredQueueEntries.filter(entry => entry.status === 'IN_PROGRESS').length}
+              {filteredQueueEntries.filter((entry: QueueEntry) => entry.status === 'IN_PROGRESS').length}
             </div>
             <p className="text-xs text-muted-foreground">Active consultations</p>
           </CardContent>
@@ -146,7 +145,7 @@ export default function GurujiConsultationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {filteredQueueEntries.filter(entry => entry.status === 'COMPLETED').length}
+              {filteredQueueEntries.filter((entry: QueueEntry) => entry.status === 'COMPLETED').length}
             </div>
             <p className="text-xs text-muted-foreground">Finished sessions</p>
           </CardContent>
@@ -207,8 +206,8 @@ export default function GurujiConsultationsPage() {
           ) : (
             <div className="space-y-6">
               {filteredQueueEntries
-                .filter(entry => entry.status === 'IN_PROGRESS')
-                .map((entry) => {
+                .filter((entry: QueueEntry) => entry.status === 'IN_PROGRESS')
+                .map((entry: QueueEntry) => {
                   return (
                     <div key={entry.id} className="space-y-4">
                       {/* Devotee Info and Controls */}
@@ -253,7 +252,7 @@ export default function GurujiConsultationsPage() {
                 })}
 
               {/* Waiting Queue */}
-              {filteredQueueEntries.filter(entry => entry.status === 'WAITING').map((entry) => (
+              {filteredQueueEntries.filter((entry: QueueEntry) => entry.status === 'WAITING').map((entry: QueueEntry) => (
                 <div key={entry.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">

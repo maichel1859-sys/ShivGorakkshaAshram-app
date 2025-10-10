@@ -41,7 +41,7 @@ export default function GurujiQueuePage() {
     stats, 
     loading, 
     startConsultation, 
-    completeConsultation,
+    
     refetch 
   } = useQueueUnified({
     role: "guruji",
@@ -51,7 +51,7 @@ export default function GurujiQueuePage() {
   });
 
   // Filter queue entries
-  const filteredQueueEntries = queueEntries.filter((entry) => {
+  const filteredQueueEntries = queueEntries.filter((entry: QueueEntry) => {
     const matchesSearch = entry.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          entry.user.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -86,7 +86,7 @@ export default function GurujiQueuePage() {
       } else {
         showToast.error('No active consultation session found. Please start the consultation first.');
       }
-    } catch (e) {
+    } catch {
       showToast.error('Failed to verify consultation session. Please try again.');
     }
   };
@@ -244,7 +244,7 @@ export default function GurujiQueuePage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredQueueEntries.map((entry) => (
+              {filteredQueueEntries.map((entry: QueueEntry) => (
                 <div key={entry.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -344,7 +344,7 @@ export default function GurujiQueuePage() {
                   showToast.error(result?.error || 'Failed to complete consultation');
                 }
               }
-            } catch (e) {
+            } catch {
               showToast.error('Failed to complete consultation');
             }
           }}

@@ -10,6 +10,20 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Ignore build artifacts and non-app folders
+  {
+    ignores: [
+      "**/.next/**",
+      "**/node_modules/**",
+      "public/**",
+      "next-env.d.ts",
+      // Project scripts/configs that may use CommonJS
+      "check-env.js",
+      "**/*.config.js",
+      "public/icons/generate-icons.js",
+      "prisma/seed.ts",
+    ],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 

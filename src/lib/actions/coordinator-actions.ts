@@ -108,7 +108,7 @@ export async function searchAppointments(searchTerm: string) {
  * Manual check-in by coordinator
  * This replicates the QR scan functionality but allows coordinators to check in users manually
  */
-export async function manualCheckInCoordinator(appointmentId: string, locationId: string = 'ASHRAM_MAIN') {
+export async function manualCheckInCoordinator(appointmentId: string, _locationId: string = 'ASHRAM_MAIN') {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id || session.user.role !== 'COORDINATOR') {
@@ -209,7 +209,7 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
         priority: appointment.priority || 'NORMAL',
         estimatedWait: estimatedWaitMinutes,
         checkedInAt: now,
-        notes: `Manually checked in by coordinator at ${getLocationName(locationId)}`
+        notes: `Manually checked in by coordinator at ${getLocationName(_locationId)}`
       }
     });
 
@@ -277,7 +277,7 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
         queueEntry,
         queuePosition,
         estimatedWaitMinutes,
-        locationName: getLocationName(locationId),
+        locationName: getLocationName(_locationId),
         message: `Successfully checked in ${appointment.user.name || 'user'} manually! Queue position: ${queuePosition}, estimated wait: ${estimatedWaitMinutes} minutes.`
       }
     };
@@ -343,7 +343,9 @@ export async function getTodayAppointments() {
 /**
  * Get location name from location ID
  */
-function getLocationName(locationId: string): string {
+function getLocationName(_locationId: string): string {
+  // mark parameter as intentionally unused while allowing future use
+  void _locationId;
   return 'Shiv Goraksha Ashram';
 }
 
@@ -550,6 +552,7 @@ export async function getCheckedInDevotees() {
 
 // Export alias for backward compatibility
 export const manualCheckIn = manualCheckInCoordinator;
+
 
 
 
