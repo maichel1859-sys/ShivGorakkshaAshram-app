@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
@@ -98,7 +99,7 @@ export async function searchAppointments(searchTerm: string) {
     return { success: true, data: appointments };
 
   } catch (error) {
-    console.error('Search appointments error:', error);
+    if (process.env.NODE_ENV !== 'production') logger.error('Search appointments error:', error);
     return { success: false, error: 'Failed to search appointments' };
   }
 }
@@ -107,7 +108,7 @@ export async function searchAppointments(searchTerm: string) {
  * Manual check-in by coordinator
  * This replicates the QR scan functionality but allows coordinators to check in users manually
  */
-export async function manualCheckInCoordinator(appointmentId: string, locationId: string = 'RECEPTION_001') {
+export async function manualCheckInCoordinator(appointmentId: string, locationId: string = 'ASHRAM_MAIN') {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id || session.user.role !== 'COORDINATOR') {
@@ -221,7 +222,7 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
       }
     });
 
-    console.log(`✅ Manual check-in successful - User: ${appointment.userId}, Coordinator: ${session.user.id}, Queue Position: ${queuePosition}`);
+    logger.log(`✅ Manual check-in successful - User: ${appointment.userId}, Coordinator: ${session.user.id}, Queue Position: ${queuePosition}`);
 
     // Emit socket events for real-time updates with fallback mechanism
     try {
@@ -258,7 +259,7 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
         appointment.gurujiId || undefined
       );
     } catch (socketError) {
-      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      if (process.env.NODE_ENV !== 'production') logger.warn('Socket emission failed, using polling fallback:', socketError);
       // Socket failed - clients will use polling fallback automatically
       // No action needed here, React Query will handle stale data refresh
     }
@@ -282,7 +283,7 @@ export async function manualCheckInCoordinator(appointmentId: string, locationId
     };
 
   } catch (error) {
-    console.error('Manual check-in error:', error);
+    if (process.env.NODE_ENV !== 'production') logger.error('Manual check-in error:', error);
     return { success: false, error: 'Failed to process manual check-in. Please try again.' };
   }
 }
@@ -334,7 +335,7 @@ export async function getTodayAppointments() {
     return { success: true, data: appointments };
 
   } catch (error) {
-    console.error('Get today appointments error:', error);
+    logger.error('Get today appointments error:', error);
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -343,15 +344,7 @@ export async function getTodayAppointments() {
  * Get location name from location ID
  */
 function getLocationName(locationId: string): string {
-  const locationMap: Record<string, string> = {
-    'RECEPTION_001': 'Main Reception',
-    'GURUJI_LOC_001': 'Consultation Room 1',
-    'GURUJI_LOC_002': 'Consultation Room 2', 
-    'WAITING_AREA_001': 'Waiting Area',
-    'MAIN_HALL_001': 'Main Hall'
-  };
-  
-  return locationMap[locationId] || 'Unknown Location';
+  return 'Shiv Goraksha Ashram';
 }
 
 /**
@@ -394,7 +387,7 @@ export async function getAppointmentDetails(appointmentId: string) {
     return { success: true, data: appointment };
 
   } catch (error) {
-    console.error('Get appointment details error:', error);
+    logger.error('Get appointment details error:', error);
     return { success: false, error: 'Failed to fetch appointment details' };
   }
 }
@@ -550,10 +543,15 @@ export async function getCheckedInDevotees() {
     return { success: true, devotees: allDevotees };
 
   } catch (error) {
-    console.error('Get checked-in devotees error:', error);
+    logger.error('Get checked-in devotees error:', error);
     return { success: false, error: 'Failed to fetch checked-in devotees' };
   }
 }
 
 // Export alias for backward compatibility
 export const manualCheckIn = manualCheckInCoordinator;
+
+
+
+
+

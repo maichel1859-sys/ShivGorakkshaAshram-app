@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +9,13 @@ import { Camera, CheckCircle, AlertCircle, Clock, MapPin, Navigation, Settings, 
 import { processQRScanSimple, processManualTextCheckIn } from '@/lib/actions/qr-scan-actions-simple';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast';
-import { getCurrentLocation } from '@/lib/utils/geolocation';
+import { getCurrentLocation, calculateDistance, formatDistance } from '@/lib/utils/geolocation';
 import QrScanner from 'qr-scanner';
+// Ensure the QR scanner worker loads correctly in Next.js/webpack environments
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - bundlers resolve this to a URL string
+import QrScannerWorker from 'qr-scanner/qr-scanner-worker.min.js?url';
+QrScanner.WORKER_PATH = QrScannerWorker as unknown as string;
 
 interface QRScanResult {
   success: boolean;
@@ -23,6 +28,12 @@ interface QRScanResult {
 }
 
 export default function StaticQRScanner() {
+  // Primary location coordinates (Shiv Goraksha Ashram)
+  // Keep in sync with QR generator/admin coordinates
+  const ASHRAM_COORDINATES = {
+    latitude: 18.61091405943072,
+    longitude: 73.77134861482362,
+  };
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<QRScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +46,12 @@ export default function StaticQRScanner() {
   // const streamRef = useRef<MediaStream | null>(null); // Unused with QR scanner library
   const qrScannerRef = useRef<QrScanner | null>(null);
   const router = useRouter();
+
+  // Pre-calc distance to ashram for conditional message
+  const distanceToAshram = userLocation
+    ? calculateDistance(userLocation, ASHRAM_COORDINATES)
+    : null;
+  const within100m = distanceToAshram !== null && distanceToAshram <= 100;
 
   // Get user location on component mount
   useEffect(() => {
@@ -108,6 +125,13 @@ export default function StaticQRScanner() {
         return;
       }
 
+      // Verify a camera is available
+      const hasCamera = await QrScanner.hasCamera();
+      if (!hasCamera) {
+        setError('No camera found on this device');
+        return;
+      }
+
       // Initialize QR scanner
       qrScannerRef.current = new QrScanner(
         videoRef.current,
@@ -125,6 +149,7 @@ export default function StaticQRScanner() {
           highlightScanRegion: true,
           highlightCodeOutline: true,
           returnDetailedScanResult: true,
+          maxScansPerSecond: 8,
         }
       );
 
@@ -163,7 +188,7 @@ export default function StaticQRScanner() {
       'Enter location code or QR data:\n\n' +
       'Simple location codes:\n' +
       '• ASHRAM_MAIN\n' +
-      '• RECEPTION_001\n' +
+      '• ASHRAM_MAIN\n' +
       '• MAIN\n\n' +
       'Or paste full QR code JSON data\n\n' +
       'What is displayed on your QR code?'
@@ -173,7 +198,7 @@ export default function StaticQRScanner() {
       const inputData = input.trim();
       
       // Check if it's a simple location code
-      const simpleLocationCodes = ['ASHRAM_MAIN', 'RECEPTION_001', 'MAIN', 'ASHRAM'];
+      const simpleLocationCodes = ['ASHRAM_MAIN', 'MAIN', 'ASHRAM'];
       const isSimpleCode = simpleLocationCodes.some(code => 
         inputData.toUpperCase().includes(code.toUpperCase())
       );
@@ -232,10 +257,17 @@ export default function StaticQRScanner() {
           <div>
             <AlertDescription className={locationStatus === 'allowed' ? 'text-green-800' : locationStatus === 'denied' ? 'text-red-800' : 'text-blue-800'}>
               {locationStatus === 'checking' && 'Getting your location...'}
-              {locationStatus === 'allowed' && 'Location access granted. You can scan QR codes within 100m of their location.'}
+              {locationStatus === 'allowed' && 'Location access granted.'}
               {locationStatus === 'denied' && 'Location access denied. Please enable location access to use QR code scanning with location validation.'}
               {locationStatus === 'error' && 'Location error occurred.'}
             </AlertDescription>
+            {userLocation && distanceToAshram !== null && (
+              <p className={`mt-1 text-sm ${within100m ? 'text-green-700' : 'text-red-700'}`}>
+                {within100m
+                  ? `You are ${formatDistance(distanceToAshram)} from Shiv Goraksha Ashram. You can scan the QR code now.`
+                  : `You are ${formatDistance(distanceToAshram)} from Shiv Goraksha Ashram. Move within 100m to scan the QR code.`}
+              </p>
+            )}
             {userLocation && (
               <p className="text-xs text-muted-foreground mt-1">
                 Your location: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}
@@ -329,7 +361,7 @@ export default function StaticQRScanner() {
                 </div>
 
                 <div className="bg-white p-3 rounded-lg border border-blue-200">
-                  <h4 className="font-semibold mb-2">🦊 Firefox:</h4>
+                  <h4 className="font-semibold mb-2"> Firefox:</h4>
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>Click the shield icon in the address bar</li>
                     <li>Click &quot;Allow Location Access&quot;</li>
@@ -470,8 +502,8 @@ export default function StaticQRScanner() {
             <div className="space-y-2">
               <div>
                 <p className="font-medium">Simple Location Codes:</p>
-                <p>• ASHRAM_MAIN (Main Ashram)</p>
-                <p>• RECEPTION_001 (Reception Desk)</p>
+                <p>• ASHRAM_MAIN (Shiv Goraksha Ashram)</p>
+                <p>• ASHRAM_MAIN (Reception Desk)</p>
                 <p>• MAIN (Main Location)</p>
               </div>
               <div>
@@ -586,3 +618,6 @@ export default function StaticQRScanner() {
     </div>
   );
 }
+
+
+

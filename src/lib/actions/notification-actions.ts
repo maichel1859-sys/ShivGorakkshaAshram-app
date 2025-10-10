@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -75,7 +76,7 @@ export async function getUserNotifications(options?: {
       hasMore: offset + limit < total,
     };
   } catch (error) {
-    console.error('Get user notifications error:', error);
+    logger.error('Get user notifications error:', error);
     return { success: false, error: 'Failed to fetch notifications' };
   }
 }
@@ -128,9 +129,9 @@ export async function markNotificationAsRead(formData: FormData) {
           userId: session.user.id
         }
       );
-      console.log(`🔌 Emitted notification read event`);
+      logger.log(`🔌 Emitted notification read event`);
     } catch (socketError) {
-      console.error('🔌 Socket emit error:', socketError);
+      logger.error('🔌 Socket emit error:', socketError);
       // Continue even if socket fails
     }
 
@@ -138,7 +139,7 @@ export async function markNotificationAsRead(formData: FormData) {
     
     return { success: true };
   } catch (error) {
-    console.error('Mark notification as read error:', error);
+    logger.error('Mark notification as read error:', error);
     return { success: false, error: 'Failed to mark notification as read' };
   }
 }
@@ -164,7 +165,7 @@ export async function markAllNotificationsAsRead() {
     
     return { success: true };
   } catch (error) {
-    console.error('Mark all notifications as read error:', error);
+    logger.error('Mark all notifications as read error:', error);
     return { success: false, error: 'Failed to mark notifications as read' };
   }
 }
@@ -216,9 +217,9 @@ export async function deleteNotification(formData: FormData) {
           userId: session.user.id
         }
       );
-      console.log(`🔌 Emitted notification deleted event`);
+      logger.log(`🔌 Emitted notification deleted event`);
     } catch (socketError) {
-      console.error('🔌 Socket emit error:', socketError);
+      logger.error('🔌 Socket emit error:', socketError);
       // Continue even if socket fails
     }
 
@@ -226,7 +227,7 @@ export async function deleteNotification(formData: FormData) {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete notification error:', error);
+    logger.error('Delete notification error:', error);
     return { success: false, error: 'Failed to delete notification' };
   }
 }
@@ -302,9 +303,9 @@ export async function createNotification(formData: FormData) {
           userId: data.userId
         }
       );
-      console.log(`🔌 Emitted notification creation event`);
+      logger.log(`🔌 Emitted notification creation event`);
     } catch (socketError) {
-      console.error('🔌 Socket emit error:', socketError);
+      logger.error('🔌 Socket emit error:', socketError);
       // Continue even if socket fails
     }
 
@@ -312,7 +313,7 @@ export async function createNotification(formData: FormData) {
     
     return { success: true, notification };
   } catch (error) {
-    console.error('Create notification error:', error);
+    logger.error('Create notification error:', error);
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message };
     }
@@ -386,7 +387,7 @@ export async function updateNotification(formData: FormData) {
     
     return { success: true, notification: updatedNotification };
   } catch (error) {
-    console.error('Update notification error:', error);
+    logger.error('Update notification error:', error);
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message };
     }
@@ -418,7 +419,7 @@ export async function getNotification(notificationId: string) {
 
     return { success: true, notification };
   } catch (error) {
-    console.error('Get notification error:', error);
+    logger.error('Get notification error:', error);
     return { success: false, error: 'Failed to fetch notification' };
   }
 }
@@ -480,7 +481,7 @@ export async function getNotificationStats() {
       },
     };
   } catch (error) {
-    console.error('Get notification stats error:', error);
+    logger.error('Get notification stats error:', error);
     return { success: false, error: 'Failed to fetch notification statistics' };
   }
 }
@@ -542,7 +543,7 @@ export async function getNotifications(options?: {
       },
     };
   } catch (error) {
-    console.error('Get notifications error:', error);
+    logger.error('Get notifications error:', error);
     return { success: false, error: 'Failed to fetch notifications' };
   }
 }

@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/database/prisma';
@@ -53,7 +54,7 @@ export async function getUsers(options?: {
 
     return { success: true, users, total };
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logger.error('Error fetching users:', error);
     return { success: false, error: 'Failed to fetch users' };
   }
 }
@@ -98,16 +99,16 @@ export async function createUser(formData: FormData) {
           status: user.isActive ? 'active' : 'inactive'
         }
       );
-      console.log(`🔌 Emitted user registered event`);
+      logger.log(`🔌 Emitted user registered event`);
     } catch (socketError) {
-      console.error('🔌 Socket emit error:', socketError);
+      logger.error('🔌 Socket emit error:', socketError);
       // Continue even if socket fails
     }
 
     revalidatePath('/admin/users');
     return { success: true, user };
   } catch (error) {
-    console.error('Error creating user:', error);
+    logger.error('Error creating user:', error);
     return { success: false, error: 'Failed to create user' };
   }
 }
@@ -142,7 +143,7 @@ export async function updateUser(userId: string, formData: FormData) {
     revalidatePath(`/admin/users/${userId}`);
     return { success: true, user };
   } catch (error) {
-    console.error('Error updating user:', error);
+    logger.error('Error updating user:', error);
     return { success: false, error: 'Failed to update user' };
   }
 }
@@ -162,7 +163,7 @@ export async function deleteUser(userId: string) {
     revalidatePath('/admin/users');
     return { success: true };
   } catch (error) {
-    console.error('Error deleting user:', error);
+    logger.error('Error deleting user:', error);
     return { success: false, error: 'Failed to delete user' };
   }
 }
@@ -191,7 +192,7 @@ export async function toggleUserStatus(userId: string) {
     revalidatePath('/admin/users');
     return { success: true, user: updatedUser };
   } catch (error) {
-    console.error('Error toggling user status:', error);
+    logger.error('Error toggling user status:', error);
     return { success: false, error: 'Failed to toggle user status' };
   }
 }
@@ -229,7 +230,7 @@ export async function updateUserProfile(formData: FormData) {
     revalidatePath('/profile');
     return { success: true, user };
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    logger.error('Error updating user profile:', error);
     return { success: false, error: 'Failed to update profile' };
   }
 }
@@ -257,7 +258,7 @@ export async function getUserById(userId: string) {
 
     return { success: true, user };
   } catch (error) {
-    console.error('Error fetching user:', error);
+    logger.error('Error fetching user:', error);
     return { success: false, error: 'Failed to fetch user' };
   }
 }
@@ -299,7 +300,7 @@ export async function getAvailableGurujis() {
 
     return { success: true, gurujis: availableGurujis };
   } catch (error) {
-    console.error('Error fetching available gurujis:', error);
+    logger.error('Error fetching available gurujis:', error);
     return { success: false, error: 'Failed to fetch available gurujis' };
   }
 }
@@ -419,7 +420,8 @@ export async function getUserDashboard() {
       },
     };
   } catch (error) {
-    console.error('Error fetching user dashboard:', error);
+    logger.error('Error fetching user dashboard:', error);
     return { success: false, error: 'Failed to fetch user dashboard' };
   }
 }
+

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { logger } from '@/lib/logger';
 
 import { useEffect, useMemo, useCallback, useState } from "react";
@@ -151,12 +151,16 @@ export const useQueueUnified = (options: UseQueueOptions) => {
   } = useQuery({
     queryKey: queueKeys.entries(role),
     queryFn: () => fetchQueueData(role),
-    staleTime: connectionStatus.connected && !fallbackState.isUsingFallback ? 60000 : 10000, // Reduced stale time
+    // If socket is connected, avoid polling and keep data fresh longer
+    staleTime: enableRealtime && connectionStatus.connected ? 60000 : 10000,
     gcTime: 5 * 60 * 1000, // Reduced cache time for better memory usage
     refetchOnWindowFocus: false, // Disabled for better performance
     refetchOnReconnect: true,
-    refetchInterval: autoRefresh ? getPollingInterval() : false,
-    refetchIntervalInBackground: fallbackState.isUsingFallback || !connectionStatus.connected,
+    // Poll only when socket is disconnected. No fallback when connected.
+    refetchInterval: autoRefresh
+      ? (enableRealtime && connectionStatus.connected ? false : Math.max(refreshInterval, 5000))
+      : false,
+    refetchIntervalInBackground: !connectionStatus.connected,
     retry: (failureCount, error) => {
       // Enhanced retry logic with fallback awareness
       if (!isOnline) return false;
@@ -194,7 +198,7 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     }
 
     const handleQueueUpdate = (data: unknown) => {
-      logger.debug('ðŸ”„ Queue real-time update received:', data);
+      logger.debug('🔄 Queue real-time update received:', data);
 
       // Update fallback state - socket is working
       setFallbackState(prev => ({
@@ -236,24 +240,7 @@ export const useQueueUnified = (options: UseQueueOptions) => {
     };
   }, [socket, connectionStatus.connected, enableRealtime, role, queryClient]);
 
-  // Fallback polling when socket is disconnected
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    // If socket is not connected but we're online, use faster polling
-    const shouldUseFastPolling = !connectionStatus.connected && isOnline;
-    const pollingInterval = shouldUseFastPolling ? refreshInterval / 2 : refreshInterval;
-
-    if (shouldUseFastPolling) {
-      logger.debug('âš ï¸ Socket disconnected, using fallback polling every', pollingInterval, 'ms');
-      
-      const interval = setInterval(() => {
-        refetch();
-      }, pollingInterval);
-      
-      return () => clearInterval(interval);
-    }
-  }, [connectionStatus.connected, isOnline, autoRefresh, refreshInterval, refetch]);
+  // Fallback polling handled by react-query refetchInterval
 
   // Offline data caching
   useEffect(() => {
@@ -491,4 +478,5 @@ export const useQueueUnified = (options: UseQueueOptions) => {
       queryClient.setQueryData(queueKeys.entries(role), data),
   };
 };
+
 

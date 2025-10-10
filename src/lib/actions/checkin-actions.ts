@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -54,9 +55,9 @@ async function emitCheckInEvents(queueEntry: QueueEntry, appointment: Appointmen
       appointment.gurujiId || undefined
     );
 
-    console.log(`🔌 Emitted ${eventType} events to all stakeholders`);
+    logger.log(`🔌 Emitted ${eventType} events to all stakeholders`);
   } catch (socketError) {
-    console.error('🔌 Socket emit error:', socketError);
+    logger.error('🔌 Socket emit error:', socketError);
     // Continue even if socket fails
   }
 }
@@ -250,7 +251,7 @@ export async function checkInWithQR(formData: FormData) {
       queueEntry: queueEntry,
     };
   } catch (error) {
-    console.error('QR check-in error:', error);
+    logger.error('QR check-in error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to check in' };
   }
 }
@@ -451,7 +452,7 @@ export async function manualCheckInFromCheckin(formData: FormData) {
       queueEntry: queueEntry2,
     };
   } catch (error) {
-    console.error('Manual check-in error:', error);
+    logger.error('Manual check-in error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to check in' };
   }
 }
@@ -534,7 +535,7 @@ export async function getCheckInHistory(options?: {
       },
     };
   } catch (error) {
-    console.error('Get check-in history error:', error);
+    logger.error('Get check-in history error:', error);
     return { success: false, error: 'Failed to fetch check-in history' };
   }
 }
@@ -594,7 +595,7 @@ export async function getTodayCheckIns() {
       },
     };
   } catch (error) {
-    console.error('Get today check-ins error:', error);
+    logger.error('Get today check-ins error:', error);
     return { success: false, error: 'Failed to fetch today\'s check-ins' };
   }
 }
@@ -686,7 +687,7 @@ export async function getCheckInStats(options?: {
       },
     };
   } catch (error) {
-    console.error('Get check-in stats error:', error);
+    logger.error('Get check-in stats error:', error);
     return { success: false, error: 'Failed to fetch check-in statistics' };
   }
 } 

@@ -25,6 +25,7 @@ import { QuickRegistrationForm } from "./quick-registration-form";
 import { UserLookupComponent } from "./user-lookup";
 import { EmergencyQueueEntry } from "./emergency-queue-entry";
 import { ManualCheckIn } from "./manual-checkin";
+import { SimpleAppointmentBooking } from "./simple-appointment-booking";
 import { CheckedInDevotees } from "./checked-in-devotees";
 import { toast } from "sonner";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
@@ -51,6 +52,14 @@ interface WorkflowData {
 export function ReceptionDashboard() {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>("welcome");
   const [workflowData, setWorkflowData] = useState<WorkflowData>({});
+  const [offlineDevotee, setOfflineDevotee] = useState<{
+    name: string;
+    phone?: string;
+    email?: string;
+    age: number;
+    gender: "MALE" | "FEMALE" | "OTHER";
+    userCategory: "WALK_IN" | "EMERGENCY" | "FAMILY_MEMBER";
+  } | null>(null);
   const currentTime = useTimeStore((s) => s.currentTime);
   const formatTime = useTimeStore((s) => s.formatTime);
 
@@ -214,9 +223,85 @@ export function ReceptionDashboard() {
       
       case "manual-checkin":
         return <ManualCheckIn />;
-      
+
       case "complete":
         return <CompletionScreen onReset={resetWorkflow} />;
+
+      case "booking":
+        return offlineDevotee ? (
+          <SimpleAppointmentBooking
+            devoteeInfo={offlineDevotee}
+            onSuccess={() => {
+              setOfflineDevotee(null);
+              setCurrentStep("checkin");
+            }}
+            onCancel={() => setOfflineDevotee(null)}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Book Appointment (Offline)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Name</label>
+                  <input className="mt-1 w-full border rounded-md px-3 py-2 text-sm" id="offline-name" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Phone (optional)</label>
+                  <input className="mt-1 w-full border rounded-md px-3 py-2 text-sm" id="offline-phone" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Email (optional)</label>
+                  <input className="mt-1 w-full border rounded-md px-3 py-2 text-sm" id="offline-email" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Age</label>
+                  <input type="number" min="0" className="mt-1 w-full border rounded-md px-3 py-2 text-sm" id="offline-age" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Gender</label>
+                  <select className="mt-1 w-full border rounded-md px-3 py-2 text-sm" id="offline-gender">
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Category</label>
+                  <select className="mt-1 w-full border rounded-md px-3 py-2 text-sm" id="offline-category">
+                    <option value="WALK_IN">Walk-in</option>
+                    <option value="EMERGENCY">Emergency</option>
+                    <option value="FAMILY_MEMBER">Family Member</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Button
+                  onClick={() => {
+                    const name = (document.getElementById('offline-name') as HTMLInputElement)?.value?.trim();
+                    if (!name) return;
+                    const phone = (document.getElementById('offline-phone') as HTMLInputElement)?.value?.trim();
+                    const email = (document.getElementById('offline-email') as HTMLInputElement)?.value?.trim();
+                    const ageStr = (document.getElementById('offline-age') as HTMLInputElement)?.value?.trim();
+                    const age = ageStr ? parseInt(ageStr, 10) : 0;
+                    const gender = ((document.getElementById('offline-gender') as HTMLSelectElement)?.value as 'MALE'|'FEMALE'|'OTHER') || 'OTHER';
+                    const userCategory = ((document.getElementById('offline-category') as HTMLSelectElement)?.value as 'WALK_IN'|'EMERGENCY'|'FAMILY_MEMBER') || 'WALK_IN';
+                    setOfflineDevotee({ name, phone, email, age: isNaN(age) ? 0 : age, gender, userCategory });
+                  }}
+                >
+                  Continue to Booking
+                </Button>
+                <Button variant="outline" onClick={() => setCurrentStep('checkin')}>Skip to Check-in</Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">After entering basic details, you can select Guruji, date and time.</p>
+            </CardContent>
+          </Card>
+        );
       
       default:
         return <div>Step not implemented yet</div>;

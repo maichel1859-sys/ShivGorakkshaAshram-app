@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
@@ -15,7 +16,7 @@ interface LocationQRData {
 }
 
 // Main ashram coordinates (replace with actual ashram coordinates)
-const ASHRAM_COORDINATES = { latitude: 19.0760, longitude: 72.8777 };
+const ASHRAM_COORDINATES = { latitude: 18.61091405943072, longitude: 73.77134861482362 };
 
 /**
  * Generate QR code data for a location
@@ -93,7 +94,7 @@ export async function createQRCodeWithCoordinates(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Create QR code error:', error);
+    logger.error('Create QR code error:', error);
     return { success: false, error: 'Failed to create QR code' };
   }
 }
@@ -124,9 +125,10 @@ export async function getLocationQRCodes() {
 
     return { success: true, qrCodes };
   } catch (error) {
-    console.error('Get location QR codes error:', error);
+    logger.error('Get location QR codes error:', error);
     return { success: false, error: 'Failed to generate QR codes' };
   }
 }
 
 // Validation function moved to utils/qr-validation.ts
+

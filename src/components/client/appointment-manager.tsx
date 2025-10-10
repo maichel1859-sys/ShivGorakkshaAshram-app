@@ -190,11 +190,11 @@ export function AppointmentManager({ showAll = false }: AppointmentManagerProps)
         timestamp: string;
       };
 
-      console.log('🔌 [User] Received appointment update:', data);
+      console.log('[User] Received appointment update:', data);
 
       // If this appointment update is for this user, refresh appointments
       if (data.userId === session.user.id) {
-        console.log('🔌 Refreshing user appointments for status change:', data.status);
+        console.log('[User] Refreshing user appointments for status change:', data.status);
         fetchAppointments();
 
         // Show toast notification

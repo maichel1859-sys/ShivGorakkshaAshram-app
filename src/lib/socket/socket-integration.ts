@@ -1,3 +1,4 @@
+import { logger } from '@/lib/utils/logger';
 /**
  * Socket.IO Integration for ShivGorakksha Ashram App
  * Connects to the WebSocket server at https://ashram-queue-socket-server.onrender.com
@@ -9,7 +10,7 @@ import { getSocketClient } from './socket-client';
 // Initialize socket connection
 export const initializeSocket = () => {
   const socket = getSocketClient();
-  console.log('🔌 Socket.IO client initialized');
+  logger.log('Socket.IO client initialized');
   return socket;
 };
 
@@ -23,7 +24,7 @@ export const connectToSocketServer = () => {
       message: 'Connected to WebSocket server'
     };
   } catch (error) {
-    console.error('Failed to connect to WebSocket server:', error);
+    logger.error('Failed to connect to WebSocket server:', error);
     return {
       success: false,
       socket: null,
@@ -64,7 +65,7 @@ export const subscribeToQueueEvents = (userId: string, role: string, gurujiId?: 
     ].filter(Boolean)
   });
   
-  console.log(`🔌 Subscribed to queue events for ${role}: ${userId}`);
+  logger.log(`🔌 Subscribed to queue events for ${role}: ${userId}`);
 };
 
 // Subscribe to notification events
@@ -77,28 +78,28 @@ export const subscribeToNotificationEvents = (userId: string) => {
     rooms: ['notifications', `user:${userId}`]
   });
   
-  console.log(`🔌 Subscribed to notification events for user: ${userId}`);
+  logger.log(`🔌 Subscribed to notification events for user: ${userId}`);
 };
 
 // Request queue update
 export const requestQueueUpdate = () => {
   const socket = getSocketClient();
   socket.requestQueueUpdate();
-  console.log('🔌 Requested queue update');
+  logger.log('Requested queue update');
 };
 
 // Request user queue status
 export const requestUserQueueStatus = (userId: string) => {
   const socket = getSocketClient();
   socket.requestUserQueueStatus(userId);
-  console.log(`🔌 Requested queue status for user: ${userId}`);
+  logger.log(`🔌 Requested queue status for user: ${userId}`);
 };
 
 // Request guruji queue
 export const requestGurujiQueue = (gurujiId: string) => {
   const socket = getSocketClient();
   socket.requestGurujiQueue(gurujiId);
-  console.log(`🔌 Requested queue for guruji: ${gurujiId}`);
+  logger.log(`🔌 Requested queue for guruji: ${gurujiId}`);
 };
 
 // Add event listener for queue updates
@@ -128,7 +129,7 @@ export const removeEventListeners = (eventName: string) => {
 export const disconnectSocket = () => {
   const socket = getSocketClient();
   socket.disconnect();
-  console.log('🔌 Disconnected from WebSocket server');
+  logger.log('Disconnected from WebSocket server');
 };
 
 // Health check for socket server
@@ -142,7 +143,7 @@ export const checkSocketServerHealth = async () => {
       message: 'Socket server is healthy'
     };
   } catch (error) {
-    console.error('Socket server health check failed:', error);
+    logger.error('Socket server health check failed:', error);
     return {
       success: false,
       data: null,
@@ -168,3 +169,7 @@ const socketIntegration = {
 };
 
 export default socketIntegration;
+
+
+
+

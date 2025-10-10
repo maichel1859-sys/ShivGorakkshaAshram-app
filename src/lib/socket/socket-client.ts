@@ -1,4 +1,5 @@
 "use client";
+import { logger } from '@/lib/utils/logger';
 
 import { io, Socket } from 'socket.io-client';
 import { useSession } from 'next-auth/react';
@@ -106,43 +107,43 @@ class SocketClient {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('🔌 ✅ CONNECTED TO SOCKET SERVER');
-      console.log(`   📡 Server: ${SOCKET_SERVER_URL}`);
-      console.log(`   🆔 Socket ID: ${this.socket?.id}`);
+      logger.log('CONNECTED TO SOCKET SERVER');
+      logger.log(`   Server: ${SOCKET_SERVER_URL}`);
+      logger.log(`   Socket ID: ${this.socket?.id}`);
       this.isConnected = true;
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      console.log('🔌 ❌ DISCONNECTED FROM SOCKET SERVER');
-      console.log(`   📡 Server: ${SOCKET_SERVER_URL}`);
-      console.log(`   ❓ Reason: ${reason}`);
+      logger.log('DISCONNECTED FROM SOCKET SERVER');
+      logger.log(`   Server: ${SOCKET_SERVER_URL}`);
+      logger.log(`   Reason: ${reason}`);
       this.isConnected = false;
       this.handleReconnect();
     });
 
     this.socket.on('connect_error', (error: Error) => {
-      console.error('🔌 ⚠️ SOCKET CONNECTION ERROR');
-      console.error(`   📡 Server: ${SOCKET_SERVER_URL}`);
-      console.error(`   💥 Error:`, error.message);
+      logger.error('SOCKET CONNECTION ERROR');
+      logger.error(`   Server: ${SOCKET_SERVER_URL}`);
+      logger.error('   Error:', error.message);
       this.handleReconnect();
     });
 
     this.socket.on(SocketEvents.ERROR, (error: unknown) => {
-      console.error('🔌 Socket.IO error:', error);
+      logger.error('🔌 Socket.IO error:', error);
     });
   }
 
   private handleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('🔌 Max reconnection attempts reached');
+      logger.error('🔌 Max reconnection attempts reached');
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
     
-    console.log(`🔌 Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    logger.log(`Attempting to reconnect in ${delay} ms (attempt ${this.reconnectAttempts})`);
     
     setTimeout(() => {
       this.connect();
@@ -152,7 +153,7 @@ class SocketClient {
   // Join room based on user role
   joinRoom(userId: string, role: string, gurujiId?: string) {
     if (!this.socket?.connected) {
-      console.warn('🔌 Socket not connected, cannot join room');
+      logger.warn('🔌 Socket not connected, cannot join room');
       return;
     }
 
@@ -169,19 +170,19 @@ class SocketClient {
     // Role-specific console logging with emojis
     switch (role) {
       case 'USER':
-        console.log(`🔵 USER DASHBOARD: Joining socket rooms for user ${userId}`);
+        logger.log(`🔵 USER DASHBOARD: Joining socket rooms for user ${userId}`);
         break;
       case 'GURUJI':
-        console.log(`🟢 GURUJI DASHBOARD: Joining socket rooms for guruji ${gurujiId || userId}`);
+        logger.log(`🟢 GURUJI DASHBOARD: Joining socket rooms for guruji ${gurujiId || userId}`);
         break;
       case 'ADMIN':
-        console.log(`🔴 ADMIN DASHBOARD: Joining socket rooms with full access`);
+        logger.log(`🔴 ADMIN DASHBOARD: Joining socket rooms with full access`);
         break;
       case 'COORDINATOR':
-        console.log(`🟡 COORDINATOR DASHBOARD: Joining socket rooms with coordinator access`);
+        logger.log(`🟡 COORDINATOR DASHBOARD: Joining socket rooms with coordinator access`);
         break;
       default:
-        console.log(`🔌 ${role} DASHBOARD: Joining socket rooms`, roomData);
+        logger.log(`🔌 ${role} DASHBOARD: Joining socket rooms`, roomData);
     }
   }
 
@@ -202,31 +203,31 @@ class SocketClient {
     // Role-specific leave logging with emojis
     switch (role) {
       case 'USER':
-        console.log(`🔵 USER DASHBOARD: Leaving socket rooms for user ${userId}`);
+        logger.log(`🔵 USER DASHBOARD: Leaving socket rooms for user ${userId}`);
         break;
       case 'GURUJI':
-        console.log(`🟢 GURUJI DASHBOARD: Leaving socket rooms for guruji ${gurujiId || userId}`);
+        logger.log(`🟢 GURUJI DASHBOARD: Leaving socket rooms for guruji ${gurujiId || userId}`);
         break;
       case 'ADMIN':
-        console.log(`🔴 ADMIN DASHBOARD: Leaving socket rooms`);
+        logger.log(`🔴 ADMIN DASHBOARD: Leaving socket rooms`);
         break;
       case 'COORDINATOR':
-        console.log(`🟡 COORDINATOR DASHBOARD: Leaving socket rooms`);
+        logger.log(`🟡 COORDINATOR DASHBOARD: Leaving socket rooms`);
         break;
       default:
-        console.log(`🔌 ${role} DASHBOARD: Leaving socket rooms`, roomData);
+        logger.log(`🔌 ${role} DASHBOARD: Leaving socket rooms`, roomData);
     }
   }
 
   // Subscribe to specific events
   subscribeToEvents(subscription: EventSubscription) {
     if (!this.socket?.connected) {
-      console.warn('🔌 Socket not connected, cannot subscribe to events');
+      logger.warn('🔌 Socket not connected, cannot subscribe to events');
       return;
     }
 
     this.socket.emit(SocketEvents.SUBSCRIBE_TO_EVENTS, subscription);
-    console.log('🔌 Subscribed to events:', subscription);
+    logger.log('🔌 Subscribed to events:', subscription);
   }
 
   // Unsubscribe from events
@@ -234,7 +235,7 @@ class SocketClient {
     if (!this.socket?.connected) return;
 
     this.socket.emit(SocketEvents.UNSUBSCRIBE_FROM_EVENTS, subscription);
-    console.log('🔌 Unsubscribed from events:', subscription);
+    logger.log('🔌 Unsubscribed from events:', subscription);
   }
 
   // Request queue update
@@ -242,7 +243,7 @@ class SocketClient {
     if (!this.socket?.connected) return;
 
     this.socket.emit(SocketEvents.REQUEST_QUEUE_UPDATE);
-    console.log('🔌 Requested queue update');
+    logger.log('🔌 Requested queue update');
   }
 
   // Request user queue status
@@ -250,7 +251,7 @@ class SocketClient {
     if (!this.socket?.connected) return;
 
     this.socket.emit(SocketEvents.REQUEST_USER_QUEUE_STATUS, { userId });
-    console.log('🔌 Requested user queue status for:', userId);
+    logger.log('🔌 Requested user queue status for:', userId);
   }
 
   // Request guruji queue
@@ -258,7 +259,7 @@ class SocketClient {
     if (!this.socket?.connected) return;
 
     this.socket.emit(SocketEvents.REQUEST_GURUJI_QUEUE, { gurujiId });
-    console.log('🔌 Requested guruji queue for:', gurujiId);
+    logger.log('🔌 Requested guruji queue for:', gurujiId);
   }
 
   // Add event listener
@@ -282,7 +283,7 @@ class SocketClient {
   // Emit event
   emit(event: string, data?: unknown) {
     if (!this.socket?.connected) {
-      console.warn('🔌 Socket not connected, cannot emit event:', event);
+      logger.warn('🔌 Socket not connected, cannot emit event:', event);
       return;
     }
 
@@ -468,3 +469,6 @@ function getRoomsForRole(role: string, userId: string, gurujiId?: string): strin
 }
 
 export default getSocketClient;
+
+
+

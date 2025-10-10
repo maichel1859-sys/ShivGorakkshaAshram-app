@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSocket } from '@/lib/socket/socket-client';
 import { 
   getAppointmentAvailability, 
   getCoordinatorAppointments, 
@@ -47,6 +48,7 @@ export function useAppointmentAvailability(date: string) {
 
 // Hook for fetching coordinator appointments
 export function useCoordinatorAppointments() {
+  const { connectionStatus } = useSocket();
   return useQuery({
     queryKey: [...appointmentKeys.all, 'coordinator'],
     queryFn: async () => {
@@ -56,8 +58,9 @@ export function useCoordinatorAppointments() {
       }
       return result.appointments;
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    staleTime: 30 * 1000,
+    // Do not poll when socket is connected (socket-first); fallback when disconnected
+    refetchInterval: connectionStatus.connected ? false : 30 * 1000,
   });
 } 
 
@@ -86,6 +89,7 @@ export function useUserAppointments(options?: {
   fromDate?: string;
   toDate?: string;
 }) {
+  const { connectionStatus } = useSocket();
   return useQuery({
     queryKey: appointmentKeys.list(options || {}),
     queryFn: async () => {
@@ -104,8 +108,9 @@ export function useUserAppointments(options?: {
         hasMore: result.hasMore || false,
       };
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refetch every minute
+    staleTime: 30 * 1000,
+    // Do not poll when socket is connected (socket-first); fallback when disconnected
+    refetchInterval: connectionStatus.connected ? false : 60 * 1000,
   });
 }
 

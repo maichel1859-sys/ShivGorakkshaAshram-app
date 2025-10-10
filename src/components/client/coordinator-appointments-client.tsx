@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useTransition, useOptimistic, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -159,44 +159,31 @@ export function CoordinatorAppointmentsClient({
         appointmentId: string;
         status: string;
         action: string;
-        appointment?: {
-          id: string;
-          devoteeName?: string;
-          gurujiName?: string;
-          [key: string]: unknown;
-        };
+        devoteeName?: string;
+        gurujiName?: string;
         timestamp: string;
       };
-
-      console.log('ðŸ”Œ [Coordinator] Received appointment update:', data);
-
-      // Refresh the page data to get latest information
+      console.log('[Coordinator] Received appointment update:', data);
       router.refresh();
 
-      // Show notifications based on action
       if (data.action === 'booked' || data.action === 'created' || data.action === 'created_for_user') {
-        const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
-        const gurujiName = (data as { gurujiName?: string }).gurujiName || 'Guruji';
-        console.log(`ðŸ“… New appointment: ${devoteeName} booked with ${gurujiName}`);
-        toast.success(`New appointment booked for ${devoteeName}`);
-      } else if (data.status === 'COMPLETED') {
-        const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
-        console.log(`âœ… Appointment completed: ${devoteeName}`);
-        toast.success(`Consultation completed for ${devoteeName}`, {
-          description: 'Ready for next devotee'
-        });
-      } else if (data.status === 'CHECKED_IN') {
-        const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
-        console.log(`âœ“ Devotee checked in: ${devoteeName}`);
-        toast.info(`${devoteeName} checked in successfully`);
+        const devoteeName = data.devoteeName || 'A devotee';
+        const gurujiName = data.gurujiName || 'Guruji';
+        //
+      console.log('New appointment booked');
+      } else if (data.status === "COMPLETED") {
+        const devoteeName = data.devoteeName || 'A devotee';
+        //
+        console.log('Appointment completed');
+      } else if (data.status === "CHECKED_IN") {
+        const devoteeName = data.devoteeName || 'A devotee';
+        console.log('Devotee checked in');
+        toast.info(devoteeName + ' checked in successfully');
       }
     };
 
     socket.on(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
-
-    return () => {
-      socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
-    };
+    return () => socket.off(SocketEvents.APPOINTMENT_UPDATE, handleAppointmentUpdate);
   }, [socket, router]);
 
   const getStatusColor = (status: string) => {
@@ -300,7 +287,7 @@ export function CoordinatorAppointmentsClient({
     setOptimisticAppointments({ type: 'check_in', id: selectedAppointment.id });
 
     try {
-      const result = await manualCheckInCoordinator(selectedAppointment.id, 'RECEPTION_001');
+      const result = await manualCheckInCoordinator(selectedAppointment.id, 'ASHRAM_MAIN');
       if (result.success) {
         toast.success(`${selectedAppointment.user.name} checked in successfully`);
         setShowCheckInDialog(false);

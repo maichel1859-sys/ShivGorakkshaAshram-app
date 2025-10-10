@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -80,7 +81,7 @@ export async function getQueueStatus() {
     const queueStatus = await getCachedQueueStatus();
     return { success: true, queueStatus };
   } catch (error) {
-    console.error('Get queue status error:', error);
+    logger.error('Get queue status error:', error);
     return { success: false, error: 'Failed to fetch queue status' };
   }
 }
@@ -206,7 +207,7 @@ export async function joinQueue(formData: FormData) {
     
     return { success: true, queueEntry };
   } catch (error) {
-    console.error('Join queue error:', error);
+    logger.error('Join queue error:', error);
     return { success: false, error: 'Failed to join queue' };
   }
 }
@@ -403,7 +404,7 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
               },
             },
           });
-          console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to COMPLETED`);
+          logger.log(`✅ Updated appointment ${queueEntry.appointmentId} status to COMPLETED`);
 
           // Emit appointment completed event
           await emitAppointmentEvent(
@@ -430,13 +431,13 @@ export async function updateQueueStatus(formData: FormData): Promise<ActionRespo
       revalidatePath('/user/queue');
       revalidatePath('/guruji/queue');
     } catch (cacheError) {
-      console.error('Cache invalidation error:', cacheError);
+      logger.error('Cache invalidation error:', cacheError);
       // Continue even if cache invalidation fails
     }
     
     return { success: true, queueEntry: updatedEntry };
   } catch (error) {
-    console.error('Update queue status error:', error);
+    logger.error('Update queue status error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -518,13 +519,13 @@ export async function leaveQueue(formData: FormData) {
       revalidatePath('/user/queue');
       revalidatePath('/guruji/queue');
     } catch (cacheError) {
-      console.error('Cache invalidation error:', cacheError);
+      logger.error('Cache invalidation error:', cacheError);
       // Continue even if cache invalidation fails
     }
     
     return { success: true };
   } catch (error) {
-    console.error('Leave queue error:', error);
+    logger.error('Leave queue error:', error);
     return { success: false, error: 'Failed to leave queue' };
   }
 }
@@ -542,7 +543,7 @@ export async function getUserQueueEntries() {
     const queueEntries = queueEntry ? [queueEntry] : [];
     return { success: true, queueEntries };
   } catch (error) {
-    console.error('Get user queue entries error:', error);
+    logger.error('Get user queue entries error:', error);
     return { success: false, error: 'Failed to fetch queue entries' };
   }
 }
@@ -564,7 +565,7 @@ export async function getGurujiQueueEntries() {
     const queueEntries = await getCachedGurujiQueueEntries(session.user.id);
     return { success: true, queueEntries };
   } catch (error) {
-    console.error('Get guruji queue entries error:', error);
+    logger.error('Get guruji queue entries error:', error);
     return { success: false, error: 'Failed to fetch queue entries' };
   }
 } 
@@ -754,7 +755,7 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
           },
         },
       });
-      console.log(`✅ Updated appointment ${queueEntry.appointmentId} status to IN_PROGRESS`);
+      logger.log(`✅ Updated appointment ${queueEntry.appointmentId} status to IN_PROGRESS`);
 
       // Emit appointment updated and consultation started events
       await emitAppointmentEvent(
@@ -813,7 +814,7 @@ export async function startConsultation(formData: FormData): Promise<ActionRespo
       currentDevotee: queueEntry,
     };
   } catch (error) {
-    console.error('Start consultation error:', error);
+    logger.error('Start consultation error:', error);
     return { success: false, error: 'Failed to start consultation' };
   }
 }
@@ -988,11 +989,11 @@ export async function completeConsultation(formData: FormData) {
     revalidatePath('/admin/queue');
     revalidatePath('/admin');
 
-    console.log(`✅ Consultation completed - Appointment: ${updatedAppointment.id}, User: ${queueEntry.user.name}`);
+    logger.log(`✅ Consultation completed - Appointment: ${updatedAppointment.id}, User: ${queueEntry.user.name}`);
 
     return { success: true };
   } catch (error) {
-    console.error('Complete consultation error:', error);
+    logger.error('Complete consultation error:', error);
     return { success: false, error: 'Failed to complete consultation' };
   }
 } 
@@ -1049,7 +1050,7 @@ export async function getConsultationSessionId(queueEntryId: string): Promise<Ac
       consultationSessionId: consultationSession.id 
     };
   } catch (error) {
-    console.error('Get consultation session ID error:', error);
+    logger.error('Get consultation session ID error:', error);
     return { success: false, error: 'Failed to get consultation session ID' };
   }
 }
@@ -1113,7 +1114,7 @@ export async function getAdminQueueEntries() {
       })),
     };
   } catch (error) {
-    console.error('Get admin queue entries error:', error);
+    logger.error('Get admin queue entries error:', error);
     return { success: false, error: 'Failed to fetch queue entries' };
   }
 }
@@ -1180,7 +1181,8 @@ export async function getCoordinatorQueueEntries() {
       })),
     };
   } catch (error) {
-    console.error('Get coordinator queue entries error:', error);
+    logger.error('Get coordinator queue entries error:', error);
     return { success: false, error: 'Failed to fetch queue entries' };
   }
 } 
+

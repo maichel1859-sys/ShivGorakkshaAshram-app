@@ -286,7 +286,7 @@ export function useOfflineSync() {
       if (data.qrCode) {
         result = await checkInWithQR(formData);
       } else if (data.appointmentId) {
-        result = await manualCheckIn(data.appointmentId, data.locationId || 'RECEPTION_001');
+        result = await manualCheckIn(data.appointmentId, data.locationId || 'ASHRAM_MAIN');
       } else {
         return false;
       }

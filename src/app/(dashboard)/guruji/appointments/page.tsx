@@ -95,12 +95,14 @@ export default function GurujiAppointmentsPage() {
         devoteeName?: string;
         timestamp: string;
       };
+      /*
 
       console.log('🔌 [Guruji] Received appointment update:', data);
 
-      // Refresh appointments list
+      */
+      console.log('[Guruji] Received appointment update:', data);
+      // Refresh appointments list (client-only to avoid extra server load)
       refetch();
-      router.refresh();
 
       // Show notifications based on action
       if (data.action === 'booked' || data.action === 'created') {

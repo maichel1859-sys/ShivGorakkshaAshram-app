@@ -1,20 +1,25 @@
-'use server';
+"use server";
+import { logger } from '@/lib/utils/logger';
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/auth';
-import { prisma } from '@/lib/database/prisma';
-import { revalidatePath } from 'next/cache';
-import { validateLocationQRData } from '@/lib/utils/qr-validation';
-import { calculateDistance } from '@/lib/utils/geolocation';
-import { getCurrentTimeIST, formatTimeIST, formatDateIST } from '@/store/time-store';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/auth";
+import { prisma } from "@/lib/database/prisma";
+import { revalidatePath } from "next/cache";
+import { validateLocationQRData } from "@/lib/utils/qr-validation";
+import { calculateDistance } from "@/lib/utils/geolocation";
+import {
+  getCurrentTimeIST,
+  formatTimeIST,
+  formatDateIST,
+} from "@/store/time-store";
 import {
   emitQueueEvent,
   emitAppointmentEvent,
-  SocketEventTypes
-} from '@/lib/socket/socket-emitter';
+  SocketEventTypes,
+} from "@/lib/socket/socket-emitter";
 
 interface QRScanData {
-  locationId: string; // e.g., "GURUJI_LOC_001"
+  locationId: string; // e.g., "ASHRAM_MAIN"
   locationName: string;
   timestamp: number;
   coordinates?: {
@@ -25,12 +30,12 @@ interface QRScanData {
 
 interface TimeWindowConfig {
   beforeAppointment: number; // minutes before appointment
-  afterAppointment: number;  // minutes after appointment
+  afterAppointment: number; // minutes after appointment
 }
 
 const TIME_WINDOW_CONFIG: TimeWindowConfig = {
   beforeAppointment: 20,
-  afterAppointment: 15
+  afterAppointment: 15,
 };
 
 /**
@@ -45,7 +50,7 @@ function normalizeAppointmentTime(appointmentTime: Date): Date {
   const hours = appointmentTime.getHours();
   const minutes = appointmentTime.getMinutes();
   const seconds = appointmentTime.getSeconds();
-  
+
   // Create a new date in the current timezone context
   // This ensures we're working with the same timezone as the current time
   return new Date(year, month, date, hours, minutes, seconds);
@@ -55,43 +60,63 @@ function normalizeAppointmentTime(appointmentTime: Date): Date {
  * Process QR code scan for appointment check-in with geolocation validation
  * Users must be within 100m of the QR code location to scan successfully
  */
-export async function processQRScanSimple(qrData: string, userCoordinates?: { latitude: number; longitude: number }) {
+export async function processQRScanSimple(
+  qrData: string,
+  userCoordinates?: { latitude: number; longitude: number }
+) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
+    return { success: false, error: "Authentication required" };
   }
 
   try {
     // Validate QR code data
     const validation = validateLocationQRData(qrData);
     if (!validation.valid) {
-      return { success: false, error: validation.error || 'Invalid QR code' };
+      return { success: false, error: validation.error || "Invalid QR code" };
     }
 
-    const { locationId, locationName, timestamp, coordinates: qrCoordinates } = validation.data!;
+    const {
+      locationId,
+      locationName,
+      timestamp,
+      coordinates: qrCoordinates,
+    } = validation.data!;
     // Use current IST time as scan time for manual input or simple QR codes
     // For actual QR codes with embedded timestamp, use that timestamp
     const scanTime = timestamp > 0 ? new Date(timestamp) : getCurrentTimeIST();
 
-    console.log(`QR Scan attempt - User: ${session.user.id}, Location: ${locationName} (${locationId}), Time: ${scanTime.toISOString()}`);
+    if (process.env.NODE_ENV !== 'production') {
+      logger.log(
+        `QR Scan attempt - User: ${session.user.id}, Location: ${locationName} (${locationId}), Time: ${scanTime.toISOString()}`
+      );
+    }
 
     // Geolocation validation - user must be within 100 meters of the QR code location
     if (userCoordinates && qrCoordinates) {
       const distance = calculateDistance(userCoordinates, qrCoordinates);
       const maxDistance = 100; // 100 meters
-      
+
       if (distance > maxDistance) {
-        return { 
-          success: false, 
-          error: `You are ${Math.round(distance)}m away from the scanning location. Please move within ${maxDistance}m to scan the QR code.` 
+        return {
+          success: false,
+          error: `You are ${Math.round(
+            distance
+          )}m away from the scanning location. Please move within ${maxDistance}m to scan the QR code.`,
         };
       }
-      
-      console.log(`✅ Location validation passed - Distance: ${Math.round(distance)}m`);
+
+      if (process.env.NODE_ENV !== 'production') {
+        logger.log(
+          `✅ Location validation passed - Distance: ${Math.round(distance)}m`
+        );
+      }
     } else if (userCoordinates) {
       // If user provided coordinates but QR doesn't have coordinates (legacy QR)
-      console.log('⚠️ Warning: QR code does not contain location data');
+      if (process.env.NODE_ENV !== 'production') {
+        logger.warn("⚠️ Warning: QR code does not contain location data");
+      }
     }
 
     // Check if user has appointment for TODAY (using IST)
@@ -106,37 +131,55 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
         userId: session.user.id,
         date: {
           gte: today,
-          lt: tomorrow
+          lt: tomorrow,
         },
         status: {
-          in: ['BOOKED', 'CONFIRMED']
-        }
+          in: ["BOOKED", "CONFIRMED"],
+        },
       },
       include: {
-        guruji: true
-      }
+        guruji: true,
+      },
     });
 
     if (!appointment) {
-      return { 
-        success: false, 
-        error: 'No appointment found for today. Please book an appointment first.' 
+      return {
+        success: false,
+        error:
+          "No appointment found for today. Please book an appointment first.",
       };
     }
 
     // Validate time window (20 min before to 15 min after appointment)
-    const appointmentTime = normalizeAppointmentTime(new Date(appointment.startTime));
-    const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
-    const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
+    const appointmentTime = normalizeAppointmentTime(
+      new Date(appointment.startTime)
+    );
+    const timeWindowStart = new Date(
+      appointmentTime.getTime() -
+        TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000
+    );
+    const timeWindowEnd = new Date(
+      appointmentTime.getTime() +
+        TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000
+    );
 
     // Check if appointment is for today (using IST)
     const currentDate = getCurrentTimeIST();
-    const appointmentDate = new Date(appointmentTime.getFullYear(), appointmentTime.getMonth(), appointmentTime.getDate());
-    const todayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-    const isAppointmentToday = appointmentDate.getTime() === todayDate.getTime();
+    const appointmentDate = new Date(
+      appointmentTime.getFullYear(),
+      appointmentTime.getMonth(),
+      appointmentTime.getDate()
+    );
+    const todayDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate()
+    );
+    const isAppointmentToday =
+      appointmentDate.getTime() === todayDate.getTime();
 
     // Debug logging for time validation
-    console.log(`⏰ Time validation debug:`, {
+    if (process.env.NODE_ENV !== 'production') logger.log(`⏰ Time validation debug:`, {
       appointmentTime: appointmentTime.toISOString(),
       appointmentTimeLocal: appointmentTime.toLocaleString(),
       scanTime: scanTime.toISOString(),
@@ -144,50 +187,71 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
       timeWindowStart: timeWindowStart.toISOString(),
       timeWindowEnd: timeWindowEnd.toISOString(),
       timeWindowConfig: TIME_WINDOW_CONFIG,
-      timeUntilAppointment: Math.round((appointmentTime.getTime() - scanTime.getTime()) / (1000 * 60)) + ' minutes',
+      timeUntilAppointment:
+        Math.round(
+          (appointmentTime.getTime() - scanTime.getTime()) / (1000 * 60)
+        ) + " minutes",
       timezoneOffset: new Date().getTimezoneOffset(),
       isInTimeWindow: scanTime >= timeWindowStart && scanTime <= timeWindowEnd,
       isAppointmentToday: isAppointmentToday,
       appointmentDate: appointmentDate.toISOString(),
-      todayDate: todayDate.toISOString()
+      todayDate: todayDate.toISOString(),
     });
 
     // Check if appointment is for today first
     if (!isAppointmentToday) {
-      const appointmentTimeStr = `${formatDateIST(appointmentTime)} at ${formatTimeIST(appointmentTime)}`;
+      const appointmentTimeStr = `${formatDateIST(
+        appointmentTime
+      )} at ${formatTimeIST(appointmentTime)}`;
       const todayStr = formatDateIST(currentDate);
-      
-      return { 
-        success: false, 
-        error: `Your appointment is not for today. Your appointment is scheduled for ${appointmentTimeStr} IST, but today is ${todayStr} IST. Please check in on the correct date.` 
+
+      return {
+        success: false,
+        error: `Your appointment is not for today. Your appointment is scheduled for ${appointmentTimeStr} IST, but today is ${todayStr} IST. Please check in on the correct date.`,
       };
     }
 
     if (scanTime < timeWindowStart) {
-      const minutesEarly = Math.round((timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60));
-      
+      const minutesEarly = Math.round(
+        (timeWindowStart.getTime() - scanTime.getTime()) / (1000 * 60)
+      );
+
       // Use centralized IST time formatting for consistent display
-      const appointmentTimeStr = `${formatDateIST(appointmentTime)} at ${formatTimeIST(appointmentTime)}`;
-      const timeWindowStartStr = `${formatDateIST(timeWindowStart)} at ${formatTimeIST(timeWindowStart)}`;
-      const scanTimeStr = `${formatDateIST(scanTime)} at ${formatTimeIST(scanTime)}`;
-      
-      return { 
-        success: false, 
-        error: `Too early to check in. Your appointment is at ${appointmentTimeStr} IST. You can check in starting from ${timeWindowStartStr} IST. You are ${minutesEarly} minutes too early. (Current time: ${scanTimeStr} IST)` 
+      const appointmentTimeStr = `${formatDateIST(
+        appointmentTime
+      )} at ${formatTimeIST(appointmentTime)}`;
+      const timeWindowStartStr = `${formatDateIST(
+        timeWindowStart
+      )} at ${formatTimeIST(timeWindowStart)}`;
+      const scanTimeStr = `${formatDateIST(scanTime)} at ${formatTimeIST(
+        scanTime
+      )}`;
+
+      return {
+        success: false,
+        error: `Too early to check in. Your appointment is at ${appointmentTimeStr} IST. You can check in starting from ${timeWindowStartStr} IST. You are ${minutesEarly} minutes too early. (Current time: ${scanTimeStr} IST)`,
       };
     }
 
     if (scanTime > timeWindowEnd) {
-      const minutesLate = Math.round((scanTime.getTime() - timeWindowEnd.getTime()) / (1000 * 60));
-      
+      const minutesLate = Math.round(
+        (scanTime.getTime() - timeWindowEnd.getTime()) / (1000 * 60)
+      );
+
       // Use centralized IST time formatting for consistent display
-      const appointmentTimeStr = `${formatDateIST(appointmentTime)} at ${formatTimeIST(appointmentTime)}`;
-      const timeWindowEndStr = `${formatDateIST(timeWindowEnd)} at ${formatTimeIST(timeWindowEnd)}`;
-      const scanTimeStr = `${formatDateIST(scanTime)} at ${formatTimeIST(scanTime)}`;
-      
-      return { 
-        success: false, 
-        error: `Too late to check in. Your appointment was at ${appointmentTimeStr} IST. The check-in window closed at ${timeWindowEndStr} IST. You are ${minutesLate} minutes too late. (Current time: ${scanTimeStr} IST)` 
+      const appointmentTimeStr = `${formatDateIST(
+        appointmentTime
+      )} at ${formatTimeIST(appointmentTime)}`;
+      const timeWindowEndStr = `${formatDateIST(
+        timeWindowEnd
+      )} at ${formatTimeIST(timeWindowEnd)}`;
+      const scanTimeStr = `${formatDateIST(scanTime)} at ${formatTimeIST(
+        scanTime
+      )}`;
+
+      return {
+        success: false,
+        error: `Too late to check in. Your appointment was at ${appointmentTimeStr} IST. The check-in window closed at ${timeWindowEndStr} IST. You are ${minutesLate} minutes too late. (Current time: ${scanTimeStr} IST)`,
       };
     }
 
@@ -197,18 +261,18 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
         userId: session.user.id,
         createdAt: {
           gte: today,
-          lt: tomorrow
+          lt: tomorrow,
         },
         status: {
-          in: ['WAITING', 'IN_PROGRESS']
-        }
-      }
+          in: ["WAITING", "IN_PROGRESS"],
+        },
+      },
     });
 
     if (existingQueueEntry) {
-      return { 
-        success: false, 
-        error: 'You are already in today\'s queue. Please wait for your turn.' 
+      return {
+        success: false,
+        error: "You are already in today's queue. Please wait for your turn.",
       };
     }
 
@@ -218,12 +282,12 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
         gurujiId: appointment.gurujiId,
         createdAt: {
           gte: today,
-          lt: tomorrow
+          lt: tomorrow,
         },
         status: {
-          in: ['WAITING', 'IN_PROGRESS']
-        }
-      }
+          in: ["WAITING", "IN_PROGRESS"],
+        },
+      },
     });
 
     const queuePosition = currentQueueCount + 1;
@@ -238,11 +302,11 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
         userId: session.user.id,
         gurujiId: appointment.gurujiId,
         position: queuePosition,
-        status: 'WAITING',
-        priority: appointment.priority || 'NORMAL',
+        status: "WAITING",
+        priority: appointment.priority || "NORMAL",
         estimatedWait: estimatedWaitMinutes,
         checkedInAt: scanTime,
-        notes: `Checked in via QR scan at ${locationName}`
+        notes: `Checked in via QR scan at ${locationName}`,
       },
       include: {
         user: {
@@ -250,14 +314,14 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
             id: true,
             name: true,
             email: true,
-            phone: true
-          }
+            phone: true,
+          },
         },
         guruji: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         appointment: {
           select: {
@@ -265,34 +329,30 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
             date: true,
             startTime: true,
             endTime: true,
-            reason: true
-          }
-        }
-      }
+            reason: true,
+          },
+        },
+      },
     });
 
     // Update appointment status
     await prisma.appointment.update({
       where: { id: appointment.id },
       data: {
-        status: 'CHECKED_IN',
-        checkedInAt: scanTime
-      }
+        status: "CHECKED_IN",
+        checkedInAt: scanTime,
+      },
     });
 
     // Emit real-time socket events for queue and appointment updates
-    await emitQueueEvent(
-      SocketEventTypes.QUEUE_ENTRY_ADDED,
-      queueEntry.id,
-      {
-        id: queueEntry.id,
-        position: queueEntry.position,
-        status: queueEntry.status,
-        estimatedWait: queueEntry.estimatedWait || 0,
-        priority: queueEntry.priority,
-        appointmentId: appointment.id
-      }
-    );
+    await emitQueueEvent(SocketEventTypes.QUEUE_ENTRY_ADDED, queueEntry.id, {
+      id: queueEntry.id,
+      position: queueEntry.position,
+      status: queueEntry.status,
+      estimatedWait: queueEntry.estimatedWait || 0,
+      priority: queueEntry.priority,
+      appointmentId: appointment.id,
+    });
 
     await emitAppointmentEvent(
       SocketEventTypes.APPOINTMENT_CHECKED_IN,
@@ -300,22 +360,26 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
       {
         id: appointment.id,
         userId: session.user.id,
-        gurujiId: appointment.gurujiId || '',
-        date: appointment.date.toISOString().split('T')[0],
+        gurujiId: appointment.gurujiId || "",
+        date: appointment.date.toISOString().split("T")[0],
         time: appointment.startTime.toLocaleTimeString(),
-        status: 'CHECKED_IN',
-        reason: appointment.reason || '',
+        status: "CHECKED_IN",
+        reason: appointment.reason || "",
         priority: appointment.priority,
         position: queuePosition,
-        estimatedWait: estimatedWaitMinutes
+        estimatedWait: estimatedWaitMinutes,
       }
     );
 
-    console.log(`✅ QR Scan successful - User: ${session.user.id}, Queue Position: ${queuePosition}, Wait Time: ${estimatedWaitMinutes} minutes`);
+    if (process.env.NODE_ENV !== 'production') {
+      logger.log(
+        `✅ QR Scan successful - User: ${session.user.id}, Queue Position: ${queuePosition}, Wait Time: ${estimatedWaitMinutes} minutes`
+      );
+    }
 
-    revalidatePath('/user/queue');
-    revalidatePath('/guruji/queue');
-    revalidatePath('/user/appointments');
+    revalidatePath("/user/queue");
+    revalidatePath("/guruji/queue");
+    revalidatePath("/user/appointments");
 
     return {
       success: true,
@@ -324,13 +388,15 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
         queuePosition,
         estimatedWaitMinutes,
         locationName,
-        message: `Successfully checked in at ${locationName}! You are position ${queuePosition} in the queue. Estimated wait time: ${estimatedWaitMinutes} minutes.`
-      }
+        message: `Successfully checked in at ${locationName}! You are position ${queuePosition} in the queue. Estimated wait time: ${estimatedWaitMinutes} minutes.`,
+      },
     };
-
   } catch (error) {
-    console.error('QR Scan error:', error);
-    return { success: false, error: 'Failed to process QR scan. Please try again.' };
+    logger.error("QR Scan error:", error);
+    return {
+      success: false,
+      error: "Failed to process QR scan. Please try again.",
+    };
   }
 }
 
@@ -339,9 +405,9 @@ export async function processQRScanSimple(qrData: string, userCoordinates?: { la
  */
 export async function getUserQueueStatusSimple() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
+    return { success: false, error: "Authentication required" };
   }
 
   try {
@@ -355,19 +421,19 @@ export async function getUserQueueStatusSimple() {
         userId: session.user.id,
         createdAt: {
           gte: today,
-          lt: tomorrow
+          lt: tomorrow,
         },
         status: {
-          in: ['WAITING', 'IN_PROGRESS']
-        }
+          in: ["WAITING", "IN_PROGRESS"],
+        },
       },
       include: {
         guruji: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!queueEntry) {
@@ -376,25 +442,27 @@ export async function getUserQueueStatusSimple() {
 
     return {
       success: true,
-      data: queueEntry
+      data: queueEntry,
     };
-
   } catch (error) {
-    console.error('Get queue status error:', error);
-    return { success: false, error: 'Failed to get queue status' };
+    logger.error("Get queue status error:", error);
+    return { success: false, error: "Failed to get queue status" };
   }
 }
 
 /**
  * Generate static QR code data for a location
  */
-export async function generateLocationQRDataSimple(locationId: string, locationName: string): Promise<string> {
+export async function generateLocationQRDataSimple(
+  locationId: string,
+  locationName: string
+): Promise<string> {
   const qrData: QRScanData = {
     locationId,
     locationName,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
+
   return JSON.stringify(qrData);
 }
 
@@ -402,11 +470,14 @@ export async function generateLocationQRDataSimple(locationId: string, locationN
  * Process manual text input for check-in (alternative to QR scanning)
  * Users can input the location code instead of scanning QR
  */
-export async function processManualTextCheckIn(locationCode: string, userCoordinates?: { latitude: number; longitude: number }) {
+export async function processManualTextCheckIn(
+  locationCode: string,
+  userCoordinates?: { latitude: number; longitude: number }
+) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
+    return { success: false, error: "Authentication required" };
   }
 
   try {
@@ -415,17 +486,19 @@ export async function processManualTextCheckIn(locationCode: string, userCoordin
       locationId: locationCode.toUpperCase(),
       locationName: getLocationNameFromCode(locationCode),
       timestamp: Date.now(),
-      coordinates: getLocationCoordinates(locationCode)
+      coordinates: getLocationCoordinates(locationCode),
     };
 
     const qrData = JSON.stringify(locationData);
 
     // Process using the same logic as QR scanning
     return await processQRScanSimple(qrData, userCoordinates);
-
   } catch (error) {
-    console.error('Manual text check-in error:', error);
-    return { success: false, error: 'Failed to process manual check-in. Please try again.' };
+    logger.error("Manual text check-in error:", error);
+    return {
+      success: false,
+      error: "Failed to process manual check-in. Please try again.",
+    };
   }
 }
 
@@ -433,34 +506,19 @@ export async function processManualTextCheckIn(locationCode: string, userCoordin
  * Get location name from location code
  */
 function getLocationNameFromCode(locationCode: string): string {
-  const locationMap: Record<string, string> = {
-    'RECEPTION_001': 'Main Reception',
-    'GURUJI_LOC_001': 'Main Consultation Room',
-    'GURUJI_LOC_002': 'Secondary Consultation Room',
-    'CONSULTATION_001': 'Consultation Room 1',
-    'MAIN_HALL_001': 'Main Hall',
-    'WAITING_AREA_001': 'Waiting Area',
-    'EMERGENCY_001': 'Emergency Room',
-  };
-
-  return locationMap[locationCode.toUpperCase()] || `Location ${locationCode}`;
+  // Only support main ashram location
+  return "Shiv Goraksha Ashram";
 }
 
 /**
  * Get location coordinates from location code
  */
-function getLocationCoordinates(locationCode: string): { latitude: number; longitude: number } {
-  const coordinatesMap: Record<string, { latitude: number; longitude: number }> = {
-    'RECEPTION_001': { latitude: 19.0760, longitude: 72.8777 },
-    'GURUJI_LOC_001': { latitude: 19.0761, longitude: 72.8778 },
-    'GURUJI_LOC_002': { latitude: 19.0762, longitude: 72.8779 },
-    'CONSULTATION_001': { latitude: 19.0763, longitude: 72.8780 },
-    'MAIN_HALL_001': { latitude: 19.0764, longitude: 72.8781 },
-    'WAITING_AREA_001': { latitude: 19.0765, longitude: 72.8782 },
-    'EMERGENCY_001': { latitude: 19.0766, longitude: 72.8783 },
-  };
-
-  return coordinatesMap[locationCode.toUpperCase()] || { latitude: 19.0760, longitude: 72.8777 };
+function getLocationCoordinates(locationCode: string): {
+  latitude: number;
+  longitude: number;
+} {
+  // Only support main ashram location
+  return { latitude: 18.61091405943072, longitude: 73.77134861482362 };
 }
 
 /**
@@ -468,13 +526,13 @@ function getLocationCoordinates(locationCode: string): { latitude: number; longi
  */
 export async function createTestQRCode(): Promise<string> {
   const qrData = {
-    locationId: 'GURUJI_LOC_001',
-    locationName: 'Main Consultation Room',
+    locationId: "ASHRAM_MAIN",
+    locationName: "Shiv Goraksha Ashram",
     timestamp: Date.now(),
     coordinates: {
-      latitude: 19.0760,
-      longitude: 72.8777
-    }
+      latitude: 18.61091405943072,
+      longitude: 73.77134861482362,
+    },
   };
   return JSON.stringify(qrData);
 }
@@ -484,9 +542,9 @@ export async function createTestQRCode(): Promise<string> {
  */
 export async function getTodayAppointmentWithTimeWindow() {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id) {
-    return { success: false, error: 'Authentication required' };
+    return { success: false, error: "Authentication required" };
   }
 
   try {
@@ -501,28 +559,36 @@ export async function getTodayAppointmentWithTimeWindow() {
         userId: session.user.id,
         date: {
           gte: today,
-          lt: tomorrow
+          lt: tomorrow,
         },
         status: {
-          in: ['BOOKED', 'CONFIRMED']
-        }
+          in: ["BOOKED", "CONFIRMED"],
+        },
       },
       include: {
-        guruji: true
-      }
+        guruji: true,
+      },
     });
 
     if (!appointment) {
-      return { 
-        success: false, 
-        error: 'No appointment found for today' 
+      return {
+        success: false,
+        error: "No appointment found for today",
       };
     }
 
     // Calculate time window
-    const appointmentTime = normalizeAppointmentTime(new Date(appointment.startTime));
-    const timeWindowStart = new Date(appointmentTime.getTime() - (TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000));
-    const timeWindowEnd = new Date(appointmentTime.getTime() + (TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000));
+    const appointmentTime = normalizeAppointmentTime(
+      new Date(appointment.startTime)
+    );
+    const timeWindowStart = new Date(
+      appointmentTime.getTime() -
+        TIME_WINDOW_CONFIG.beforeAppointment * 60 * 1000
+    );
+    const timeWindowEnd = new Date(
+      appointmentTime.getTime() +
+        TIME_WINDOW_CONFIG.afterAppointment * 60 * 1000
+    );
     const now = new Date();
 
     // Check if currently in time window
@@ -530,8 +596,12 @@ export async function getTodayAppointmentWithTimeWindow() {
     const canCheckIn = isInTimeWindow;
 
     // Calculate time until check-in window opens
-    const minutesUntilWindow = Math.round((timeWindowStart.getTime() - now.getTime()) / (1000 * 60));
-    const minutesUntilAppointment = Math.round((appointmentTime.getTime() - now.getTime()) / (1000 * 60));
+    const minutesUntilWindow = Math.round(
+      (timeWindowStart.getTime() - now.getTime()) / (1000 * 60)
+    );
+    const minutesUntilAppointment = Math.round(
+      (appointmentTime.getTime() - now.getTime()) / (1000 * 60)
+    );
 
     return {
       success: true,
@@ -543,14 +613,16 @@ export async function getTodayAppointmentWithTimeWindow() {
           isInTimeWindow,
           canCheckIn,
           minutesUntilWindow: minutesUntilWindow > 0 ? minutesUntilWindow : 0,
-          minutesUntilAppointment: minutesUntilAppointment > 0 ? minutesUntilAppointment : 0,
-          config: TIME_WINDOW_CONFIG
-        }
-      }
+          minutesUntilAppointment:
+            minutesUntilAppointment > 0 ? minutesUntilAppointment : 0,
+          config: TIME_WINDOW_CONFIG,
+        },
+      },
     };
-
   } catch (error) {
-    console.error('Get today appointment with time window error:', error);
-    return { success: false, error: 'Failed to get appointment information' };
+    logger.error("Get today appointment with time window error:", error);
+    return { success: false, error: "Failed to get appointment information" };
   }
 }
+
+

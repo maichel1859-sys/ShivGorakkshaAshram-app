@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock, Users, CheckCircle, AlertCircle, QrCode, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { getUserQueueStatusSimple } from '@/lib/actions/qr-scan-actions-simple';
+import { getUserQueueStatusSimple } from '@/lib/actions/qr-status-actions';
 import { useSession } from 'next-auth/react';
 import { PageSpinner } from '@/components/loading';
 import { showToast } from '@/lib/toast';
 import { useQueueUnified } from '@/hooks/use-queue-unified';
+import { useSocket, SocketEvents } from '@/lib/socket/socket-client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatTimeIST } from '@/store/time-store';
 // Simple queue entry type for the simplified queue status function
@@ -32,6 +33,7 @@ type SimpleQueueEntry = {
 function QueueStatusContent() {
   const { t } = useLanguage();
   const { data: session, status } = useSession();
+  const { connectionStatus, socket } = useSocket();
   const [queueEntry, setQueueEntry] = useState<SimpleQueueEntry | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -44,6 +46,8 @@ function QueueStatusContent() {
     autoRefresh: false, // We'll handle auto-refresh manually
     enableRealtime: false, // Users don't need real-time updates
   });
+
+  
 
   const loadQueueStatus = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -74,16 +78,33 @@ function QueueStatusContent() {
     }
   }, [status, loadQueueStatus]);
 
-  // Auto-refresh every 30 seconds when user is in queue
+  // Socket-driven refresh: when connected, refresh on user queue updates
   useEffect(() => {
-    if (!queueEntry || status !== 'authenticated') return;
+    if (!session?.user?.id || !connectionStatus.connected) return;
+
+    const handleUserQueueUpdate = () => {
+      loadQueueStatus();
+    };
+
+    socket.on(SocketEvents.USER_QUEUE_STATUS, handleUserQueueUpdate);
+    socket.on(SocketEvents.QUEUE_POSITION_UPDATED, handleUserQueueUpdate);
+
+    return () => {
+      socket.off(SocketEvents.USER_QUEUE_STATUS, handleUserQueueUpdate);
+      socket.off(SocketEvents.QUEUE_POSITION_UPDATED, handleUserQueueUpdate);
+    };
+  }, [socket, connectionStatus.connected, session?.user?.id, loadQueueStatus]);
+
+  // Fallback auto-refresh every 30s only when socket is disconnected
+  useEffect(() => {
+    if (!queueEntry || status !== 'authenticated' || connectionStatus.connected) return;
     
     const interval = setInterval(() => {
       loadQueueStatus();
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [queueEntry, status, loadQueueStatus]);
+  }, [queueEntry, status, connectionStatus.connected, loadQueueStatus]);
 
   if (status === 'loading' || (queueLoading && !queueEntry && status === 'authenticated')) {
     return <PageSpinner message={t('queue.loadingStatus', 'Loading queue status...')} />;
@@ -325,3 +346,4 @@ function QueueStatusContent() {
 export default function QueuePage() {
   return <QueueStatusContent />;
 }
+

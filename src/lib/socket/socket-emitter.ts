@@ -1,3 +1,4 @@
+import { logger } from '@/lib/utils/logger';
 /**
  * Unified Socket Event Emitter for Server Actions
  * 
@@ -285,14 +286,14 @@ export async function emitSocketEvent(
     });
     
     if (!response.ok) {
-      console.error(`Failed to emit socket event: ${response.status} ${response.statusText}`);
+      logger.error(`Failed to emit socket event: ${response.status} ${response.statusText}`);
     } else {
-      console.log(`✅ Socket event emitted: ${event.type} to ${allRooms.length} rooms`);
+      logger.log(`✅ Socket event emitted: ${event.type} to ${allRooms.length} rooms`);
     }
     
   } catch (error) {
     // Don't throw errors - socket failures shouldn't break the main flow
-    console.error('❌ Failed to emit socket event:', error);
+    logger.error('Failed to emit socket event:', error);
   }
 }
 
@@ -537,7 +538,9 @@ export async function getUserContextFromHeaders(): Promise<{ userId?: string; ro
       role: role || undefined
     };
   } catch (error) {
-    console.error('Failed to get user context from headers:', error);
+    logger.error('Failed to get user context from headers:', error);
     return {};
   }
 }
+
+

@@ -125,7 +125,7 @@ export default function GurujiDashboard() {
         appointment?: unknown;
         timestamp: string;
       };
-
+      /* TEMP: comment out corrupted console logs and replace with clean logic
       console.log("🔌 Received appointment update:", data);
 
       // If this appointment update is for this Guruji, refresh appointments
@@ -136,24 +136,21 @@ export default function GurujiDashboard() {
           "status:",
           data.status
         );
+      */
+      // Clean replacement for the corrupted logging and refresh logic
+      // If this appointment update is for this Guruji, refresh appointments
+      if (data.gurujiId === session.user.id) {
+        console.log('[Guruji] Appointment update:', data.action, 'status:', data.status);
         refetchAppointments();
-
-        // Also refresh queue if consultation was completed
-        if (data.action === "completed") {
+        if (data.action === 'completed') {
           invalidateCache();
           refetch();
         }
-
-        // Show notification for new bookings
-        if (data.action === "booked") {
-          const devoteeName =
-            (data as { devoteeName?: string }).devoteeName || "A devotee";
-          showToast.success(
-            `${devoteeName} has booked a new appointment with you`
-          );
-        } else if (data.action === "cancelled") {
-          const devoteeName =
-            (data as { devoteeName?: string }).devoteeName || "A devotee";
+        if (data.action === 'booked') {
+          const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
+          showToast.success(`${devoteeName} has booked a new appointment with you`);
+        } else if (data.action === 'cancelled') {
+          const devoteeName = (data as { devoteeName?: string }).devoteeName || 'A devotee';
           showToast.error(`${devoteeName} has cancelled their appointment`);
         }
       }

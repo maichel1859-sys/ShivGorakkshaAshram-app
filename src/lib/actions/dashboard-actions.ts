@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -96,7 +97,7 @@ const _getAdminDashboardStatsInternal = cache(
         }
       };
     } catch (error) {
-      console.error("Get admin dashboard stats error:", error);
+      logger.error("Get admin dashboard stats error:", error);
       return { success: false, error: 'Failed to fetch dashboard statistics' };
     }
   },
@@ -154,7 +155,7 @@ const _getCoordinatorDashboardInternal = cache(
         data: { todayAppointments, pendingAppointments, activeQueue, recentCheckins },
       };
     } catch (error) {
-      console.error('Get coordinator dashboard error:', error);
+      logger.error('Get coordinator dashboard error:', error);
       return { success: false, error: 'Failed to fetch coordinator dashboard' };
     }
   },
@@ -217,7 +218,7 @@ const _getGurujiDashboardInternal = cache(
         data: { todayAppointments, completedToday, pendingConsultations, recentDevotees },
       };
     } catch (error) {
-      console.error('Get guruji dashboard error:', error);
+      logger.error('Get guruji dashboard error:', error);
       return { success: false, error: 'Failed to fetch guruji dashboard' };
     }
   },
@@ -274,7 +275,7 @@ const _getSystemAlertsInternal = cache(
         },
       };
     } catch (error) {
-      console.error("Get system alerts error:", error);
+      logger.error("Get system alerts error:", error);
       return { success: false, error: 'Failed to fetch system alerts' };
     }
   },
@@ -526,7 +527,7 @@ export async function getUsageReports(options?: {
       gurujiPerformance: formattedGurujiPerformance,
     };
   } catch (error) {
-    console.error("Get usage reports error:", error);
+    logger.error("Get usage reports error:", error);
     return { success: false, error: 'Failed to fetch usage reports' };
   }
 }
@@ -555,7 +556,7 @@ export async function exportUsageReport(options?: {
     
     return { success: true, blob };
   } catch (error) {
-    console.error("Export usage report error:", error);
+    logger.error("Export usage report error:", error);
     return { success: false, error: 'Failed to export report' };
   }
 }
@@ -660,7 +661,7 @@ const _getSystemStatusInternal = cache(
         }
       };
     } catch (error) {
-      console.error("Get system status error:", error);
+      logger.error("Get system status error:", error);
       return { 
         success: false, 
         error: 'Failed to fetch system status',
@@ -704,7 +705,7 @@ const _getSystemSettingsInternal = cache(
         settings,
       };
     } catch (error) {
-      console.error("Get system settings error:", error);
+      logger.error("Get system settings error:", error);
       return { success: false, error: 'Failed to fetch system settings' };
     }
   },
@@ -771,9 +772,10 @@ export async function updateSystemSettings(formData: FormData) {
       message: 'Settings updated successfully',
     };
   } catch (error) {
-    console.error("Update system settings error:", error);
+    logger.error("Update system settings error:", error);
     return { success: false, error: 'Failed to update system settings' };
   }
 } 
 
  
+

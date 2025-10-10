@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 
@@ -80,7 +81,7 @@ export async function sendPhoneOTP(formData: FormData) {
     
     return { success: false, error: 'Phone OTP login is currently disabled. Please use email/password login.' };
   } catch (error) {
-    console.error('Send OTP error:', error);
+    logger.error('Send OTP error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to send OTP' };
   }
 }
@@ -146,7 +147,7 @@ export async function verifyPhoneOTP(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Verify OTP error:', error);
+    logger.error('Verify OTP error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to verify OTP' };
   }
 }
@@ -240,7 +241,7 @@ export async function registerUser(formData: FormData) {
         }
       );
     } catch (socketError) {
-      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      logger.warn('🔌 Socket emission failed, using polling fallback:', socketError);
       // Socket failed - clients will use polling fallback automatically
       // No action needed here, React Query will handle stale data refresh
     }
@@ -248,7 +249,7 @@ export async function registerUser(formData: FormData) {
     revalidatePath('/auth');
     return { success: true, user };
   } catch (error) {
-    console.error('Register user error:', error);
+    logger.error('Register user error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to register user' };
   }
 }
@@ -328,7 +329,7 @@ export async function addFamilyContact(formData: FormData) {
     revalidatePath('/user/settings');
     return { success: true, contact: familyContact };
   } catch (error) {
-    console.error('Add family contact error:', error);
+    logger.error('Add family contact error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to add family contact' };
   }
 }
@@ -369,7 +370,7 @@ export async function getFamilyContacts() {
       })),
     };
   } catch (error) {
-    console.error('Get family contacts error:', error);
+    logger.error('Get family contacts error:', error);
     return { success: false, error: 'Failed to fetch family contacts' };
   }
 }
@@ -454,7 +455,7 @@ export async function updateFamilyContact(contactId: string, formData: FormData)
     revalidatePath('/user/settings');
     return { success: true, contact: updatedContact };
   } catch (error) {
-    console.error('Update family contact error:', error);
+    logger.error('Update family contact error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update family contact' };
   }
 }
@@ -499,7 +500,7 @@ export async function deleteFamilyContact(contactId: string) {
     revalidatePath('/user/settings');
     return { success: true, message: 'Contact deleted successfully' };
   } catch (error) {
-    console.error('Delete family contact error:', error);
+    logger.error('Delete family contact error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to delete family contact' };
   }
 }
@@ -567,7 +568,7 @@ export async function changePassword(formData: FormData) {
     revalidatePath('/user/settings');
     return { success: true, message: 'Password changed successfully' };
   } catch (error) {
-    console.error('Change password error:', error);
+    logger.error('Change password error:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Failed to change password' };
   }
 } 
@@ -681,7 +682,7 @@ export async function registerFamilyContact(formData: FormData) {
 
     // Send notifications (placeholder for SMS/email)
     // TODO: Implement actual SMS/email notifications
-    console.log('Family contact registration:', {
+    logger.log('Family contact registration:', {
       elderlyUser: elderlyUser.name,
       familyContact: familyContactUser.name,
       relationship: data.relationship,
@@ -693,7 +694,7 @@ export async function registerFamilyContact(formData: FormData) {
       familyContact 
     };
   } catch (error) {
-    console.error('Register family contact error:', error);
+    logger.error('Register family contact error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to register family contact' 
@@ -785,7 +786,7 @@ export async function requestPasswordReset(formData: FormData) {
       resetUrl: `/auth/reset-password?token=${resetToken}`
     };
   } catch (error) {
-    console.error('Request password reset error:', error);
+    logger.error('Request password reset error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to request password reset' 
@@ -897,7 +898,7 @@ export async function resetPassword(formData: FormData) {
       message: 'Password has been reset successfully. You can now sign in with your new password.' 
     };
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error('Reset password error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to reset password' 
@@ -936,7 +937,7 @@ export async function verifyResetToken(token: string) {
       email: verificationToken.identifier 
     };
   } catch (error) {
-    console.error('Verify reset token error:', error);
+    logger.error('Verify reset token error:', error);
     return { 
       success: false, 
       error: 'Failed to verify reset token' 

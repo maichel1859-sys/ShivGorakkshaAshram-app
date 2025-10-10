@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
@@ -48,7 +49,7 @@ export async function getGurujiProfile(gurujiId: string) {
 
     return { success: true, guruji };
   } catch (error) {
-    console.error('Get guruji profile error:', error);
+    logger.error('Get guruji profile error:', error);
     return { success: false, error: 'Failed to fetch guruji profile' };
   }
 }
@@ -87,7 +88,7 @@ export async function updateGurujiProfile(formData: FormData) {
 
     return { success: true, guruji };
   } catch (error) {
-    console.error('Update guruji profile error:', error);
+    logger.error('Update guruji profile error:', error);
     return { success: false, error: 'Failed to update profile' };
   }
 }
@@ -110,7 +111,7 @@ export async function getGurujiSchedule(gurujiId: string) {
 
     return { success: true, schedule };
   } catch (error) {
-    console.error('Get guruji schedule error:', error);
+    logger.error('Get guruji schedule error:', error);
     return { success: false, error: 'Failed to fetch schedule' };
   }
 }
@@ -124,7 +125,7 @@ export async function updateGurujiSchedule(formData: FormData) {
     }
 
     // Log formData for debugging (placeholder implementation)
-    console.log('Schedule update data received:', formData.keys());
+    logger.log('Schedule update data received:', formData.keys());
 
     // For now, return a success response
     const schedule = {
@@ -136,7 +137,7 @@ export async function updateGurujiSchedule(formData: FormData) {
 
     return { success: true, schedule };
   } catch (error) {
-    console.error('Update guruji schedule error:', error);
+    logger.error('Update guruji schedule error:', error);
     return { success: false, error: 'Failed to update schedule' };
   }
 }
@@ -195,7 +196,7 @@ export async function getGurujiStats(gurujiId: string) {
 
     return { success: true, stats };
   } catch (error) {
-    console.error('Get guruji stats error:', error);
+    logger.error('Get guruji stats error:', error);
     return { success: false, error: 'Failed to fetch stats' };
   }
 }
@@ -260,7 +261,7 @@ export async function getGurujiAppointments() {
       }))
     };
   } catch (error) {
-    console.error('Error fetching Guruji appointments:', error);
+    logger.error('Error fetching Guruji appointments:', error);
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -328,7 +329,7 @@ export async function getDevoteeContactHistory(devoteeId: string): Promise<{ suc
       data: contactHistory,
     };
   } catch (error) {
-    console.error('Error fetching devotee contact history:', error);
+    logger.error('Error fetching devotee contact history:', error);
     return { success: false, error: 'Failed to fetch contact history' };
   }
 }
@@ -416,7 +417,7 @@ export async function sendDevoteeNotification(
       data: contactHistory,
     };
   } catch (error) {
-    console.error('Error sending devotee notification:', error);
+    logger.error('Error sending devotee notification:', error);
     return { success: false, error: 'Failed to send notification' };
   }
 }

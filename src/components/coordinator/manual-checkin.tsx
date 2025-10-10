@@ -60,7 +60,7 @@ export function ManualCheckIn() {
   const [searchResults, setSearchResults] = useState<AppointmentSearchResult[]>([]);
   const [checkInResult, setCheckInResult] = useState<CheckInResult | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState('RECEPTION_001');
+  const [selectedLocation, setSelectedLocation] = useState('ASHRAM_MAIN');
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
@@ -153,10 +153,7 @@ export function ManualCheckIn() {
                 onChange={(e) => setSelectedLocation(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="RECEPTION_001">Main Reception</option>
-                <option value="GURUJI_LOC_001">Consultation Room 1</option>
-                <option value="GURUJI_LOC_002">Consultation Room 2</option>
-                <option value="WAITING_AREA_001">Waiting Area</option>
+                <option value="ASHRAM_MAIN">Shiv Goraksha Ashram</option>
               </select>
             </div>
           </div>

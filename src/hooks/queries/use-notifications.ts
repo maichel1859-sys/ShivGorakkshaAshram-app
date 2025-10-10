@@ -56,7 +56,7 @@ export function useNotifications(options?: { limit?: number; offset?: number }) 
       if (now - lastUpdateRef.current < 100) return; // Debounce rapid updates
       lastUpdateRef.current = now;
 
-      console.log('🔔 Real-time notification update received:', data);
+      console.log('Real-time notification update received:', data);
 
       queryClient.setQueryData(notificationKeys.list(options || {}), (oldData: { notifications: AppNotification[]; unreadCount: number } | undefined) => {
         if (!oldData) return oldData;
@@ -281,7 +281,7 @@ export function useNotificationsWithRealtime(options?: {
     if (now - lastUpdateRef.current < 100) return; // Debounce rapid updates
     lastUpdateRef.current = now;
 
-    console.log('🔔 Real-time notification update received:', data);
+    console.log('Real-time notification update received:', data);
     setLastUpdate(new Date());
 
     switch (data.type) {
@@ -416,7 +416,8 @@ export function useUnreadNotificationCount() {
       return result.unreadCount || 0;
     },
     staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes as fallback
+    // Poll only when socket is disconnected
+    refetchInterval: connectionStatus.connected ? false : 5 * 60 * 1000,
   });
 
   // Handle real-time unread count updates

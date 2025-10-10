@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -75,7 +76,7 @@ export async function getRemedyTemplates(options?: {
       hasMore: offset + limit < total,
     };
   } catch (error) {
-    console.error('Get remedy templates error:', error);
+    logger.error('Get remedy templates error:', error);
     return { success: false, error: 'Failed to fetch remedy templates' };
   }
 }
@@ -106,7 +107,7 @@ export async function getRemedyTemplate(templateId: string) {
 
     return { success: true, template };
   } catch (error) {
-    console.error('Get remedy template error:', error);
+    logger.error('Get remedy template error:', error);
     return { success: false, error: 'Failed to fetch remedy template' };
   }
 }
@@ -162,7 +163,7 @@ export async function createRemedyTemplate(formData: FormData) {
     
     return { success: true, template };
   } catch (error) {
-    console.error('Create remedy template error:', error);
+    logger.error('Create remedy template error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -214,7 +215,7 @@ export async function updateRemedyTemplate(formData: FormData) {
     
     return { success: true, template };
   } catch (error) {
-    console.error('Update remedy template error:', error);
+    logger.error('Update remedy template error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -263,7 +264,7 @@ export async function deleteRemedyTemplate(formData: FormData) {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete remedy template error:', error);
+    logger.error('Delete remedy template error:', error);
     return { success: false, error: 'Failed to delete remedy template' };
   }
 }
@@ -446,7 +447,7 @@ export async function prescribeRemedy(formData: FormData) {
     
     return { success: true, remedy };
   } catch (error) {
-    console.error('Prescribe remedy error:', error);
+    logger.error('Prescribe remedy error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -506,7 +507,7 @@ export async function generateRemedyPDF(remedyId: string) {
       }
     };
   } catch (error) {
-    console.error('Generate remedy PDF error:', error);
+    logger.error('Generate remedy PDF error:', error);
     return { success: false, error: 'Failed to generate PDF' };
   }
 }
@@ -545,7 +546,7 @@ export async function getGurujiDevotees() {
 
     return { success: true, devotees };
   } catch (error) {
-    console.error('Get guruji devotees error:', error);
+    logger.error('Get guruji devotees error:', error);
     return { success: false, error: 'Failed to fetch devotees' };
   }
 }
@@ -606,7 +607,7 @@ export async function generateRemedyPreview(formData: FormData) {
 
     return { success: true, preview };
   } catch (error) {
-    console.error('Generate remedy preview error:', error);
+    logger.error('Generate remedy preview error:', error);
     return { success: false, error: 'Failed to generate preview' };
   }
 }
@@ -669,7 +670,7 @@ export async function getUserRemedies(options?: {
       hasMore: offset + limit < total,
     };
   } catch (error) {
-    console.error('Get user remedies error:', error);
+    logger.error('Get user remedies error:', error);
     return { success: false, error: 'Failed to fetch remedies' };
   }
 }
@@ -741,7 +742,7 @@ export async function updateRemedyStatus(formData: FormData) {
     
     return { success: true, remedy: updatedRemedy };
   } catch (error) {
-    console.error('Update remedy status error:', error);
+    logger.error('Update remedy status error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -889,7 +890,7 @@ export async function prescribeRemedyDuringConsultation(formData: FormData) {
       message: `Remedy "${template.name}" prescribed successfully`
     };
   } catch (error) {
-    console.error('Prescribe remedy during consultation error:', error);
+    logger.error('Prescribe remedy during consultation error:', error);
     return { success: false, error: 'Failed to prescribe remedy' };
   }
 }
@@ -942,7 +943,7 @@ export async function generateRemedyDocumentPDF(remedyDocumentId: string) {
     return { success: true, pdfUrl };
 
   } catch (error) {
-    console.error('Generate remedy PDF error:', error);
+    logger.error('Generate remedy PDF error:', error);
     return { success: false, error: 'Failed to generate PDF' };
   }
 }
@@ -1004,13 +1005,13 @@ export async function markRemedyDelivered(remedyDocumentId: string) {
         updatedRemedy.userId
       );
     } catch (socketError) {
-      console.warn('Socket emission failed:', socketError);
+      logger.warn('Socket emission failed:', socketError);
     }
 
     return { success: true, remedy: updatedRemedy };
 
   } catch (error) {
-    console.error('Mark remedy delivered error:', error);
+    logger.error('Mark remedy delivered error:', error);
     return { success: false, error: 'Failed to mark remedy as delivered' };
   }
 }
@@ -1071,7 +1072,7 @@ export async function getRemedyDocument(remedyDocumentId: string) {
 
     return { success: true, remedy };
   } catch (error) {
-    console.error('Get remedy document error:', error);
+    logger.error('Get remedy document error:', error);
     return { success: false, error: 'Failed to fetch remedy document' };
   }
 }
@@ -1154,7 +1155,7 @@ export async function getUserRemedyHistory(userId: string, options?: {
       hasMore: (offset + limit) < total
     };
   } catch (error) {
-    console.error('Get user remedy history error:', error);
+    logger.error('Get user remedy history error:', error);
     return { success: false, error: 'Failed to fetch user remedy history' };
   }
 }

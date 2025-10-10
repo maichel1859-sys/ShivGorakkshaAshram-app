@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -185,7 +186,7 @@ export async function createQuickRegistration(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Quick registration error:', error);
+    logger.error('Quick registration error:', error);
     
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
@@ -337,7 +338,7 @@ export async function createPhoneBooking(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Phone booking error:', error);
+    logger.error('Phone booking error:', error);
     
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
@@ -563,7 +564,7 @@ export async function createEmergencyQueueEntry(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Emergency queue entry error:', error);
+    logger.error('Emergency queue entry error:', error);
     
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
@@ -663,7 +664,7 @@ export async function searchUsers(formData: FormData) {
       count: searchResults.length,
     };
   } catch (error) {
-    console.error('User search error:', error);
+    logger.error('User search error:', error);
     
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
@@ -674,3 +675,4 @@ export async function searchUsers(formData: FormData) {
   }
 }
 import { formatAppointmentTime } from "@/lib/utils/time-formatting";
+

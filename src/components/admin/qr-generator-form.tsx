@@ -21,8 +21,8 @@ interface GeneratedQR {
 export function QRGeneratorForm() {
   const [locationId, setLocationId] = useState('ASHRAM_MAIN');
   const [locationName, setLocationName] = useState('Shiv Goraksha Ashram');
-  const [latitude, setLatitude] = useState('19.0760');
-  const [longitude, setLongitude] = useState('72.8777');
+  const [latitude, setLatitude] = useState('18.61091405943072');
+  const [longitude, setLongitude] = useState('73.77134861482362');
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<{ success: boolean; data?: GeneratedQR; error?: string } | null>(null);
 
@@ -132,7 +132,7 @@ export function QRGeneratorForm() {
                   type="text"
                   value={locationId}
                   onChange={(e) => setLocationId(e.target.value)}
-                  placeholder="e.g., RECEPTION_001"
+                  placeholder="e.g., ASHRAM_MAIN"
                   required
                 />
               </div>
@@ -143,7 +143,7 @@ export function QRGeneratorForm() {
                   type="text"
                   value={locationName}
                   onChange={(e) => setLocationName(e.target.value)}
-                  placeholder="e.g., Main Reception"
+                  placeholder="e.g., Shiv Goraksha Ashram"
                   required
                 />
               </div>

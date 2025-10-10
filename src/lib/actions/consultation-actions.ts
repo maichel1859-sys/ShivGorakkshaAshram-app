@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -118,7 +119,7 @@ export async function getConsultations(options?: {
       hasMore: offset + limit < totalCount,
     };
   } catch (error) {
-    console.error('Get consultations error:', error);
+    logger.error('Get consultations error:', error);
     return { success: false, error: 'Failed to fetch consultations' };
   }
 }
@@ -180,7 +181,7 @@ export async function getConsultation(consultationId: string) {
 
     return { success: true, consultation };
   } catch (error) {
-    console.error('Get consultation error:', error);
+    logger.error('Get consultation error:', error);
     return { success: false, error: 'Failed to fetch consultation' };
   }
 }
@@ -293,7 +294,7 @@ export async function createConsultation(formData: FormData) {
         consultation.gurujiId
       );
     } catch (socketError) {
-      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      logger.warn('🔌 Socket emission failed, using polling fallback:', socketError);
       // Socket failed - clients will use polling fallback automatically
       // No action needed here, React Query will handle stale data refresh
     }
@@ -303,7 +304,7 @@ export async function createConsultation(formData: FormData) {
 
     return { success: true, consultation };
   } catch (error) {
-    console.error('Create consultation error:', error);
+    logger.error('Create consultation error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -414,7 +415,7 @@ export async function updateConsultation(formData: FormData) {
         consultation.gurujiId
       );
     } catch (socketError) {
-      console.warn('🔌 Socket emission failed, using polling fallback:', socketError);
+      logger.warn('🔌 Socket emission failed, using polling fallback:', socketError);
       // Socket failed - clients will use polling fallback automatically
       // No action needed here, React Query will handle stale data refresh
     }
@@ -424,7 +425,7 @@ export async function updateConsultation(formData: FormData) {
 
     return { success: true, consultation: updatedConsultation };
   } catch (error) {
-    console.error('Update consultation error:', error);
+    logger.error('Update consultation error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -477,7 +478,7 @@ export async function deleteConsultation(formData: FormData) {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete consultation error:', error);
+    logger.error('Delete consultation error:', error);
     return { success: false, error: 'Failed to delete consultation' };
   }
 }
@@ -550,7 +551,7 @@ export async function getConsultationStats(options?: {
       },
     };
   } catch (error) {
-    console.error('Get consultation stats error:', error);
+    logger.error('Get consultation stats error:', error);
     return { success: false, error: 'Failed to fetch consultation statistics' };
   }
 }
@@ -611,7 +612,7 @@ export async function getAdminConsultations() {
       })),
     };
   } catch (error) {
-    console.error('Get admin consultations error:', error);
+    logger.error('Get admin consultations error:', error);
     return { success: false, error: 'Failed to fetch consultations' };
   }
 }
@@ -685,7 +686,7 @@ export async function getGurujiConsultations() {
       })),
     };
   } catch (error) {
-    console.error('Get guruji consultations error:', error);
+    logger.error('Get guruji consultations error:', error);
     return { success: false, error: 'Failed to fetch consultations' };
   }
 }

@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
@@ -91,7 +92,7 @@ export async function getAppointmentsList(options?: {
       }
     };
   } catch (error) {
-    console.error('Get appointments list error:', error);
+    logger.error('Get appointments list error:', error);
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -146,7 +147,7 @@ export async function getUpcomingAppointments(limit: number = 10) {
 
     return { success: true, appointments };
   } catch (error) {
-    console.error('Get upcoming appointments error:', error);
+    logger.error('Get upcoming appointments error:', error);
     return { success: false, error: 'Failed to fetch upcoming appointments' };
   }
 }
@@ -195,7 +196,7 @@ export async function getTodayAppointments() {
 
     return { success: true, appointments };
   } catch (error) {
-    console.error('Get today appointments error:', error);
+    logger.error('Get today appointments error:', error);
     return { success: false, error: 'Failed to fetch today\'s appointments' };
   }
 }
@@ -205,7 +206,7 @@ export async function cancelAppointmentAction(formData: FormData) {
   const appointmentId = formData.get('appointmentId') as string;
 
   if (!appointmentId) {
-    console.error('Appointment ID is required');
+    logger.error('Appointment ID is required');
     return;
   }
 
@@ -264,8 +265,9 @@ export async function cancelAppointment(appointmentId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error('Cancel appointment error:', error);
+    logger.error('Cancel appointment error:', error);
     return { success: false, error: 'Failed to cancel appointment' };
   }
 }
 import { formatAppointmentTime } from "@/lib/utils/time-formatting";
+

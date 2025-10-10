@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
@@ -196,7 +197,7 @@ export async function getAppointments(options?: {
       hasMore: offset + limit < total,
     };
   } catch (error) {
-    console.error('Get appointments error:', error);
+    logger.error('Get appointments error:', error);
     return { success: false, error: 'Failed to fetch appointments' };
   }
 }
@@ -362,7 +363,7 @@ export async function bookAppointment(formData: FormData) {
 
     return { success: true, appointment };
   } catch (error) {
-    console.error('Book appointment error:', error);
+    logger.error('Book appointment error:', error);
     throw new Error(error instanceof Error ? error.message : 'Failed to book appointment');
   }
 }
@@ -452,7 +453,7 @@ export async function cancelAppointment(appointmentId: string, reason?: string) 
 
     return { success: true };
   } catch (error) {
-    console.error('Cancel appointment error:', error);
+    logger.error('Cancel appointment error:', error);
     throw new Error('Failed to cancel appointment');
   }
 }
@@ -560,7 +561,7 @@ export async function rescheduleAppointment(appointmentId: string, formData: For
     
     return { success: true };
   } catch (error) {
-    console.error('Reschedule appointment error:', error);
+    logger.error('Reschedule appointment error:', error);
     throw new Error(error instanceof Error ? error.message : 'Failed to reschedule appointment');
   }
 }
@@ -656,7 +657,7 @@ export async function updateAppointment(id: string, formData: FormData) {
     
     return { success: true };
   } catch (error) {
-    console.error('Update appointment error:', error);
+    logger.error('Update appointment error:', error);
     return { success: false, error: 'Failed to update appointment' };
   }
 }
@@ -696,7 +697,7 @@ export async function deleteAppointment(id: string) {
     
     return { success: true };
   } catch (error) {
-    console.error('Delete appointment error:', error);
+    logger.error('Delete appointment error:', error);
     return { success: false, error: 'Failed to delete appointment' };
   }
 }
@@ -740,7 +741,7 @@ export async function updateAppointmentStatus(formData: FormData) {
     
     return { success: true };
   } catch (error) {
-    console.error('Update appointment status error:', error);
+    logger.error('Update appointment status error:', error);
     return { success: false, error: 'Failed to update appointment status' };
   }
 }
@@ -824,7 +825,7 @@ export async function getAppointmentAvailability(options?: {
 
     return { success: true, availability: timeSlots };
   } catch (error) {
-    console.error('Get appointment availability error:', error);
+    logger.error('Get appointment availability error:', error);
     return { success: false, error: 'Failed to get availability' };
   }
 }
@@ -955,7 +956,7 @@ export async function getCoordinatorAppointments(options?: {
       skip: options?.offset || 0,
     });
 
-    console.log(`📋 Coordinator fetched ${appointments.length} appointments`);
+    logger.log(`📋 Coordinator fetched ${appointments.length} appointments`);
 
     return {
       success: true,
@@ -967,7 +968,7 @@ export async function getCoordinatorAppointments(options?: {
       })),
     };
   } catch (error) {
-    console.error('Get coordinator appointments error:', error);
+    logger.error('Get coordinator appointments error:', error);
     return { success: false, error: 'Failed to fetch appointments' };
   }
 } 
@@ -1007,7 +1008,7 @@ export async function getAppointment(id: string) {
       appointment
     };
   } catch (error) {
-    console.error('Error fetching appointment:', error);
+    logger.error('Error fetching appointment:', error);
     return {
       success: false,
       error: 'Failed to fetch appointment'
@@ -1190,12 +1191,12 @@ export async function createAppointmentForUser(formData: FormData) {
       });
 
       if (socketResponse.ok) {
-        console.log(`🔌 Broadcasted appointment creation for user to all stakeholders`);
+        logger.log(`🔌 Broadcasted appointment creation for user to all stakeholders`);
       } else {
-        console.warn(`🔌 Failed to broadcast appointment creation for user:`, await socketResponse.text());
+        logger.warn(`🔌 Failed to broadcast appointment creation for user:`, await socketResponse.text());
       }
     } catch (socketError) {
-      console.error('🔌 Socket broadcast error:', socketError);
+      logger.error('🔌 Socket broadcast error:', socketError);
       // Continue even if socket fails
     }
 
@@ -1212,7 +1213,7 @@ export async function createAppointmentForUser(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Create appointment for user error:', error);
+    logger.error('Create appointment for user error:', error);
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
       return { success: false, error: Object.values(validationErrors)[0] || 'Validation failed' };
@@ -1470,7 +1471,7 @@ export async function createOfflineAppointment(formData: FormData) {
       // Note: recalculateQueuePositions would be called here if we had the function imported
       // For now, the position calculation is handled above
     } catch (cacheError) {
-      console.error('Cache invalidation error:', cacheError);
+      logger.error('Cache invalidation error:', cacheError);
       // Continue even if cache invalidation fails
     }
 
@@ -1501,7 +1502,7 @@ export async function createOfflineAppointment(formData: FormData) {
       }
     };
   } catch (error) {
-    console.error('Create offline appointment error:', error);
+    logger.error('Create offline appointment error:', error);
     
     if (error instanceof z.ZodError) {
       const validationErrors = getValidationErrors(error);
@@ -1665,7 +1666,8 @@ export async function createFamilyBooking(formData: FormData) {
 
     return { success: true, appointment };
   } catch (error) {
-    console.error('Create family booking error:', error);
+    logger.error('Create family booking error:', error);
     return { success: false, error: 'Failed to create family booking' };
   }
 }
+

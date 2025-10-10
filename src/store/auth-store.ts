@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import { useSession } from 'next-auth/react';
 import { Role } from '@prisma/client';
@@ -101,27 +101,27 @@ export const useHasAnyRole = (roles: Role[]) => {
 export const useUserRedirect = () => {
   const { data: session, status } = useSession();
   
-  logger.debug('ðŸ” useUserRedirect:', { status, userRole: session?.user?.role, hasSession: !!session });
+  logger.debug('useUserRedirect:', { status, userRole: session?.user?.role, hasSession: !!session });
   
   if (status === 'loading') return { isLoading: true, shouldRedirect: false };
   if (status === 'unauthenticated') {
-    logger.debug('ðŸš« Unauthenticated - redirecting to signin');
+    logger.debug('Unauthenticated - redirecting to signin');
     return { isLoading: false, shouldRedirect: true, redirectTo: '/signin' };
   }
   
   const userRole = session?.user?.role;
   if (!userRole) {
-    logger.debug('ðŸš« No user role - redirecting to signin');
+    logger.debug('No user role - redirecting to signin');
     return { isLoading: false, shouldRedirect: true, redirectTo: '/signin' };
   }
   
   // Allow USER and ADMIN roles for user pages
   if (userRole !== 'USER' && userRole !== 'ADMIN') {
-    logger.debug('ðŸš« Insufficient role:', userRole, '- redirecting to unauthorized');
+    logger.debug('Insufficient role:', userRole, '- redirecting to unauthorized');
     return { isLoading: false, shouldRedirect: true, redirectTo: '/unauthorized' };
   }
   
-  logger.debug('âœ… Access granted for role:', userRole);
+  logger.debug('Access granted for role:', userRole);
   return { isLoading: false, shouldRedirect: false };
 };
 

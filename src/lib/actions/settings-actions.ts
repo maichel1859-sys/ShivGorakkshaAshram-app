@@ -1,4 +1,5 @@
 'use server';
+import { logger } from '@/lib/utils/logger';
 
 
 import { getServerSession } from 'next-auth';
@@ -64,7 +65,7 @@ export async function getSystemSettingsFromSettings() {
       }
     };
   } catch (error) {
-    console.error('Get system settings error:', error);
+    logger.error('Get system settings error:', error);
     return { success: false, error: 'Failed to fetch system settings' };
   }
 }
@@ -99,7 +100,7 @@ export async function getUserSettings() {
       },
     };
   } catch (error) {
-    console.error('Get user settings error:', error);
+    logger.error('Get user settings error:', error);
     return { success: false, error: 'Failed to fetch user settings' };
   }
 }
@@ -132,7 +133,7 @@ export async function updateUserSettings() {
       message: 'Settings updated successfully',
     };
   } catch (error) {
-    console.error('Update user settings error:', error);
+    logger.error('Update user settings error:', error);
     return { success: false, error: 'Failed to update user settings' };
   }
 }
@@ -160,7 +161,7 @@ export async function getNotificationSettings() {
       },
     };
   } catch (error) {
-    console.error('Get notification settings error:', error);
+    logger.error('Get notification settings error:', error);
     return { success: false, error: 'Failed to fetch notification settings' };
   }
 }
@@ -193,7 +194,7 @@ export async function updateNotificationSettings() {
       message: 'Notification settings updated successfully',
     };
   } catch (error) {
-    console.error('Update notification settings error:', error);
+    logger.error('Update notification settings error:', error);
     return { success: false, error: 'Failed to update notification settings' };
   }
 }
@@ -221,7 +222,7 @@ export async function getPrivacySettings() {
       },
     };
   } catch (error) {
-    console.error('Get privacy settings error:', error);
+    logger.error('Get privacy settings error:', error);
     return { success: false, error: 'Failed to fetch privacy settings' };
   }
 }
@@ -254,7 +255,7 @@ export async function updatePrivacySettings() {
       message: 'Privacy settings updated successfully',
     };
   } catch (error) {
-    console.error('Update privacy settings error:', error);
+    logger.error('Update privacy settings error:', error);
     return { success: false, error: 'Failed to update privacy settings' };
   }
 }
@@ -287,7 +288,7 @@ export async function resetUserSettings() {
       message: 'Settings reset to defaults successfully',
     };
   } catch (error) {
-    console.error('Reset user settings error:', error);
+    logger.error('Reset user settings error:', error);
     return { success: false, error: 'Failed to reset user settings' };
   }
 }
@@ -323,7 +324,7 @@ export async function exportUserSettings() {
       filename: `user-settings-${session.user.id}-${new Date().toISOString().split('T')[0]}.json`,
     };
   } catch (error) {
-    console.error('Export user settings error:', error);
+    logger.error('Export user settings error:', error);
     return { success: false, error: 'Failed to export user settings' };
   }
 } 

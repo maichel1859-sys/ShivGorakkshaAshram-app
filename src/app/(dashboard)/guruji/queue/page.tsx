@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSpinner } from "@/components/loading";
 import { useQueueUnified } from "@/hooks/use-queue-unified";
+import { CompleteConsultationButton } from "@/components/guruji/complete-consultation-button";
+import { PrescribeRemedyModal } from "@/components/guruji/prescribe-remedy-modal";
+import { completeConsultation as completeConsultationAction, getConsultationSessionId } from "@/lib/actions/queue-actions";
 import { formatTimeIST } from "@/store/time-store";
 import { showToast } from "@/lib/toast";
 import { 
@@ -27,6 +30,10 @@ export default function GurujiQueuePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [startingConsultationId, setStartingConsultationId] = useState<string | null>(null);
+  const [prescribeModalOpen, setPrescribeModalOpen] = useState(false);
+  const [selectedQueueEntry, setSelectedQueueEntry] = useState<QueueEntry | null>(null);
+  const [consultationSessionId, setConsultationSessionId] = useState<string | null>(null);
+  const [prescribingForId, setPrescribingForId] = useState<string | null>(null);
 
   // Use unified queue hook
   const { 
@@ -39,7 +46,7 @@ export default function GurujiQueuePage() {
   } = useQueueUnified({
     role: "guruji",
     autoRefresh: true,
-    refreshInterval: 5000,
+    refreshInterval: 15000,
     enableRealtime: true,
   });
 
@@ -68,10 +75,35 @@ export default function GurujiQueuePage() {
   };
 
   // Handle completing consultation
-  const handleCompleteConsultation = async (entry: QueueEntry) => {
+  const openPrescribeAndComplete = async (entry: QueueEntry) => {
+    setSelectedQueueEntry(entry);
+    setPrescribingForId(entry.id);
     try {
-      await completeConsultation(entry.id);
-      showToast.success(`Completed consultation with ${entry.user.name}`);
+      const result = await getConsultationSessionId(entry.id);
+      if (result.success && result.consultationSessionId) {
+        setConsultationSessionId(result.consultationSessionId);
+        setPrescribeModalOpen(true);
+      } else {
+        showToast.error('No active consultation session found. Please start the consultation first.');
+      }
+    } catch (e) {
+      showToast.error('Failed to verify consultation session. Please try again.');
+    }
+  };
+
+  const skipAndComplete = async (entry: QueueEntry) => {
+    try {
+      const formData = new FormData();
+      formData.append('queueEntryId', entry.id);
+      formData.append('skipRemedy', 'true');
+      const result = await completeConsultationAction(formData);
+      if (result?.success) {
+        showToast.success(`Completed consultation with ${entry.user.name}`);
+        setPrescribingForId(null);
+        await refetch();
+      } else {
+        showToast.error(result?.error || 'Failed to complete consultation');
+      }
     } catch (error) {
       console.error('Error completing consultation:', error);
       showToast.error('Failed to complete consultation');
@@ -266,14 +298,13 @@ export default function GurujiQueuePage() {
                       )}
                       
                       {entry.status === 'IN_PROGRESS' && (
-                        <Button
-                          onClick={() => handleCompleteConsultation(entry)}
-                          variant="outline"
-                          className="border-green-600 text-green-600 hover:bg-green-50"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Complete Consultation
-                        </Button>
+                        <CompleteConsultationButton
+                          onPrescribeAndComplete={() => openPrescribeAndComplete(entry)}
+                          onSkipAndComplete={() => skipAndComplete(entry)}
+                          isLoading={prescribingForId === entry.id}
+                          size="sm"
+                          className="border-green-600"
+                        />
                       )}
                     </div>
                   </div>
@@ -283,6 +314,49 @@ export default function GurujiQueuePage() {
           )}
         </CardContent>
       </Card>
+      {/* Prescribe Remedy Modal */}
+      {selectedQueueEntry && consultationSessionId && (
+        <PrescribeRemedyModal
+          isOpen={prescribeModalOpen}
+          onClose={() => {
+            setPrescribeModalOpen(false);
+            setSelectedQueueEntry(null);
+            setConsultationSessionId(null);
+            setPrescribingForId(null);
+          }}
+          consultationId={consultationSessionId}
+          devoteeName={selectedQueueEntry.user.name || 'Devotee'}
+          devoteeId={selectedQueueEntry.user.id}
+          onSuccess={async () => {
+            try {
+              if (selectedQueueEntry) {
+                const formData = new FormData();
+                formData.append('queueEntryId', selectedQueueEntry.id);
+                const result = await completeConsultationAction(formData);
+                if (result?.success) {
+                  showToast.success('Consultation completed successfully');
+                  setPrescribeModalOpen(false);
+                  setSelectedQueueEntry(null);
+                  setConsultationSessionId(null);
+                  setPrescribingForId(null);
+                  await refetch();
+                } else {
+                  showToast.error(result?.error || 'Failed to complete consultation');
+                }
+              }
+            } catch (e) {
+              showToast.error('Failed to complete consultation');
+            }
+          }}
+          onSkip={() => {
+            if (selectedQueueEntry) {
+              skipAndComplete(selectedQueueEntry);
+              setSelectedQueueEntry(null);
+              setConsultationSessionId(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
