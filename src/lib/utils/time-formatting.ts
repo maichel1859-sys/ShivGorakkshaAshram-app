@@ -21,13 +21,29 @@ function formatInTimeZone(dateTime: Date | string, opts: Intl.DateTimeFormatOpti
 /**
  * Convert a local date/time in app timezone to a UTC Date
  * Example: toAppZonedDate('2025-10-09', '09:35') -> Date at 04:05 UTC
+ * Example: toAppZonedDate('2025-02-15', '10:00') -> Date representing 10:00 AM IST
  */
 export function toAppZonedDate(dateStr: string, timeStr?: string): Date {
-  const time = timeStr ? `${timeStr}:${timeStr.includes(':') ? '00' : ''}` : '00:00:00';
-  // Construct an ISO string with explicit offset, e.g., 2025-10-09T09:35:00+05:30
-  // If timeStr already includes seconds, keep them (above we normalize to at least HH:MM:SS)
-  const normalized = `${dateStr}T${time.includes(':') ? time : `${time}:00`}`;
-  return new Date(`${normalized}${APP_TZ_OFFSET}`);
+  // Normalize time string to HH:MM:SS format
+  let time = '00:00:00';
+  if (timeStr) {
+    const parts = timeStr.split(':');
+    if (parts.length === 1) {
+      // Just hour, e.g., "10"
+      time = `${parts[0].padStart(2, '0')}:00:00`;
+    } else if (parts.length === 2) {
+      // Hour and minute, e.g., "10:00" or "09:30"
+      time = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:00`;
+    } else {
+      // Already has seconds, e.g., "10:00:00"
+      time = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
+    }
+  }
+
+  // Construct an ISO string with explicit offset for IST (+05:30)
+  // Example: 2025-02-15T10:00:00+05:30
+  const isoString = `${dateStr}T${time}${APP_TZ_OFFSET}`;
+  return new Date(isoString);
 }
 
 /**

@@ -274,9 +274,9 @@ export async function bookAppointment(formData: FormData) {
       gurujiId = guruji.id;
     }
 
-    // Validate date and time
-    const appointmentDateTime = new Date(`${data.timeSlot.date}T${data.timeSlot.startTime}:00`);
-    
+    // Validate date and time - Use toAppZonedDate for proper IST handling
+    const appointmentDateTime = toAppZonedDate(data.timeSlot.date, data.timeSlot.startTime);
+
     // For development: Allow any date/time (no restrictions)
     // In production, you would add time restrictions here
 
